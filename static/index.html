@@ -438,7 +438,7 @@ select.w-sm { width: 72px; }
 .red-dots { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
 .dot { width: 11px; height: 11px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,.15); transition: transform .1s; }
 .dot:hover { transform: scale(1.2); }
-.dot.yellow { background: #f59e0b; }
+.dot.yellow { background: #fde047; }
 .dot.red    { background: #ef4444; }
 .collection-wrap { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text2); flex-shrink: 0; }
 .collection-wrap input[type=checkbox] { cursor: pointer; width: 13px; height: 13px; }
@@ -464,6 +464,18 @@ select.w-sm { width: 72px; }
   white-space: nowrap;
 }
 .free-badge.depleted { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
+.cmd-wrap { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.cmd-wrap label { font-size: 10px; color: var(--text3); white-space: nowrap; }
+.cmd-select {
+  font-size: 11px; font-weight: 700; padding: 2px 4px; border-radius: 4px;
+  border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
+  cursor: pointer; width: 36px;
+}
+.team-cmd-total {
+  font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600;
+  border: 1px solid #c7d2fe; background: #eef2ff; color: #3730a3;
+}
+.team-cmd-total.over { border-color: #fca5a5; background: #fee2e2; color: #b91c1c; }
 .btn-reset {
   font-size: 12px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
   border: 1px solid #fca5a5; background: #fff1f2; color: #b91c1c;
@@ -472,7 +484,7 @@ select.w-sm { width: 72px; }
 .btn-reset:hover { background: #fee2e2; }
 
 /* ── 武将搜索下拉 ── */
-.gen-selector { position: relative; flex: 1; min-width: 60px; max-width: 120px; }
+.gen-selector { position: relative; flex: 1; min-width: 50px; max-width: 90px; }
 .gen-input-wrap {
   display: flex; align-items: center; gap: 3px;
   border: 1px solid var(--border2); border-radius: 5px;
@@ -549,6 +561,8 @@ select.w-sm { width: 72px; }
     <div class="card">
       <div class="card-header team-a">
         <span>🔵 我方队伍（A）</span>
+        <span class="team-cmd-total" :class="teamCommandTotal('a')>20?'over':''"
+          x-text="'统御 '+teamCommandTotal('a')+'/20'"></span>
         <select class="team-troop-select" x-model="teamTroop.a" @change="lockTeamTroop('a')">
           <option value="">兵种不限</option>
           <option value="cavalry">骑兵</option>
@@ -634,7 +648,15 @@ select.w-sm { width: 72px; }
                 </template>
               </select>
               <span class="free-badge" :class="freeLeft(g)===0 ? 'depleted' : ''"
-                x-text="'SP '+freeLeft(g)+'/'+freeTotal(g)"></span>
+                x-text="'余点 '+freeLeft(g)+'/'+freeTotal(g)"></span>
+              <div class="cmd-wrap">
+                <label>统御</label>
+                <select class="cmd-select" x-model.number="g.command_value">
+                  <template x-for="v in [7,6,5,4,3,2,1]" :key="v">
+                    <option :value="v" x-text="v"></option>
+                  </template>
+                </select>
+              </div>
             </div>
             <div class="general-body">
               <!-- Stats + 成长值 -->
@@ -781,6 +803,8 @@ select.w-sm { width: 72px; }
     <div class="card">
       <div class="card-header team-b">
         <span>🔴 敌方队伍（B）</span>
+        <span class="team-cmd-total" :class="teamCommandTotal('b')>20?'over':''"
+          x-text="'统御 '+teamCommandTotal('b')+'/20'"></span>
         <select class="team-troop-select" x-model="teamTroop.b" @change="lockTeamTroop('b')">
           <option value="">兵种不限</option>
           <option value="cavalry">骑兵</option>
@@ -866,7 +890,15 @@ select.w-sm { width: 72px; }
                 </template>
               </select>
               <span class="free-badge" :class="freeLeft(g)===0 ? 'depleted' : ''"
-                x-text="'SP '+freeLeft(g)+'/'+freeTotal(g)"></span>
+                x-text="'余点 '+freeLeft(g)+'/'+freeTotal(g)"></span>
+              <div class="cmd-wrap">
+                <label>统御</label>
+                <select class="cmd-select" x-model.number="g.command_value">
+                  <template x-for="v in [7,6,5,4,3,2,1]" :key="v">
+                    <option :value="v" x-text="v"></option>
+                  </template>
+                </select>
+              </div>
             </div>
             <div class="general-body">
               <div class="stats-row">
@@ -1153,7 +1185,7 @@ function simulator() {
       name, troops, troop_type: type, troop_grade: grade, skills,
       level: 5,
       db_id: null, dirty: false, editing: false,
-      red_dots: 0, is_collection: false,
+      red_dots: 0, is_collection: false, command_value: 5,
       free_force: 0, free_intel: 0, free_command: 0, free_speed: 0, free_politics: 0, free_charisma: 0,
       affinities: { cavalry: 'C', bow: 'C', spear: 'C', shield: 'C', machine: 'C' },
       force:           +parseFloat(force).toFixed(2),
@@ -1293,6 +1325,10 @@ function simulator() {
       g.dirty       = false;
     },
 
+    teamCommandTotal(team) {
+      return this.teams[team].reduce((sum, g) => sum + (g.command_value || 5), 0);
+    },
+
     lockTeamTroop(team) {
       const type = this.teamTroop[team];
       if (!type) return;
@@ -1319,6 +1355,7 @@ function simulator() {
       g.red_dots       = 0;
       g.is_collection  = false;
       g.free_force = g.free_intel = g.free_command = g.free_speed = g.free_politics = g.free_charisma = 0;
+      g.command_value  = +(gen.command_value ?? 5);
       g.force_base     = +parseFloat(gen.strength    ?? 0).toFixed(2);
       g.intel_base     = +parseFloat(gen.intelligence?? 0).toFixed(2);
       g.command_base   = +parseFloat(gen.leadership  ?? 0).toFixed(2);

@@ -196,7 +196,7 @@ def list_generals():
                    strength, intelligence, leadership, speed, politics, charisma,
                    str_growth, int_growth, lead_growth, spd_growth, pol_growth, cha_growth,
                    cavalry, bow, spear, shield, machine,
-                   innate_skill, role
+                   innate_skill, role, command_value
             FROM generals
             ORDER BY name
         """)
