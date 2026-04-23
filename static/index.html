@@ -641,28 +641,28 @@ select.w-sm { width: 72px; }
               <div class="stats-row">
                 <div class="stat-cell">
                   <label>武力</label>
-                  <input type="number" x-model.number="g.force" step="1" @change="g.editing?syncBase(g,'force'):adjustFree(g,'force')">
+                  <input type="number" x-model.number="g.force" step="1" @input="g.editing?syncBase(g,'force'):adjustFree(g,'force')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>智力</label>
-                  <input type="number" x-model.number="g.intel" step="1" @change="g.editing?syncBase(g,'intel'):adjustFree(g,'intel')">
+                  <input type="number" x-model.number="g.intel" step="1" @input="g.editing?syncBase(g,'intel'):adjustFree(g,'intel')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>统率</label>
-                  <input type="number" x-model.number="g.command" step="1" @change="g.editing?syncBase(g,'command'):adjustFree(g,'command')">
+                  <input type="number" x-model.number="g.command" step="1" @input="g.editing?syncBase(g,'command'):adjustFree(g,'command')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>速度</label>
-                  <input type="number" x-model.number="g.speed" step="1" @change="g.editing?syncBase(g,'speed'):adjustFree(g,'speed')">
+                  <input type="number" x-model.number="g.speed" step="1" @input="g.editing?syncBase(g,'speed'):adjustFree(g,'speed')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
                   </div>
@@ -671,14 +671,14 @@ select.w-sm { width: 72px; }
               <div class="stats-row" style="grid-template-columns:1fr 1fr;">
                 <div class="stat-cell">
                   <label>政治</label>
-                  <input type="number" x-model.number="g.politics" step="1" @change="g.editing?syncBase(g,'politics'):adjustFree(g,'politics')">
+                  <input type="number" x-model.number="g.politics" step="1" @input="g.editing?syncBase(g,'politics'):adjustFree(g,'politics')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>魅力</label>
-                  <input type="number" x-model.number="g.charisma" step="1" @change="g.editing?syncBase(g,'charisma'):adjustFree(g,'charisma')">
+                  <input type="number" x-model.number="g.charisma" step="1" @input="g.editing?syncBase(g,'charisma'):adjustFree(g,'charisma')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
                   </div>
@@ -872,28 +872,28 @@ select.w-sm { width: 72px; }
               <div class="stats-row">
                 <div class="stat-cell">
                   <label>武力</label>
-                  <input type="number" x-model.number="g.force" step="1" @change="g.editing?syncBase(g,'force'):adjustFree(g,'force')">
+                  <input type="number" x-model.number="g.force" step="1" @input="g.editing?syncBase(g,'force'):adjustFree(g,'force')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>智力</label>
-                  <input type="number" x-model.number="g.intel" step="1" @change="g.editing?syncBase(g,'intel'):adjustFree(g,'intel')">
+                  <input type="number" x-model.number="g.intel" step="1" @input="g.editing?syncBase(g,'intel'):adjustFree(g,'intel')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>统率</label>
-                  <input type="number" x-model.number="g.command" step="1" @change="g.editing?syncBase(g,'command'):adjustFree(g,'command')">
+                  <input type="number" x-model.number="g.command" step="1" @input="g.editing?syncBase(g,'command'):adjustFree(g,'command')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>速度</label>
-                  <input type="number" x-model.number="g.speed" step="1" @change="g.editing?syncBase(g,'speed'):adjustFree(g,'speed')">
+                  <input type="number" x-model.number="g.speed" step="1" @input="g.editing?syncBase(g,'speed'):adjustFree(g,'speed')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
                   </div>
@@ -902,14 +902,14 @@ select.w-sm { width: 72px; }
               <div class="stats-row" style="grid-template-columns:1fr 1fr;">
                 <div class="stat-cell">
                   <label>政治</label>
-                  <input type="number" x-model.number="g.politics" step="1" @change="g.editing?syncBase(g,'politics'):adjustFree(g,'politics')">
+                  <input type="number" x-model.number="g.politics" step="1" @input="g.editing?syncBase(g,'politics'):adjustFree(g,'politics')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>魅力</label>
-                  <input type="number" x-model.number="g.charisma" step="1" @change="g.editing?syncBase(g,'charisma'):adjustFree(g,'charisma')">
+                  <input type="number" x-model.number="g.charisma" step="1" @input="g.editing?syncBase(g,'charisma'):adjustFree(g,'charisma')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
                   </div>
