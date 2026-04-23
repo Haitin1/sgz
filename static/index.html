@@ -1461,10 +1461,10 @@ function simulator() {
     buildPayload(runs) {
       const clean = (g) => ({
         name: g.name || '无名武将',
-        force:   g.force   + (g.free_force  ||0),
-        intel:   g.intel   + (g.free_intel  ||0),
-        command: g.command + (g.free_command ||0),
-        speed:   g.speed   + (g.free_speed  ||0),
+        force:   g.force,
+        intel:   g.intel,
+        command: g.command,
+        speed:   g.speed,
         troops: g.troops, troop_type: g.troop_type, troop_grade: g.troop_grade,
         skills: g.skills.map(s => ({
           name: s.name || '无名战法',
