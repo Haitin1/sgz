@@ -458,6 +458,12 @@ select.w-sm { width: 72px; }
 .free-cell label { font-size: 10px; color: var(--text3); }
 .free-cell input { text-align: center; padding: 2px 3px; font-size: 12px; color: #b45309; border-color: #fde68a; width: 100%; background: #fffdf0; }
 
+.free-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  background: #fef9c3; border: 1px solid #fde68a; color: #92400e; flex-shrink: 0;
+  white-space: nowrap;
+}
+.free-badge.depleted { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
 .btn-reset {
   font-size: 12px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
   border: 1px solid #fca5a5; background: #fff1f2; color: #b91c1c;
@@ -627,34 +633,36 @@ select.w-sm { width: 72px; }
                   <option :value="lv" x-text="'Lv'+lv"></option>
                 </template>
               </select>
+              <span class="free-badge" :class="freeLeft(g)===0 ? 'depleted' : ''"
+                x-text="'SP '+freeLeft(g)+'/'+freeTotal(g)"></span>
             </div>
             <div class="general-body">
               <!-- Stats + 成长值 -->
               <div class="stats-row">
                 <div class="stat-cell">
                   <label>武力</label>
-                  <input type="number" x-model.number="g.force" step="1" @change="syncBase(g,'force')">
+                  <input type="number" x-model.number="g.force" step="1" @change="g.editing ? syncBase(g,'force') : adjustFree(g,'force')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>智力</label>
-                  <input type="number" x-model.number="g.intel" step="1" @change="syncBase(g,'intel')">
+                  <input type="number" x-model.number="g.intel" step="1" @change="g.editing ? syncBase(g,'intel') : adjustFree(g,'intel')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>统率</label>
-                  <input type="number" x-model.number="g.command" step="1" @change="syncBase(g,'command')">
+                  <input type="number" x-model.number="g.command" step="1" @change="g.editing ? syncBase(g,'command') : adjustFree(g,'command')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>速度</label>
-                  <input type="number" x-model.number="g.speed" step="1" @change="syncBase(g,'speed')">
+                  <input type="number" x-model.number="g.speed" step="1" @change="g.editing ? syncBase(g,'speed') : adjustFree(g,'speed')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
                   </div>
@@ -663,34 +671,17 @@ select.w-sm { width: 72px; }
               <div class="stats-row" style="grid-template-columns:1fr 1fr;">
                 <div class="stat-cell">
                   <label>政治</label>
-                  <input type="number" x-model.number="g.politics" step="1" @change="syncBase(g,'politics')">
+                  <input type="number" x-model.number="g.politics" step="1" @change="g.editing ? syncBase(g,'politics') : adjustFree(g,'politics')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>魅力</label>
-                  <input type="number" x-model.number="g.charisma" step="1" @change="syncBase(g,'charisma')">
+                  <input type="number" x-model.number="g.charisma" step="1" @change="g.editing ? syncBase(g,'charisma') : adjustFree(g,'charisma')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
                   </div>
-                </div>
-              </div>
-              <!-- 自由属性点 -->
-              <div class="free-panel">
-                <div class="free-panel-head">
-                  <span>自由属性点</span>
-                  <span class="free-remaining">
-                    剩余 <strong x-text="freeLeft(g)"></strong> / <span x-text="freeTotal(g)"></span>
-                  </span>
-                </div>
-                <div class="free-grid">
-                  <div class="free-cell"><label>武力+</label><input type="number" x-model.number="g.free_force" min="0" step="1" @change="capFree(g,'free_force')"></div>
-                  <div class="free-cell"><label>智力+</label><input type="number" x-model.number="g.free_intel" min="0" step="1" @change="capFree(g,'free_intel')"></div>
-                  <div class="free-cell"><label>统率+</label><input type="number" x-model.number="g.free_command" min="0" step="1" @change="capFree(g,'free_command')"></div>
-                  <div class="free-cell"><label>速度+</label><input type="number" x-model.number="g.free_speed" min="0" step="1" @change="capFree(g,'free_speed')"></div>
-                  <div class="free-cell"><label>政治+</label><input type="number" x-model.number="g.free_politics" min="0" step="1" @change="capFree(g,'free_politics')"></div>
-                  <div class="free-cell"><label>魅力+</label><input type="number" x-model.number="g.free_charisma" min="0" step="1" @change="capFree(g,'free_charisma')"></div>
                 </div>
               </div>
               <div class="troop-row">
@@ -874,33 +865,35 @@ select.w-sm { width: 72px; }
                   <option :value="lv" x-text="'Lv'+lv"></option>
                 </template>
               </select>
+              <span class="free-badge" :class="freeLeft(g)===0 ? 'depleted' : ''"
+                x-text="'SP '+freeLeft(g)+'/'+freeTotal(g)"></span>
             </div>
             <div class="general-body">
               <div class="stats-row">
                 <div class="stat-cell">
                   <label>武力</label>
-                  <input type="number" x-model.number="g.force" step="1" @change="syncBase(g,'force')">
+                  <input type="number" x-model.number="g.force" step="1" @change="g.editing ? syncBase(g,'force') : adjustFree(g,'force')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>智力</label>
-                  <input type="number" x-model.number="g.intel" step="1" @change="syncBase(g,'intel')">
+                  <input type="number" x-model.number="g.intel" step="1" @change="g.editing ? syncBase(g,'intel') : adjustFree(g,'intel')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>统率</label>
-                  <input type="number" x-model.number="g.command" step="1" @change="syncBase(g,'command')">
+                  <input type="number" x-model.number="g.command" step="1" @change="g.editing ? syncBase(g,'command') : adjustFree(g,'command')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>速度</label>
-                  <input type="number" x-model.number="g.speed" step="1" @change="syncBase(g,'speed')">
+                  <input type="number" x-model.number="g.speed" step="1" @change="g.editing ? syncBase(g,'speed') : adjustFree(g,'speed')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
                   </div>
@@ -909,34 +902,17 @@ select.w-sm { width: 72px; }
               <div class="stats-row" style="grid-template-columns:1fr 1fr;">
                 <div class="stat-cell">
                   <label>政治</label>
-                  <input type="number" x-model.number="g.politics" step="1" @change="syncBase(g,'politics')">
+                  <input type="number" x-model.number="g.politics" step="1" @change="g.editing ? syncBase(g,'politics') : adjustFree(g,'politics')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
                   </div>
                 </div>
                 <div class="stat-cell">
                   <label>魅力</label>
-                  <input type="number" x-model.number="g.charisma" step="1" @change="syncBase(g,'charisma')">
+                  <input type="number" x-model.number="g.charisma" step="1" @change="g.editing ? syncBase(g,'charisma') : adjustFree(g,'charisma')">
                   <div class="growth-wrap"><span class="growth-label">成长</span>
                     <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
                   </div>
-                </div>
-              </div>
-              <!-- 自由属性点 -->
-              <div class="free-panel">
-                <div class="free-panel-head">
-                  <span>自由属性点</span>
-                  <span class="free-remaining">
-                    剩余 <strong x-text="freeLeft(g)"></strong> / <span x-text="freeTotal(g)"></span>
-                  </span>
-                </div>
-                <div class="free-grid">
-                  <div class="free-cell"><label>武力+</label><input type="number" x-model.number="g.free_force" min="0" step="1" @change="capFree(g,'free_force')"></div>
-                  <div class="free-cell"><label>智力+</label><input type="number" x-model.number="g.free_intel" min="0" step="1" @change="capFree(g,'free_intel')"></div>
-                  <div class="free-cell"><label>统率+</label><input type="number" x-model.number="g.free_command" min="0" step="1" @change="capFree(g,'free_command')"></div>
-                  <div class="free-cell"><label>速度+</label><input type="number" x-model.number="g.free_speed" min="0" step="1" @change="capFree(g,'free_speed')"></div>
-                  <div class="free-cell"><label>政治+</label><input type="number" x-model.number="g.free_politics" min="0" step="1" @change="capFree(g,'free_politics')"></div>
-                  <div class="free-cell"><label>魅力+</label><input type="number" x-model.number="g.free_charisma" min="0" step="1" @change="capFree(g,'free_charisma')"></div>
                 </div>
               </div>
               <div class="troop-row">
@@ -1379,26 +1355,44 @@ function simulator() {
     recalcStats(team, idx) {
       const g = this.teams[team][idx];
       const lv = g.level - 5;
-      g.force    = +( g.force_base    + g.force_growth    * lv ).toFixed(2);
-      g.intel    = +( g.intel_base    + g.intel_growth    * lv ).toFixed(2);
-      g.command  = +( g.command_base  + g.command_growth  * lv ).toFixed(2);
-      g.speed    = +( g.speed_base    + g.speed_growth    * lv ).toFixed(2);
-      g.politics = +( g.politics_base + g.politics_growth * lv ).toFixed(2);
-      g.charisma = +( g.charisma_base + g.charisma_growth * lv ).toFixed(2);
+      g.force    = +( g.force_base    + g.force_growth    * lv + (g.free_force   ||0) ).toFixed(2);
+      g.intel    = +( g.intel_base    + g.intel_growth    * lv + (g.free_intel   ||0) ).toFixed(2);
+      g.command  = +( g.command_base  + g.command_growth  * lv + (g.free_command ||0) ).toFixed(2);
+      g.speed    = +( g.speed_base    + g.speed_growth    * lv + (g.free_speed   ||0) ).toFixed(2);
+      g.politics = +( g.politics_base + g.politics_growth * lv + (g.free_politics||0) ).toFixed(2);
+      g.charisma = +( g.charisma_base + g.charisma_growth * lv + (g.free_charisma||0) ).toFixed(2);
     },
 
-    // 用户手动改属性值时，反推基础值（Lv5）
+    // 编辑模式：手动改属性值时，反推基础值（扣掉自由点和等级成长）
     syncBase(g, stat) {
       const lv = g.level - 5;
-      g[stat + '_base'] = +( g[stat] - g[stat + '_growth'] * lv ).toFixed(2);
+      const free = g['free_' + stat] || 0;
+      g[stat + '_base'] = +( g[stat] - free - g[stat + '_growth'] * lv ).toFixed(2);
       g.dirty = true;
     },
 
-    // 用户改成长值时，保持当前显示值不变，但更新基础值
+    // 编辑模式：改成长值时，反推基础值
     syncGrowth(g, stat) {
       const lv = g.level - 5;
-      g[stat + '_base'] = +( g[stat] - g[stat + '_growth'] * lv ).toFixed(2);
+      const free = g['free_' + stat] || 0;
+      g[stat + '_base'] = +( g[stat] - free - g[stat + '_growth'] * lv ).toFixed(2);
       g.dirty = true;
+    },
+
+    // 非编辑模式：在属性值上直接分配/回收自由点
+    adjustFree(g, stat) {
+      const freeStat = 'free_' + stat;
+      const lv = g.level - 5;
+      const baseAtLevel = g[stat + '_base'] + g[stat + '_growth'] * lv;
+      const newFree = g[stat] - baseAtLevel;
+      if (newFree < 0) {
+        g[freeStat] = 0;
+        g[stat] = +baseAtLevel.toFixed(2);
+      } else {
+        const maxFree = (g[freeStat] || 0) + this.freeLeft(g);
+        g[freeStat] = Math.min(Math.round(newFree), maxFree);
+        g[stat] = +(baseAtLevel + g[freeStat]).toFixed(2);
+      }
     },
 
     async saveGeneral(team, idx) {
