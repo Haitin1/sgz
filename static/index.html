@@ -398,7 +398,7 @@ select.w-sm { width: 72px; }
 }
 .advisor-input-wrap input {
   border: none; background: transparent; outline: none;
-  font-size: 12px; color: inherit; width: 80px; cursor: pointer;
+  font-size: 12px; color: inherit; width: 64px; cursor: pointer;
 }
 .advisor-input-wrap input::placeholder { color: inherit; opacity: .7; }
 .advisor-input-wrap .clear-btn {
@@ -572,7 +572,7 @@ select.w-sm { width: 72px; }
     <!-- Team A -->
     <div class="card">
       <div class="card-header team-a">
-        <span>🔵 我方队伍（A）</span>
+        <span style="white-space:nowrap;flex-shrink:0">🔵 我方（A）</span>
         <span class="team-cmd-total" :class="teamCommandTotal('a')>20?'over':''"
           x-text="'统御 '+teamCommandTotal('a')+'/20'"></span>
         <select class="team-troop-select" x-model="teamTroop.a" @change="lockTeamTroop('a')">
@@ -584,13 +584,11 @@ select.w-sm { width: 72px; }
           <option value="machine">器械</option>
         </select>
         <div class="bonus-group">
-          <span class="bonus-label">加成</span>
           <span class="bonus-badge clickable" :class="bonus.a.affinity?'active':''" @click="bonus.a.affinity=!bonus.a.affinity">缘分</span>
           <span class="bonus-badge clickable" :class="bonus.a.faction?'active':''" @click="bonus.a.faction=!bonus.a.faction">阵营</span>
           <span class="bonus-badge" :class="troopBonus('a')?'active':''" title="兵种科技等级>0时自动激活">兵种</span>
         </div>
         <div class="advisor-wrap" @click.outside="advisorOpen.a=false">
-          <span class="advisor-label">军师</span>
           <div class="advisor-selector">
             <div class="advisor-input-wrap" @click="advisorOpen.a=!advisorOpen.a">
               <input type="text" x-model="advisorSearch.a" :placeholder="advisor.a ? advisor.a.general_name : '选择军师'"
@@ -820,7 +818,7 @@ select.w-sm { width: 72px; }
     <!-- Team B -->
     <div class="card">
       <div class="card-header team-b">
-        <span>🔴 敌方队伍（B）</span>
+        <span style="white-space:nowrap;flex-shrink:0">🔴 敌方（B）</span>
         <span class="team-cmd-total" :class="teamCommandTotal('b')>20?'over':''"
           x-text="'统御 '+teamCommandTotal('b')+'/20'"></span>
         <select class="team-troop-select" x-model="teamTroop.b" @change="lockTeamTroop('b')">
@@ -832,13 +830,11 @@ select.w-sm { width: 72px; }
           <option value="machine">器械</option>
         </select>
         <div class="bonus-group">
-          <span class="bonus-label">加成</span>
           <span class="bonus-badge clickable" :class="bonus.b.affinity?'active':''" @click="bonus.b.affinity=!bonus.b.affinity">缘分</span>
           <span class="bonus-badge clickable" :class="bonus.b.faction?'active':''" @click="bonus.b.faction=!bonus.b.faction">阵营</span>
           <span class="bonus-badge" :class="troopBonus('b')?'active':''" title="兵种科技等级>0时自动激活">兵种</span>
         </div>
         <div class="advisor-wrap" @click.outside="advisorOpen.b=false">
-          <span class="advisor-label">军师</span>
           <div class="advisor-selector">
             <div class="advisor-input-wrap" @click="advisorOpen.b=!advisorOpen.b">
               <input type="text" x-model="advisorSearch.b" :placeholder="advisor.b ? advisor.b.general_name : '选择军师'"
