@@ -88,7 +88,7 @@ body {
   background: var(--surface2);
 }
 .general-header {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
   padding: 7px 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -484,7 +484,7 @@ select.w-sm { width: 72px; }
 .btn-reset:hover { background: #fee2e2; }
 
 /* ── 武将搜索下拉 ── */
-.gen-selector { position: relative; flex: 1; min-width: 50px; max-width: 90px; }
+.gen-selector { position: relative; width: 90px; flex-shrink: 0; }
 .gen-input-wrap {
   display: flex; align-items: center; gap: 3px;
   border: 1px solid var(--border2); border-radius: 5px;
@@ -648,7 +648,7 @@ select.w-sm { width: 72px; }
                 </template>
               </select>
               <span class="free-badge" :class="freeLeft(g)===0 ? 'depleted' : ''"
-                x-text="'余点 '+freeLeft(g)+'/'+freeTotal(g)"></span>
+                x-text="'自由属性点 '+freeLeft(g)+'/'+freeTotal(g)"></span>
               <div class="cmd-wrap">
                 <label>统御</label>
                 <select class="cmd-select" x-model.number="g.command_value">
@@ -890,7 +890,7 @@ select.w-sm { width: 72px; }
                 </template>
               </select>
               <span class="free-badge" :class="freeLeft(g)===0 ? 'depleted' : ''"
-                x-text="'余点 '+freeLeft(g)+'/'+freeTotal(g)"></span>
+                x-text="'自由属性点 '+freeLeft(g)+'/'+freeTotal(g)"></span>
               <div class="cmd-wrap">
                 <label>统御</label>
                 <select class="cmd-select" x-model.number="g.command_value">
