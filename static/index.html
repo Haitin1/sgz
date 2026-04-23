@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>三国志战略版 · 对战模拟器</title>
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f4f1eb;
+  --surface: #ffffff;
+  --surface2: #faf8f4;
+  --border: #e0d8cc;
+  --border2: #ccc3b4;
+  --text: #2c2416;
+  --text2: #6b5a48;
+  --text3: #9c8a78;
+  --accent-a: #2563eb;
+  --accent-a-light: #eff6ff;
+  --accent-a-border: #bfdbfe;
+  --accent-b: #dc2626;
+  --accent-b-light: #fef2f2;
+  --accent-b-border: #fecaca;
+  --green: #16a34a;
+  --green-light: #f0fdf4;
+  --gold: #b45309;
+  --gold-light: #fffbeb;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Layout ── */
+.app { max-width: 1200px; margin: 0 auto; padding: 16px; }
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 0 16px; border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.header h1 { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: 1px; }
+.header .subtitle { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+.teams-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 800px) {
+  .teams-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  font-weight: 600; font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.card-header.team-a { background: var(--accent-a-light); color: var(--accent-a); border-bottom-color: var(--accent-a-border); }
+.card-header.team-b { background: var(--accent-b-light); color: var(--accent-b); border-bottom-color: var(--accent-b-border); }
+.card-body { padding: 12px 14px; }
+
+/* ── General Block ── */
+.general-block {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  background: var(--surface2);
+}
+.general-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  border-radius: 6px 6px 0 0;
+  font-size: 12px;
+}
+.general-header .role-badge {
+  font-size: 11px; font-weight: 600; padding: 1px 6px;
+  border-radius: 4px; flex-shrink: 0;
+}
+.role-badge.main { background: #fef9c3; color: #854d0e; border: 1px solid #fde68a; }
+.role-badge.sub  { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.general-body { padding: 10px; }
+
+/* ── Form Elements ── */
+.field-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 7px; flex-wrap: wrap;
+}
+.field-row label { font-size: 12px; color: var(--text2); flex-shrink: 0; width: 44px; text-align: right; }
+.field-row label.wide { width: 56px; }
+
+input[type="text"], input[type="number"], select {
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 4px 7px;
+  font-size: 13px;
+  color: var(--text);
+  background: #fff;
+  outline: none;
+  transition: border-color .15s;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(59,130,246,.12);
+}
+input[type="number"] { width: 72px; }
+input.w-name { width: 90px; }
+input.w-sm { width: 56px; }
+select.w-md { width: 90px; }
+select.w-sm { width: 72px; }
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.stat-cell { display: flex; flex-direction: column; gap: 2px; }
+.stat-cell label { font-size: 11px; color: var(--text3); text-align: center; }
+.stat-cell input { text-align: center; padding: 4px 4px; font-size: 13px; }
+.stat-cell .growth-wrap {
+  display: flex; align-items: center; gap: 2px; margin-top: 1px;
+}
+.stat-cell .growth-label { font-size: 10px; color: var(--text3); flex-shrink: 0; }
+.stat-cell .growth-input { text-align: center; padding: 2px 4px; font-size: 11px; color: var(--green); border-color: #bbf7d0; width: 100%; }
+
+.troop-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;
+}
+.troop-row label { font-size: 12px; color: var(--text2); }
+
+/* ── Affinity Badges ── */
+.affinity-badges {
+  display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.affinity-badge {
+  padding: 3px 9px; border-radius: 4px; cursor: pointer;
+  font-size: 12px; font-weight: 700; border: 2px solid transparent;
+  transition: all 0.12s; letter-spacing: 0.5px;
+}
+.affinity-badge.grade-S { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.affinity-badge.grade-A { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.affinity-badge.grade-B { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+.affinity-badge.grade-C { background: #f9fafb; color: #9ca3af; border-color: #e5e7eb; }
+.affinity-badge.active.grade-S { background: #fbbf24; color: #78350f; border-color: #d97706; box-shadow: 0 0 0 2px #fcd34d55; }
+.affinity-badge.active.grade-A { background: #22c55e; color: #14532d; border-color: #16a34a; box-shadow: 0 0 0 2px #86efac55; }
+.affinity-badge.active.grade-B { background: #3b82f6; color: #fff; border-color: #2563eb; box-shadow: 0 0 0 2px #93c5fd55; }
+.affinity-badge.active.grade-C { background: #9ca3af; color: #fff; border-color: #6b7280; }
+.affinity-badge.locked { opacity: 0.35; }
+.team-troop-select {
+  font-size: 12px; padding: 2px 6px; border-radius: 4px;
+  border: 1px solid currentColor; opacity: 0.8;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.affinity-grade-sel {
+  border: none; background: transparent; color: inherit;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  padding: 0; margin: 0; outline: none; appearance: none;
+  -webkit-appearance: none; width: 14px;
+}
+
+/* ── Skills ── */
+.skills-label {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--text2); font-weight: 600;
+  margin-bottom: 5px;
+}
+.skill-row {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 7px 8px;
+  margin-bottom: 6px;
+  position: relative;
+}
+.skill-row-top {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;
+}
+.skill-row-bot {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+}
+.skill-row-bot label { font-size: 11px; color: var(--text3); }
+
+/* ── Tech Panel ── */
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+.tech-cell { display: flex; flex-direction: column; gap: 2px; }
+.tech-cell label { font-size: 11px; color: var(--text3); text-align: center; }
+.tech-cell input { text-align: center; padding: 4px; font-size: 13px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  padding: 6px 14px; border-radius: 6px; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  user-select: none;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: var(--surface); color: var(--text2); border: 1px solid var(--border2); }
+.btn-secondary:hover { background: #f1f5f9; }
+.btn-danger { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; font-size: 12px; padding: 3px 8px; }
+.btn-add { background: var(--green-light); color: var(--green); border: 1px solid #bbf7d0; font-size: 12px; padding: 3px 8px; }
+.btn-sm { font-size: 12px; padding: 4px 10px; }
+.btn:disabled { opacity: .5; pointer-events: none; }
+
+.run-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 12px 0;
+}
+.run-bar .runs-field {
+  display: flex; align-items: center; gap: 6px;
+}
+.run-bar .runs-field label { font-size: 13px; color: var(--text2); }
+
+/* ── Results ── */
+.result-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  margin-top: 4px;
+}
+.result-banner {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.result-team {
+  flex: 1; padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.result-team.winner { background: var(--green-light); }
+.result-team.loser  { background: var(--accent-b-light); }
+.result-team.draw   { background: var(--gold-light); }
+.result-team .verdict { font-size: 20px; font-weight: 700; }
+.result-team.winner .verdict { color: var(--green); }
+.result-team.loser  .verdict { color: var(--accent-b); }
+.result-team.draw   .verdict { color: var(--gold); }
+.result-team .team-name { font-size: 13px; color: var(--text2); }
+.result-team .hp-summary { font-size: 12px; color: var(--text3); }
+
+.result-divider {
+  width: 1px; background: var(--border); flex-shrink: 0;
+}
+
+.hero-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  padding: 12px 14px;
+}
+.hero-summary {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+}
+.hero-summary .hname { font-weight: 700; font-size: 13px; margin-bottom: 3px; }
+.hero-summary .hname .dead { color: var(--accent-b); font-size: 11px; margin-left: 4px; }
+.hero-summary .hrow { display: flex; justify-content: space-between; color: var(--text2); margin-top: 2px; }
+
+/* ── Battle Log ── */
+.log-section { padding: 0 14px 14px; }
+.log-toggle {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text2);
+  border-top: 1px solid var(--border);
+  user-select: none;
+}
+.log-toggle:hover { color: var(--text); }
+
+.engagement-block { margin-bottom: 12px; }
+.engagement-title {
+  font-size: 12px; font-weight: 700; color: var(--text3);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 3px 8px; margin-bottom: 4px;
+  display: inline-block;
+}
+.log-entry {
+  display: grid;
+  grid-template-columns: 36px 72px 1fr 80px 80px;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.log-entry:nth-child(even) { background: var(--surface2); }
+.log-entry .rnd  { color: var(--text3); text-align: center; font-size: 11px; }
+.log-entry .actor { font-weight: 600; color: var(--text); }
+.log-entry .action { color: var(--text2); }
+.log-entry .val  { text-align: right; }
+.log-entry .tgt  { color: var(--text3); font-size: 11px; }
+.log-entry.prep-row { opacity: .7; }
+.val.dmg  { color: var(--accent-b); font-weight: 600; }
+.val.heal { color: var(--green); font-weight: 600; }
+
+/* ── Batch results ── */
+.batch-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 8px;
+  padding: 12px 14px;
+}
+.batch-cell {
+  padding: 12px; border-radius: 6px; text-align: center;
+  border: 1px solid var(--border);
+}
+.batch-cell .big { font-size: 28px; font-weight: 700; }
+.batch-cell .lbl { font-size: 12px; color: var(--text3); margin-top: 2px; }
+.batch-cell.win  { background: var(--green-light);  border-color: #bbf7d0; }
+.batch-cell.draw { background: var(--gold-light);   border-color: #fde68a; }
+.batch-cell.lose { background: var(--accent-b-light); border-color: var(--accent-b-border); }
+.batch-cell.win  .big { color: var(--green); }
+.batch-cell.draw .big { color: var(--gold); }
+.batch-cell.lose .big { color: var(--accent-b); }
+.batch-meta { padding: 0 14px 12px; display: flex; gap: 16px; font-size: 12px; color: var(--text3); }
+
+/* ── Error ── */
+.error-box {
+  background: var(--accent-b-light); border: 1px solid var(--accent-b-border);
+  border-radius: 6px; padding: 10px 14px; color: var(--accent-b);
+  font-size: 13px; margin-top: 8px;
+}
+
+/* ── Misc ── */
+.section-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.sep { border: none; border-top: 1px dashed var(--border); margin: 8px 0; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #93c5fd; border-top-color: #2563eb; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── 军师选择器 ── */
+.advisor-wrap {
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  margin-left: auto;
+}
+.advisor-label { font-size: 12px; font-weight: 600; white-space: nowrap; opacity: .85; }
+.advisor-selector {
+  position: relative;
+}
+.advisor-input-wrap {
+  display: flex; align-items: center;
+  background: rgba(255,255,255,.7);
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 6px;
+  padding: 3px 8px;
+  gap: 4px;
+  cursor: pointer;
+  min-width: 110px;
+}
+.advisor-input-wrap input {
+  border: none; background: transparent; outline: none;
+  font-size: 12px; color: inherit; width: 80px; cursor: pointer;
+}
+.advisor-input-wrap input::placeholder { color: inherit; opacity: .7; }
+.advisor-input-wrap .clear-btn {
+  cursor: pointer; opacity: .6; font-size: 12px; flex-shrink: 0;
+  line-height: 1;
+}
+.advisor-input-wrap .clear-btn:hover { opacity: 1; }
+.advisor-dropdown {
+  position: absolute; top: calc(100% + 4px); right: 0;
+  min-width: 200px; max-height: 280px; overflow-y: auto;
+  background: #fff; border: 1px solid var(--border2);
+  border-radius: 8px; box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+.advisor-dropdown-item {
+  padding: 7px 12px; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.advisor-dropdown-item:last-child { border-bottom: none; }
+.advisor-dropdown-item:hover { background: var(--surface2); }
+.advisor-dropdown-item .adv-name { font-weight: 600; color: var(--text); }
+.advisor-dropdown-item .adv-skill { font-size: 11px; color: var(--text3); }
+.advisor-attr-badge {
+  font-size: 10px; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; flex-shrink: 0;
+}
+.attr-风 { background: #e0f2fe; color: #0369a1; }
+.attr-林 { background: #dcfce7; color: #15803d; }
+.attr-火 { background: #fee2e2; color: #b91c1c; }
+.attr-山 { background: #fef9c3; color: #854d0e; }
+.attr-  { background: #f1f5f9; color: #475569; }
+.advisor-empty { padding: 12px; text-align: center; font-size: 12px; color: var(--text3); }
+
+/* ── 武将搜索下拉 ── */
+.gen-selector { position: relative; flex: 1; min-width: 0; }
+.gen-input-wrap {
+  display: flex; align-items: center; gap: 3px;
+  border: 1px solid var(--border2); border-radius: 5px;
+  background: #fff; padding: 2px 6px; cursor: text;
+}
+.gen-input-wrap input {
+  border: none; background: transparent; outline: none;
+  font-size: 13px; color: var(--text); width: 100%; min-width: 0;
+}
+.gen-input-wrap .gen-clear { font-size: 11px; color: var(--text3); cursor: pointer; flex-shrink: 0; }
+.gen-input-wrap .gen-clear:hover { color: var(--accent-b); }
+.gen-dropdown {
+  position: absolute; top: calc(100% + 3px); left: 0;
+  width: 260px; max-height: 260px; overflow-y: auto;
+  background: #fff; border: 1px solid var(--border2);
+  border-radius: 8px; box-shadow: var(--shadow-md);
+  z-index: 200;
+}
+.gen-dropdown-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; cursor: pointer; font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.gen-dropdown-item:last-child { border-bottom: none; }
+.gen-dropdown-item:hover { background: var(--surface2); }
+.gen-faction { font-size: 11px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; font-weight: 600; }
+.faction-魏 { background: #dbeafe; color: #1d4ed8; }
+.faction-蜀 { background: #dcfce7; color: #15803d; }
+.faction-吴 { background: #fef9c3; color: #854d0e; }
+.faction-群 { background: #fce7f3; color: #9d174d; }
+.faction-汉 { background: #ede9fe; color: #6d28d9; }
+.gen-stats-preview { font-size: 11px; color: var(--text3); margin-left: auto; white-space: nowrap; }
+
+/* 等级选择 */
+.level-select { font-size: 12px; padding: 3px 5px; width: 58px; }
+
+/* 保存按钮 */
+.save-row {
+  display: flex; justify-content: flex-end; margin-top: 6px;
+}
+.btn-save { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; font-size: 12px; padding: 4px 12px; }
+.btn-save:hover { background: #dcfce7; }
+.btn-save.dirty { background: var(--green); color: #fff; border-color: var(--green); }
+
+/* 已选军师信息卡 */
+.advisor-card {
+  border-radius: 6px; padding: 8px 10px;
+  margin-bottom: 10px; font-size: 12px;
+  border: 1px solid;
+}
+.advisor-card.team-a { background: #eff6ff; border-color: var(--accent-a-border); }
+.advisor-card.team-b { background: #fef2f2; border-color: var(--accent-b-border); }
+.advisor-card .ac-head {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 600; margin-bottom: 4px;
+}
+.advisor-card .ac-desc { color: var(--text2); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="app" x-data="simulator()">
+
+  <div class="header">
+    <div>
+      <h1>⚔️ 三国志战略版 · 对战模拟器</h1>
+      <div class="subtitle">配置双方武将 → 点击模拟对战</div>
+    </div>
+  </div>
+
+  <!-- Teams -->
+  <div class="teams-grid">
+
+    <!-- Team A -->
+    <div class="card">
+      <div class="card-header team-a">
+        <span>🔵 我方队伍（A）</span>
+        <select class="team-troop-select" x-model="teamTroop.a" @change="lockTeamTroop('a')">
+          <option value="">兵种不限</option>
+          <option value="cavalry">骑兵</option>
+          <option value="bow">弓兵</option>
+          <option value="spear">枪兵</option>
+          <option value="shield">盾兵</option>
+          <option value="machine">器械</option>
+        </select>
+        <div class="advisor-wrap" @click.outside="advisorOpen.a=false">
+          <span class="advisor-label">军师</span>
+          <div class="advisor-selector">
+            <div class="advisor-input-wrap" @click="advisorOpen.a=!advisorOpen.a">
+              <input type="text" x-model="advisorSearch.a" :placeholder="advisor.a ? advisor.a.general_name : '选择军师'"
+                @input="advisorOpen.a=true" @focus="advisorOpen.a=true" autocomplete="off">
+              <span class="clear-btn" x-show="advisor.a" @click.stop="advisor.a=null;advisorSearch.a=''">✕</span>
+              <span style="font-size:10px;opacity:.5" x-text="advisorOpen.a?'▲':'▼'"></span>
+            </div>
+            <div class="advisor-dropdown" x-show="advisorOpen.a">
+              <template x-if="filteredAdvisors('a').length===0">
+                <div class="advisor-empty">无匹配结果</div>
+              </template>
+              <template x-for="s in filteredAdvisors('a')" :key="s.id">
+                <div class="advisor-dropdown-item" @click="advisor.a=s;advisorSearch.a='';advisorOpen.a=false">
+                  <span class="advisor-attr-badge" :class="'attr-'+(s.attribute||'')" x-text="s.attribute||'?'"></span>
+                  <span class="adv-name" x-text="s.general_name"></span>
+                  <span class="adv-skill" x-text="s.skill_name"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- 军师技信息卡 -->
+        <div class="advisor-card team-a" x-show="advisor.a" x-transition>
+          <div class="ac-head">
+            <span class="advisor-attr-badge" :class="'attr-'+(advisor.a?.attribute||'')" x-text="advisor.a?.attribute||''"></span>
+            <span x-text="advisor.a?.general_name"></span>
+            <span>·</span>
+            <span x-text="advisor.a?.skill_name"></span>
+            <span x-show="advisor.a?.cost" style="margin-left:auto;font-size:11px;opacity:.7" x-text="'计略点 '+advisor.a?.cost"></span>
+          </div>
+          <div class="ac-desc" x-text="advisor.a?.description"></div>
+        </div>
+        <template x-for="(g, gi) in teams.a" :key="gi">
+          <div class="general-block">
+            <div class="general-header" @click.outside="genOpen.a[gi]=false">
+              <span class="role-badge" :class="gi===0 ? 'main' : 'sub'" x-text="gi===0 ? '主将' : '副将'"></span>
+              <div class="gen-selector">
+                <div class="gen-input-wrap">
+                  <input type="text" x-model="genSearch.a[gi]"
+                    :placeholder="g.name || '搜索武将'"
+                    @input="genOpen.a[gi]=true"
+                    @focus="genOpen.a[gi]=true"
+                    autocomplete="off">
+                  <span class="gen-clear" x-show="g.name" @click.stop="g.name='';genSearch.a[gi]=''">✕</span>
+                </div>
+                <div class="gen-dropdown" x-show="genOpen.a[gi]">
+                  <template x-if="filteredGenerals('a',gi).length===0">
+                    <div class="advisor-empty">无匹配结果</div>
+                  </template>
+                  <template x-for="gen in filteredGenerals('a',gi)" :key="gen.id">
+                    <div class="gen-dropdown-item" @click="pickGeneral('a',gi,gen)">
+                      <span class="gen-faction" :class="'faction-'+(gen.faction||'')" x-text="gen.faction||'?'"></span>
+                      <span x-text="gen.name"></span>
+                      <span class="gen-stats-preview" x-text="gen.strength+'/'+gen.intelligence+'/'+gen.leadership+'/'+gen.speed"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <select class="level-select" x-model.number="g.level" @change="recalcStats('a',gi)">
+                <template x-for="lv in levelOptions" :key="lv">
+                  <option :value="lv" x-text="'Lv'+lv"></option>
+                </template>
+              </select>
+            </div>
+            <div class="general-body">
+              <!-- Stats + 成长值 -->
+              <div class="stats-row">
+                <div class="stat-cell">
+                  <label>武力</label>
+                  <input type="number" x-model.number="g.force" step="0.01" @change="syncBase(g,'force')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>智力</label>
+                  <input type="number" x-model.number="g.intel" step="0.01" @change="syncBase(g,'intel')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>统率</label>
+                  <input type="number" x-model.number="g.command" step="0.01" @change="syncBase(g,'command')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>速度</label>
+                  <input type="number" x-model.number="g.speed" step="0.01" @change="syncBase(g,'speed')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')"></div>
+                </div>
+              </div>
+              <div class="stats-row" style="grid-template-columns:1fr 1fr;">
+                <div class="stat-cell">
+                  <label>政治</label>
+                  <input type="number" x-model.number="g.politics" step="0.01" @change="syncBase(g,'politics')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>魅力</label>
+                  <input type="number" x-model.number="g.charisma" step="0.01" @change="syncBase(g,'charisma')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')"></div>
+                </div>
+              </div>
+              <div class="troop-row">
+                <label>兵力</label>
+                <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:90px">
+              </div>
+              <div class="affinity-badges">
+                <template x-for="af in affinityList(g)" :key="af.type">
+                  <div class="affinity-badge" style="position:relative"
+                    :class="['grade-'+g.affinities[af.type], g.troop_type===af.type ? 'active' : '', teamTroop.a && af.type!==teamTroop.a ? 'locked' : '']">
+                    <span x-text="af.name"></span>
+                    <span x-text="g.affinities[af.type]"></span>
+                    <select style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                      x-model="g.affinities[af.type]"
+                      @change="g.troop_type = teamTroop.a || af.type; g.troop_grade=g.affinities[af.type]">
+                      <option>S</option><option>A</option><option>B</option><option>C</option>
+                    </select>
+                  </div>
+                </template>
+              </div>
+              <hr class="sep">
+              <!-- Skills -->
+              <div class="skills-label"><span>战法</span></div>
+              <template x-for="(s, si) in g.skills" :key="si">
+                <div class="skill-row">
+                  <div class="skill-row-top">
+                    <span style="font-size:11px;color:var(--text3);flex-shrink:0" x-text="'战法'+(si+1)"></span>
+                    <input type="text" x-model="s.name" placeholder="战法名" style="width:100px">
+                    <select class="w-md" x-model="s.skill_type">
+                      <option value="主动">主动</option>
+                      <option value="突击">突击</option>
+                      <option value="指挥">指挥</option>
+                      <option value="被动">被动</option>
+                      <option value="兵种">兵种</option>
+                      <option value="阵法">阵法</option>
+                    </select>
+                    <span style="font-size:12px;color:var(--text3)">发动率</span>
+                    <input type="number" x-model.number="s.activation_rate" min="0" max="1" step="0.05" style="width:60px">
+                  </div>
+                  <div class="skill-row-bot">
+                    <label>伤害系数</label>
+                    <input type="number" x-model.number="s.damage_rate" min="0" max="10" step="0.1" style="width:60px">
+                    <label>伤害类型</label>
+                    <select x-model="s.damage_type" style="width:72px">
+                      <option value="兵刃">兵刃</option>
+                      <option value="谋略">谋略</option>
+                    </select>
+                    <label>目标</label>
+                    <select x-model="s.target_mode" style="width:100px">
+                      <option value="single_enemy">单体敌</option>
+                      <option value="all_enemy">全体敌</option>
+                      <option value="self">自身</option>
+                      <option value="all_ally">全体友</option>
+                      <option value="single_ally">单体友</option>
+                    </select>
+                  </div>
+                  <div class="skill-row-bot" style="margin-top:4px">
+                    <label>治疗率</label>
+                    <input type="number" x-model.number="s.heal_rate" min="0" max="5" step="0.05" style="width:60px">
+                    <label>治疗目标</label>
+                    <select x-model="s.heal_target" style="width:80px">
+                      <option value="self">自身</option>
+                      <option value="all_ally">全体友</option>
+                      <option value="single_ally">单体友</option>
+                    </select>
+                    <label>施加状态</label>
+                    <input type="text" x-model="s.apply_status" placeholder="无" style="width:72px">
+                  </div>
+                </div>
+              </template>
+              <!-- 保存按钮 -->
+              <div class="save-row" x-show="g.db_id">
+                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" @click="saveGeneral('a',gi)">
+                  <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Tech A -->
+        <hr class="sep">
+        <div class="section-label">科技配置</div>
+        <div class="tech-grid">
+          <div class="tech-cell"><label>攻击科技</label><input type="number" x-model.number="tech.a.tech_attack" min="0" max="20"></div>
+          <div class="tech-cell"><label>谋略科技</label><input type="number" x-model.number="tech.a.tech_intel" min="0" max="20"></div>
+          <div class="tech-cell"><label>防御科技</label><input type="number" x-model.number="tech.a.tech_defense" min="0" max="20"></div>
+          <div class="tech-cell"><label>九宫图(0-5)</label><input type="number" x-model.number="tech.a.jiugong" min="0" max="5"></div>
+          <div class="tech-cell"><label>八卦阵(0-5)</label><input type="number" x-model.number="tech.a.bagua" min="0" max="5"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Team B -->
+    <div class="card">
+      <div class="card-header team-b">
+        <span>🔴 敌方队伍（B）</span>
+        <select class="team-troop-select" x-model="teamTroop.b" @change="lockTeamTroop('b')">
+          <option value="">兵种不限</option>
+          <option value="cavalry">骑兵</option>
+          <option value="bow">弓兵</option>
+          <option value="spear">枪兵</option>
+          <option value="shield">盾兵</option>
+          <option value="machine">器械</option>
+        </select>
+        <div class="advisor-wrap" @click.outside="advisorOpen.b=false">
+          <span class="advisor-label">军师</span>
+          <div class="advisor-selector">
+            <div class="advisor-input-wrap" @click="advisorOpen.b=!advisorOpen.b">
+              <input type="text" x-model="advisorSearch.b" :placeholder="advisor.b ? advisor.b.general_name : '选择军师'"
+                @input="advisorOpen.b=true" @focus="advisorOpen.b=true" autocomplete="off">
+              <span class="clear-btn" x-show="advisor.b" @click.stop="advisor.b=null;advisorSearch.b=''">✕</span>
+              <span style="font-size:10px;opacity:.5" x-text="advisorOpen.b?'▲':'▼'"></span>
+            </div>
+            <div class="advisor-dropdown" x-show="advisorOpen.b">
+              <template x-if="filteredAdvisors('b').length===0">
+                <div class="advisor-empty">无匹配结果</div>
+              </template>
+              <template x-for="s in filteredAdvisors('b')" :key="s.id">
+                <div class="advisor-dropdown-item" @click="advisor.b=s;advisorSearch.b='';advisorOpen.b=false">
+                  <span class="advisor-attr-badge" :class="'attr-'+(s.attribute||'')" x-text="s.attribute||'?'"></span>
+                  <span class="adv-name" x-text="s.general_name"></span>
+                  <span class="adv-skill" x-text="s.skill_name"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- 军师技信息卡 -->
+        <div class="advisor-card team-b" x-show="advisor.b" x-transition>
+          <div class="ac-head">
+            <span class="advisor-attr-badge" :class="'attr-'+(advisor.b?.attribute||'')" x-text="advisor.b?.attribute||''"></span>
+            <span x-text="advisor.b?.general_name"></span>
+            <span>·</span>
+            <span x-text="advisor.b?.skill_name"></span>
+            <span x-show="advisor.b?.cost" style="margin-left:auto;font-size:11px;opacity:.7" x-text="'计略点 '+advisor.b?.cost"></span>
+          </div>
+          <div class="ac-desc" x-text="advisor.b?.description"></div>
+        </div>
+        <template x-for="(g, gi) in teams.b" :key="gi">
+          <div class="general-block">
+            <div class="general-header" @click.outside="genOpen.b[gi]=false">
+              <span class="role-badge" :class="gi===0 ? 'main' : 'sub'" x-text="gi===0 ? '主将' : '副将'"></span>
+              <div class="gen-selector">
+                <div class="gen-input-wrap">
+                  <input type="text" x-model="genSearch.b[gi]"
+                    :placeholder="g.name || '搜索武将'"
+                    @input="genOpen.b[gi]=true"
+                    @focus="genOpen.b[gi]=true"
+                    autocomplete="off">
+                  <span class="gen-clear" x-show="g.name" @click.stop="g.name='';genSearch.b[gi]=''">✕</span>
+                </div>
+                <div class="gen-dropdown" x-show="genOpen.b[gi]">
+                  <template x-if="filteredGenerals('b',gi).length===0">
+                    <div class="advisor-empty">无匹配结果</div>
+                  </template>
+                  <template x-for="gen in filteredGenerals('b',gi)" :key="gen.id">
+                    <div class="gen-dropdown-item" @click="pickGeneral('b',gi,gen)">
+                      <span class="gen-faction" :class="'faction-'+(gen.faction||'')" x-text="gen.faction||'?'"></span>
+                      <span x-text="gen.name"></span>
+                      <span class="gen-stats-preview" x-text="gen.strength+'/'+gen.intelligence+'/'+gen.leadership+'/'+gen.speed"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <select class="level-select" x-model.number="g.level" @change="recalcStats('b',gi)">
+                <template x-for="lv in levelOptions" :key="lv">
+                  <option :value="lv" x-text="'Lv'+lv"></option>
+                </template>
+              </select>
+            </div>
+            <div class="general-body">
+              <div class="stats-row">
+                <div class="stat-cell">
+                  <label>武力</label>
+                  <input type="number" x-model.number="g.force" step="0.01" @change="syncBase(g,'force')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>智力</label>
+                  <input type="number" x-model.number="g.intel" step="0.01" @change="syncBase(g,'intel')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>统率</label>
+                  <input type="number" x-model.number="g.command" step="0.01" @change="syncBase(g,'command')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>速度</label>
+                  <input type="number" x-model.number="g.speed" step="0.01" @change="syncBase(g,'speed')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')"></div>
+                </div>
+              </div>
+              <div class="stats-row" style="grid-template-columns:1fr 1fr;">
+                <div class="stat-cell">
+                  <label>政治</label>
+                  <input type="number" x-model.number="g.politics" step="0.01" @change="syncBase(g,'politics')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')"></div>
+                </div>
+                <div class="stat-cell">
+                  <label>魅力</label>
+                  <input type="number" x-model.number="g.charisma" step="0.01" @change="syncBase(g,'charisma')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')"></div>
+                </div>
+              </div>
+              <div class="troop-row">
+                <label>兵力</label>
+                <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:90px">
+              </div>
+              <div class="affinity-badges">
+                <template x-for="af in affinityList(g)" :key="af.type">
+                  <div class="affinity-badge" style="position:relative"
+                    :class="['grade-'+g.affinities[af.type], g.troop_type===af.type ? 'active' : '', teamTroop.b && af.type!==teamTroop.b ? 'locked' : '']">
+                    <span x-text="af.name"></span>
+                    <span x-text="g.affinities[af.type]"></span>
+                    <select style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                      x-model="g.affinities[af.type]"
+                      @change="g.troop_type = teamTroop.b || af.type; g.troop_grade=g.affinities[af.type]">
+                      <option>S</option><option>A</option><option>B</option><option>C</option>
+                    </select>
+                  </div>
+                </template>
+              </div>
+              <hr class="sep">
+              <div class="skills-label"><span>战法</span></div>
+              <template x-for="(s, si) in g.skills" :key="si">
+                <div class="skill-row">
+                  <div class="skill-row-top">
+                    <span style="font-size:11px;color:var(--text3);flex-shrink:0" x-text="'战法'+(si+1)"></span>
+                    <input type="text" x-model="s.name" placeholder="战法名" style="width:100px">
+                    <select class="w-md" x-model="s.skill_type">
+                      <option value="主动">主动</option>
+                      <option value="突击">突击</option>
+                      <option value="指挥">指挥</option>
+                      <option value="被动">被动</option>
+                      <option value="兵种">兵种</option>
+                      <option value="阵法">阵法</option>
+                    </select>
+                    <span style="font-size:12px;color:var(--text3)">发动率</span>
+                    <input type="number" x-model.number="s.activation_rate" min="0" max="1" step="0.05" style="width:60px">
+                  </div>
+                  <div class="skill-row-bot">
+                    <label>伤害系数</label>
+                    <input type="number" x-model.number="s.damage_rate" min="0" max="10" step="0.1" style="width:60px">
+                    <label>伤害类型</label>
+                    <select x-model="s.damage_type" style="width:72px">
+                      <option value="兵刃">兵刃</option>
+                      <option value="谋略">谋略</option>
+                    </select>
+                    <label>目标</label>
+                    <select x-model="s.target_mode" style="width:100px">
+                      <option value="single_enemy">单体敌</option>
+                      <option value="all_enemy">全体敌</option>
+                      <option value="self">自身</option>
+                      <option value="all_ally">全体友</option>
+                      <option value="single_ally">单体友</option>
+                    </select>
+                  </div>
+                  <div class="skill-row-bot" style="margin-top:4px">
+                    <label>治疗率</label>
+                    <input type="number" x-model.number="s.heal_rate" min="0" max="5" step="0.05" style="width:60px">
+                    <label>治疗目标</label>
+                    <select x-model="s.heal_target" style="width:80px">
+                      <option value="self">自身</option>
+                      <option value="all_ally">全体友</option>
+                      <option value="single_ally">单体友</option>
+                    </select>
+                    <label>施加状态</label>
+                    <input type="text" x-model="s.apply_status" placeholder="无" style="width:72px">
+                  </div>
+                </div>
+              </template>
+              <!-- 保存按钮 -->
+              <div class="save-row" x-show="g.db_id">
+                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" @click="saveGeneral('b',gi)">
+                  <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Tech B -->
+        <hr class="sep">
+        <div class="section-label">科技配置</div>
+        <div class="tech-grid">
+          <div class="tech-cell"><label>攻击科技</label><input type="number" x-model.number="tech.b.tech_attack" min="0" max="20"></div>
+          <div class="tech-cell"><label>谋略科技</label><input type="number" x-model.number="tech.b.tech_intel" min="0" max="20"></div>
+          <div class="tech-cell"><label>防御科技</label><input type="number" x-model.number="tech.b.tech_defense" min="0" max="20"></div>
+          <div class="tech-cell"><label>九宫图(0-5)</label><input type="number" x-model.number="tech.b.jiugong" min="0" max="5"></div>
+          <div class="tech-cell"><label>八卦阵(0-5)</label><input type="number" x-model.number="tech.b.bagua" min="0" max="5"></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /teams-grid -->
+
+  <!-- Run Bar -->
+  <div class="run-bar">
+    <button class="btn btn-primary" @click="simulate(1)" :disabled="loading">
+      <span x-show="loading && runs===1" class="spinner"></span>
+      <span>⚔️ 模拟对战（单次）</span>
+    </button>
+    <div class="runs-field">
+      <label>批量次数</label>
+      <input type="number" x-model.number="batchRuns" min="2" max="500" style="width:72px">
+      <button class="btn btn-secondary" @click="simulate(batchRuns)" :disabled="loading">
+        <span x-show="loading && runs===batchRuns" class="spinner"></span>
+        <span>📊 批量模拟</span>
+      </button>
+    </div>
+    <span x-show="loading" style="font-size:12px;color:var(--text3)">模拟中，请稍候…</span>
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" x-show="error" x-text="error"></div>
+
+  <!-- ── Single Run Result ── -->
+  <div class="result-panel" x-show="result && !result.runs">
+    <!-- verdict banner -->
+    <div class="result-banner">
+      <div class="result-team"
+        :class="result.winner==='A' ? 'winner' : result.winner==='draw' ? 'draw' : 'loser'">
+        <div class="verdict"
+          x-text="result.winner==='A' ? '🏆 胜利' : result.winner==='draw' ? '🤝 平局' : '💀 失败'">
+        </div>
+        <div class="team-name">我方（A）</div>
+        <div class="hp-summary" x-text="'剩余总兵力 ' + result.team_a.reduce((s,h)=>s+h.troops_left,0).toLocaleString()"></div>
+      </div>
+      <div class="result-divider"></div>
+      <div class="result-team"
+        :class="result.winner==='B' ? 'winner' : result.winner==='draw' ? 'draw' : 'loser'">
+        <div class="verdict"
+          x-text="result.winner==='B' ? '🏆 胜利' : result.winner==='draw' ? '🤝 平局' : '💀 失败'">
+        </div>
+        <div class="team-name">敌方（B）</div>
+        <div class="hp-summary" x-text="'剩余总兵力 ' + result.team_b.reduce((s,h)=>s+h.troops_left,0).toLocaleString()"></div>
+      </div>
+    </div>
+
+    <!-- hero summaries -->
+    <div class="hero-summary-grid">
+      <template x-for="h in result.team_a">
+        <div class="hero-summary" style="border-left:3px solid var(--accent-a)">
+          <div class="hname">
+            <span x-text="h.name"></span>
+            <span class="dead" x-show="!h.alive">（阵亡）</span>
+          </div>
+          <div class="hrow"><span>剩余兵力</span><span x-text="h.troops_left.toLocaleString()"></span></div>
+          <div class="hrow"><span>损失</span><span x-text="(h.loss_pct*100).toFixed(1) + '%'"></span></div>
+        </div>
+      </template>
+      <template x-for="h in result.team_b">
+        <div class="hero-summary" style="border-left:3px solid var(--accent-b)">
+          <div class="hname">
+            <span x-text="h.name"></span>
+            <span class="dead" x-show="!h.alive">（阵亡）</span>
+          </div>
+          <div class="hrow"><span>剩余兵力</span><span x-text="h.troops_left.toLocaleString()"></span></div>
+          <div class="hrow"><span>损失</span><span x-text="(h.loss_pct*100).toFixed(1) + '%'"></span></div>
+        </div>
+      </template>
+    </div>
+    <div style="padding:0 14px 6px;font-size:12px;color:var(--text3)">
+      共 <span x-text="result.engagements"></span> 局对战
+    </div>
+
+    <!-- battle log -->
+    <div class="log-section">
+      <div class="log-toggle" @click="showLog = !showLog">
+        <span x-text="showLog ? '▾' : '▸'"></span>
+        <span>战斗日志（<span x-text="result.log.length"></span> 条）</span>
+      </div>
+      <div x-show="showLog" x-transition>
+        <template x-for="eng in engagements(result.log)" :key="eng">
+          <div class="engagement-block">
+            <div class="engagement-title">第 <span x-text="eng"></span> 局</div>
+            <template x-for="entry in logForEngagement(result.log, eng)" :key="entry._idx">
+              <div class="log-entry" :class="entry.action.includes('蓄力') ? 'prep-row' : ''">
+                <span class="rnd" x-text="entry.round === 0 ? '准备' : '回合' + entry.round"></span>
+                <span class="actor" x-text="entry.actor"></span>
+                <span class="action" x-text="entry.action"></span>
+                <span class="val" :class="valClass(entry)" x-text="fmtVal(entry)"></span>
+                <span class="tgt" x-text="entry.target || ''"></span>
+              </div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Batch Result ── -->
+  <div class="result-panel" x-show="result && result.runs">
+    <div style="padding:12px 14px;font-weight:600;font-size:14px;border-bottom:1px solid var(--border)">
+      📊 批量模拟结果（共 <span x-text="result && result.runs"></span> 次）
+    </div>
+    <div class="batch-grid">
+      <div class="batch-cell win">
+        <div class="big" x-text="result ? (result.win_rate_a*100).toFixed(1)+'%' : ''"></div>
+        <div class="lbl">我方（A）胜率</div>
+      </div>
+      <div class="batch-cell draw">
+        <div class="big" x-text="result ? (result.draw_rate*100).toFixed(1)+'%' : ''"></div>
+        <div class="lbl">平局率</div>
+      </div>
+      <div class="batch-cell lose">
+        <div class="big" x-text="result ? (result.win_rate_b*100).toFixed(1)+'%' : ''"></div>
+        <div class="lbl">敌方（B）胜率</div>
+      </div>
+    </div>
+    <div class="batch-meta">
+      <span>平均对战局数：<strong x-text="result && result.avg_engagements"></strong></span>
+      <span>A 胜 <strong x-text="result && result.wins_a"></strong> 次</span>
+      <span>B 胜 <strong x-text="result && result.wins_b"></strong> 次</span>
+      <span>平局 <strong x-text="result && result.draws"></strong> 次</span>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+function simulator() {
+  function skill(name, type, rate, dmgRate, dmgType, target, healRate, healTarget, status) {
+    return {
+      name: name || '',
+      skill_type: type || '主动',
+      activation_rate: rate ?? 0.35,
+      damage_rate: dmgRate ?? 0,
+      damage_type: dmgType || '兵刃',
+      target_mode: target || 'single_enemy',
+      heal_rate: healRate ?? 0,
+      heal_target: healTarget || 'self',
+      apply_status: status || '',
+    };
+  }
+
+  function general(name, force, intel, command, speed, troops, type, grade, skills) {
+    return {
+      name, troops, troop_type: type, troop_grade: grade, skills,
+      level: 5,
+      db_id: null, dirty: false,
+      affinities: { cavalry: 'C', bow: 'C', spear: 'C', shield: 'C', machine: 'C' },
+      force:           +parseFloat(force).toFixed(2),
+      intel:           +parseFloat(intel).toFixed(2),
+      command:         +parseFloat(command).toFixed(2),
+      speed:           +parseFloat(speed).toFixed(2),
+      politics:        0,
+      charisma:        0,
+      force_base:      +parseFloat(force).toFixed(2),
+      intel_base:      +parseFloat(intel).toFixed(2),
+      command_base:    +parseFloat(command).toFixed(2),
+      speed_base:      +parseFloat(speed).toFixed(2),
+      politics_base:   0,
+      charisma_base:   0,
+      force_growth:    0,
+      intel_growth:    0,
+      command_growth:  0,
+      speed_growth:    0,
+      politics_growth: 0,
+      charisma_growth: 0,
+    };
+  }
+
+  function defaultTech() {
+    return { tech_attack: 10, tech_intel: 10, tech_defense: 10, jiugong: 0, bagua: 0 };
+  }
+
+  return {
+    teams: {
+      a: [
+        general('关羽', 97, 75, 96, 74, 10000, 'cavalry', 'S', [
+          skill('武圣', '主动', 0.35, 1.8, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('横刀立马', '被动', 0.35, 0, '兵刃', 'self', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+        ]),
+        general('张飞', 97, 52, 88, 71, 10000, 'spear', 'A', [
+          skill('万夫不当', '主动', 0.35, 1.6, '兵刃', 'all_enemy', 0, 'self', '震慑'),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+        ]),
+        general('诸葛亮', 36, 100, 91, 72, 10000, 'bow', 'S', [
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+        ]),
+      ],
+      b: [
+        general('吕布', 100, 67, 84, 95, 10000, 'cavalry', 'S', [
+          skill('辕门射戟', '主动', 0.35, 2.0, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('无双之势', '突击', 0.35, 1.5, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+        ]),
+        general('张辽', 91, 72, 96, 83, 10000, 'spear', 'A', [
+          skill('大军突击', '主动', 0.35, 1.6, '兵刃', 'all_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+        ]),
+        general('貂蝉', 25, 95, 52, 89, 10000, 'bow', 'A', [
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+          skill('', '主动', 0.35, 0, '兵刃', 'single_enemy', 0, 'self', ''),
+        ]),
+      ],
+    },
+    tech: { a: defaultTech(), b: defaultTech() },
+    advisor: { a: null, b: null },
+    teamTroop: { a: '', b: '' },
+    advisorSkills: [],
+    advisorSearch: { a: '', b: '' },
+    advisorOpen: { a: false, b: false },
+    generalsData: [],
+    genSearch: { a: ['','',''], b: ['','',''] },
+    genOpen:   { a: [false,false,false], b: [false,false,false] },
+    levelOptions: Array.from({length:46}, (_,i)=>i+5),
+    batchRuns: 100,
+    loading: false,
+    runs: 1,
+    result: null,
+    error: null,
+    showLog: false,
+
+    async init() {
+      try {
+        const [advRes, genRes] = await Promise.all([
+          fetch('/api/advisor_skills'),
+          fetch('/api/generals'),
+        ]);
+        this.advisorSkills = await advRes.json();
+        this.generalsData  = await genRes.json();
+      } catch(e) {
+        this.advisorSkills = [];
+        this.generalsData  = [];
+      }
+      // 用数据库数据填充默认将领
+      const defaults = {
+        a: ['关羽', '张飞', '诸葛亮'],
+        b: ['吕布', '张辽', '貂蝉'],
+      };
+      for (const team of ['a', 'b']) {
+        defaults[team].forEach((name, idx) => {
+          const found = this.generalsData.find(g => g.name === name);
+          if (found) this.pickGeneral(team, idx, found);
+        });
+      }
+    },
+
+    filteredGenerals(team, idx) {
+      const q = (this.genSearch[team][idx] || '').trim().toLowerCase();
+      if (!q) return this.generalsData;
+      return this.generalsData.filter(g => g.name.toLowerCase().includes(q));
+    },
+
+    lockTeamTroop(team) {
+      const type = this.teamTroop[team];
+      if (!type) return;
+      this.teams[team].forEach(g => {
+        g.troop_type  = type;
+        g.troop_grade = g.affinities[type] || 'C';
+      });
+    },
+
+    affinityList(g) {
+      const order = ['cavalry', 'bow', 'spear', 'shield', 'machine'];
+      const names = { cavalry:'骑兵', bow:'弓兵', spear:'枪兵', shield:'盾兵', machine:'器械' };
+      const aff = g.affinities || {};
+      return order.map(t => ({ type: t, name: names[t], grade: aff[t] || 'C' }));
+    },
+
+    pickGeneral(team, idx, gen) {
+      const g = this.teams[team][idx];
+      g.name           = gen.name;
+      g.db_id          = gen.id;
+      g.level          = 5;
+      g.dirty          = false;
+      g.force_base     = +parseFloat(gen.strength    ?? 0).toFixed(2);
+      g.intel_base     = +parseFloat(gen.intelligence?? 0).toFixed(2);
+      g.command_base   = +parseFloat(gen.leadership  ?? 0).toFixed(2);
+      g.speed_base     = +parseFloat(gen.speed       ?? 0).toFixed(2);
+      g.politics_base  = +parseFloat(gen.politics    ?? 0).toFixed(2);
+      g.charisma_base  = +parseFloat(gen.charisma    ?? 0).toFixed(2);
+      g.force_growth   = +parseFloat(gen.str_growth  ?? 0).toFixed(2);
+      g.intel_growth   = +parseFloat(gen.int_growth  ?? 0).toFixed(2);
+      g.command_growth = +parseFloat(gen.lead_growth ?? 0).toFixed(2);
+      g.speed_growth   = +parseFloat(gen.spd_growth  ?? 0).toFixed(2);
+      g.politics_growth= +parseFloat(gen.pol_growth  ?? 0).toFixed(2);
+      g.charisma_growth= +parseFloat(gen.cha_growth  ?? 0).toFixed(2);
+      g.force    = g.force_base;
+      g.intel    = g.intel_base;
+      g.command  = g.command_base;
+      g.speed    = g.speed_base;
+      g.politics = g.politics_base;
+      g.charisma = g.charisma_base;
+      // 自动选最高适性兵种
+      const affinities = { cavalry: gen.cavalry, bow: gen.bow, spear: gen.spear, shield: gen.shield, machine: gen.machine };
+      const order = ['S','A','B','C'];
+      let bestType = 'spear', bestRank = 99;
+      for (const [type, grade] of Object.entries(affinities)) {
+        const rank = order.indexOf(grade ?? 'C');
+        if (rank < bestRank) { bestRank = rank; bestType = type; }
+      }
+      g.affinities  = { cavalry: gen.cavalry||'C', bow: gen.bow||'C', spear: gen.spear||'C', shield: gen.shield||'C', machine: gen.machine||'C' };
+      g.troop_type  = bestType;
+      g.troop_grade = affinities[bestType] || 'A';
+      this.genSearch[team][idx] = '';
+      this.genOpen[team][idx]   = false;
+    },
+
+    recalcStats(team, idx) {
+      const g = this.teams[team][idx];
+      const lv = g.level - 5;
+      g.force    = +( g.force_base    + g.force_growth    * lv ).toFixed(2);
+      g.intel    = +( g.intel_base    + g.intel_growth    * lv ).toFixed(2);
+      g.command  = +( g.command_base  + g.command_growth  * lv ).toFixed(2);
+      g.speed    = +( g.speed_base    + g.speed_growth    * lv ).toFixed(2);
+      g.politics = +( g.politics_base + g.politics_growth * lv ).toFixed(2);
+      g.charisma = +( g.charisma_base + g.charisma_growth * lv ).toFixed(2);
+    },
+
+    // 用户手动改属性值时，反推基础值（Lv5）
+    syncBase(g, stat) {
+      const lv = g.level - 5;
+      g[stat + '_base'] = +( g[stat] - g[stat + '_growth'] * lv ).toFixed(2);
+      g.dirty = true;
+    },
+
+    // 用户改成长值时，保持当前显示值不变，但更新基础值
+    syncGrowth(g, stat) {
+      const lv = g.level - 5;
+      g[stat + '_base'] = +( g[stat] - g[stat + '_growth'] * lv ).toFixed(2);
+      g.dirty = true;
+    },
+
+    async saveGeneral(team, idx) {
+      const g = this.teams[team][idx];
+      if (!g.db_id) return;
+      const ok = confirm(
+        `确认保存「${g.name}」的修改到数据库（Lv5 基础值）？\n\n` +
+        `武力 ${g.force_base}（成长 ${g.force_growth}）\n` +
+        `智力 ${g.intel_base}（成长 ${g.intel_growth}）\n` +
+        `统率 ${g.command_base}（成长 ${g.command_growth}）\n` +
+        `速度 ${g.speed_base}（成长 ${g.speed_growth}）\n` +
+        `政治 ${g.politics_base}（成长 ${g.politics_growth}）\n` +
+        `魅力 ${g.charisma_base}（成长 ${g.charisma_growth}）`
+      );
+      if (!ok) return;
+      try {
+        const res = await fetch(`/api/generals/${g.db_id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            strength:     g.force_base,
+            intelligence: g.intel_base,
+            leadership:   g.command_base,
+            speed:        g.speed_base,
+            politics:     g.politics_base,
+            charisma:     g.charisma_base,
+            str_growth:   g.force_growth,
+            int_growth:   g.intel_growth,
+            lead_growth:  g.command_growth,
+            spd_growth:   g.speed_growth,
+            pol_growth:   g.politics_growth,
+            cha_growth:   g.charisma_growth,
+          }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        g.dirty = false;
+        const cached = this.generalsData.find(d => d.id === g.db_id);
+        if (cached) {
+          cached.strength     = g.force_base;
+          cached.intelligence = g.intel_base;
+          cached.leadership   = g.command_base;
+          cached.speed        = g.speed_base;
+          cached.politics     = g.politics_base;
+          cached.charisma     = g.charisma_base;
+          cached.str_growth   = g.force_growth;
+          cached.int_growth   = g.intel_growth;
+          cached.lead_growth  = g.command_growth;
+          cached.spd_growth   = g.speed_growth;
+          cached.pol_growth   = g.politics_growth;
+          cached.cha_growth   = g.charisma_growth;
+        }
+      } catch(e) {
+        alert('保存失败：' + e.message);
+      }
+    },
+
+    filteredAdvisors(team) {
+      const q = this.advisorSearch[team].trim().toLowerCase();
+      if (!q) return this.advisorSkills;
+      return this.advisorSkills.filter(s =>
+        s.general_name.includes(q) || s.skill_name.includes(q)
+      );
+    },
+
+    buildPayload(runs) {
+      const clean = (g) => ({
+        name: g.name || '无名武将',
+        force: g.force, intel: g.intel, command: g.command, speed: g.speed,
+        troops: g.troops, troop_type: g.troop_type, troop_grade: g.troop_grade,
+        skills: g.skills.map(s => ({
+          name: s.name || '无名战法',
+          skill_type: s.skill_type,
+          activation_rate: s.activation_rate,
+          damage_rate: s.damage_rate,
+          damage_type: s.damage_type,
+          target_mode: s.target_mode,
+          heal_rate: s.heal_rate,
+          heal_target: s.heal_target,
+          apply_status: s.apply_status || null,
+        })),
+      });
+      return {
+        team_a: this.teams.a.map(clean),
+        team_b: this.teams.b.map(clean),
+        tech_a: this.tech.a,
+        tech_b: this.tech.b,
+        runs,
+      };
+    },
+
+    async simulate(runs) {
+      if (this.loading) return;
+      this.loading = true;
+      this.runs = runs;
+      this.error = null;
+      this.result = null;
+      this.showLog = false;
+      try {
+        const res = await fetch('/api/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.buildPayload(runs)),
+        });
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(`HTTP ${res.status}: ${msg}`);
+        }
+        this.result = await res.json();
+      } catch (e) {
+        this.error = '模拟失败：' + e.message;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    engagements(log) {
+      return [...new Set(log.map(e => e.engagement))].sort((a,b) => a-b);
+    },
+    logForEngagement(log, eng) {
+      return log.filter(e => e.engagement === eng).map((e, i) => ({ ...e, _idx: i }));
+    },
+    fmtVal(e) {
+      if (!e.value && e.value !== 0) return '';
+      if (e.value === 0) return '';
+      return e.value.toLocaleString();
+    },
+    valClass(e) {
+      if (!e.value || e.value === 0) return '';
+      const a = e.action || '';
+      if (a.includes('治疗') || a.includes('吸血')) return 'heal';
+      if (e.value > 0) return 'dmg';
+      return '';
+    },
+  };
+}
+</script>
+</body>
+</html>
