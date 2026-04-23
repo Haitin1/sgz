@@ -144,6 +144,23 @@ select.w-sm { width: 72px; }
 }
 .stat-cell .growth-label { font-size: 10px; color: var(--text3); flex-shrink: 0; }
 .stat-cell .growth-input { text-align: center; padding: 2px 4px; font-size: 11px; color: var(--green); border-color: #bbf7d0; width: 100%; }
+.stat-display {
+  display: block; text-align: center; padding: 4px 4px; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 4px; background: var(--surface2);
+  color: var(--text); letter-spacing: 0.3px;
+}
+.growth-display {
+  flex: 1; text-align: center; padding: 2px 4px; font-size: 11px;
+  border: 1px solid #bbf7d0; border-radius: 4px; background: var(--surface2);
+  color: var(--green);
+}
+.btn-edit {
+  font-size: 12px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
+  border: 1px solid var(--border2); background: var(--surface2); color: var(--text2);
+  transition: all 0.15s;
+}
+.btn-edit:hover { background: var(--border); }
+.btn-edit.active { background: #fef9c3; border-color: #ca8a04; color: #854d0e; }
 
 .troop-row {
   display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;
@@ -576,35 +593,59 @@ select.w-sm { width: 72px; }
               <div class="stats-row">
                 <div class="stat-cell">
                   <label>武力</label>
-                  <input type="number" x-model.number="g.force" step="0.01" @change="syncBase(g,'force')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.force).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.force" step="0.01" @change="syncBase(g,'force')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.force_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>智力</label>
-                  <input type="number" x-model.number="g.intel" step="0.01" @change="syncBase(g,'intel')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.intel).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.intel" step="0.01" @change="syncBase(g,'intel')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.intel_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>统率</label>
-                  <input type="number" x-model.number="g.command" step="0.01" @change="syncBase(g,'command')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.command).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.command" step="0.01" @change="syncBase(g,'command')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.command_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>速度</label>
-                  <input type="number" x-model.number="g.speed" step="0.01" @change="syncBase(g,'speed')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.speed).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.speed" step="0.01" @change="syncBase(g,'speed')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.speed_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')">
+                  </div>
                 </div>
               </div>
               <div class="stats-row" style="grid-template-columns:1fr 1fr;">
                 <div class="stat-cell">
                   <label>政治</label>
-                  <input type="number" x-model.number="g.politics" step="0.01" @change="syncBase(g,'politics')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.politics).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.politics" step="0.01" @change="syncBase(g,'politics')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.politics_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>魅力</label>
-                  <input type="number" x-model.number="g.charisma" step="0.01" @change="syncBase(g,'charisma')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.charisma).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.charisma" step="0.01" @change="syncBase(g,'charisma')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.charisma_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
+                  </div>
                 </div>
               </div>
               <div class="troop-row">
@@ -675,9 +716,12 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
               </template>
-              <!-- 保存按钮 -->
+              <!-- 编辑/保存按钮 -->
               <div class="save-row" x-show="g.db_id">
-                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" @click="saveGeneral('a',gi)">
+                <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">
+                  ✏️ 编辑
+                </button>
+                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('a',gi)">
                   <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
                 </button>
               </div>
@@ -782,35 +826,59 @@ select.w-sm { width: 72px; }
               <div class="stats-row">
                 <div class="stat-cell">
                   <label>武力</label>
-                  <input type="number" x-model.number="g.force" step="0.01" @change="syncBase(g,'force')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.force).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.force" step="0.01" @change="syncBase(g,'force')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.force_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>智力</label>
-                  <input type="number" x-model.number="g.intel" step="0.01" @change="syncBase(g,'intel')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.intel).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.intel" step="0.01" @change="syncBase(g,'intel')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.intel_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>统率</label>
-                  <input type="number" x-model.number="g.command" step="0.01" @change="syncBase(g,'command')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.command).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.command" step="0.01" @change="syncBase(g,'command')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.command_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>速度</label>
-                  <input type="number" x-model.number="g.speed" step="0.01" @change="syncBase(g,'speed')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.speed).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.speed" step="0.01" @change="syncBase(g,'speed')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.speed_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')">
+                  </div>
                 </div>
               </div>
               <div class="stats-row" style="grid-template-columns:1fr 1fr;">
                 <div class="stat-cell">
                   <label>政治</label>
-                  <input type="number" x-model.number="g.politics" step="0.01" @change="syncBase(g,'politics')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.politics).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.politics" step="0.01" @change="syncBase(g,'politics')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.politics_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')">
+                  </div>
                 </div>
                 <div class="stat-cell">
                   <label>魅力</label>
-                  <input type="number" x-model.number="g.charisma" step="0.01" @change="syncBase(g,'charisma')">
-                  <div class="growth-wrap"><span class="growth-label">成长</span><input class="growth-input" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')"></div>
+                  <span class="stat-display" x-show="!g.editing" x-text="(+g.charisma).toFixed(2)"></span>
+                  <input type="number" x-show="g.editing" x-model.number="g.charisma" step="0.01" @change="syncBase(g,'charisma')">
+                  <div class="growth-wrap"><span class="growth-label">成长</span>
+                    <span class="growth-display" x-show="!g.editing" x-text="(+g.charisma_growth).toFixed(2)"></span>
+                    <input class="growth-input" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
+                  </div>
                 </div>
               </div>
               <div class="troop-row">
@@ -880,9 +948,12 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
               </template>
-              <!-- 保存按钮 -->
+              <!-- 编辑/保存按钮 -->
               <div class="save-row" x-show="g.db_id">
-                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" @click="saveGeneral('b',gi)">
+                <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">
+                  ✏️ 编辑
+                </button>
+                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('b',gi)">
                   <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
                 </button>
               </div>
@@ -1048,7 +1119,7 @@ function simulator() {
     return {
       name, troops, troop_type: type, troop_grade: grade, skills,
       level: 5,
-      db_id: null, dirty: false,
+      db_id: null, dirty: false, editing: false,
       affinities: { cavalry: 'C', bow: 'C', spear: 'C', shield: 'C', machine: 'C' },
       force:           +parseFloat(force).toFixed(2),
       intel:           +parseFloat(intel).toFixed(2),
@@ -1182,6 +1253,7 @@ function simulator() {
       g.db_id          = gen.id;
       g.level          = 5;
       g.dirty          = false;
+      g.editing        = false;
       g.force_base     = +parseFloat(gen.strength    ?? 0).toFixed(2);
       g.intel_base     = +parseFloat(gen.intelligence?? 0).toFixed(2);
       g.command_base   = +parseFloat(gen.leadership  ?? 0).toFixed(2);
@@ -1274,6 +1346,7 @@ function simulator() {
         });
         if (!res.ok) throw new Error(await res.text());
         g.dirty = false;
+        g.editing = false;
         const cached = this.generalsData.find(d => d.id === g.db_id);
         if (cached) {
           cached.strength     = g.force_base;
