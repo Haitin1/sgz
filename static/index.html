@@ -1385,16 +1385,36 @@ function simulator() {
       newVal = +newVal;
       const freeStat = 'free_' + stat;
       const lv = g.level - 5;
-      const baseAtLevel = g[stat + '_base'] + g[stat + '_growth'] * lv;
-      const newFree = newVal - baseAtLevel;
-      if (newFree < 0) {
+      const baseAtLevel = +(g[stat + '_base'] + g[stat + '_growth'] * lv).toFixed(2);
+      const currentFree = g[freeStat] || 0;
+      const currentStat = +(baseAtLevel + currentFree).toFixed(2);
+
+      // 低于或等于基础值：清空自由点
+      if (newVal <= baseAtLevel + 0.001) {
         g[freeStat] = 0;
-        g[stat] = +baseAtLevel.toFixed(2);
-      } else {
-        const maxFree = (g[freeStat] || 0) + this.freeLeft(g);
-        g[freeStat] = Math.min(Math.round(newFree), maxFree);
-        g[stat] = +(baseAtLevel + g[freeStat]).toFixed(2);
+        g[stat] = baseAtLevel;
+        return;
       }
+
+      const rawDelta = newVal - currentStat;
+      // 无实质变化（浮点相等）
+      if (Math.abs(rawDelta) < 0.001) {
+        g[stat] = currentStat;
+        return;
+      }
+
+      // 方向感知：小数基础值 + step=1 时，UP/DOWN 的 delta 可能不足0.5
+      // UP：至少 +1 SP；DOWN：至少 -1 SP
+      let freeDelta;
+      if (rawDelta > 0) {
+        freeDelta = Math.max(1, Math.round(rawDelta));
+      } else {
+        freeDelta = Math.min(-1, Math.ceil(rawDelta));
+      }
+
+      const maxFree = currentFree + this.freeLeft(g);
+      g[freeStat] = Math.max(0, Math.min(currentFree + freeDelta, maxFree));
+      g[stat] = +(baseAtLevel + g[freeStat]).toFixed(2);
     },
 
     async saveGeneral(team, idx) {
