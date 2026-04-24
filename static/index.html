@@ -1577,15 +1577,11 @@ function simulator() {
     },
     resetGeneral(team, idx) {
       const g = this.teams[team][idx];
-      g.level       = 1;
-      g.force       = g.force_base;
-      g.intel       = g.intel_base;
-      g.command     = g.command_base;
-      g.speed       = g.speed_base;
-      g.politics    = g.politics_base;
-      g.charisma    = g.charisma_base;
-      g.free_force  = g.free_intel = g.free_command = g.free_speed = g.free_politics = g.free_charisma = 0;
-      g.dirty       = false;
+      // 只清自由属性点，等级不变
+      g.free_force = g.free_intel = g.free_command = g.free_speed = g.free_politics = g.free_charisma = 0;
+      // 按当前等级重算属性
+      this.recalcStats(team, idx);
+      g.dirty = false;
     },
 
     teamCommandTotal(team) {
