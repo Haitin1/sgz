@@ -291,6 +291,25 @@ def list_advisor_skills():
 
 
 
+@app.get("/api/military_books")
+def list_military_books():
+    """返回所有兵书数据"""
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT id, name, book_system, book_type, description
+            FROM military_books
+            ORDER BY book_system, book_type DESC, id
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
 @app.get("/api/affinities")
 def list_affinities():
     """返回所有缘分数据"""
