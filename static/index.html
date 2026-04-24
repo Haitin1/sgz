@@ -3135,6 +3135,7 @@ function simulator() {
       this.error = null;
       this.result = null;
       this.showLog = false;
+      const timeout = setTimeout(() => { this.loading = false; this.error = '模拟超时，请重试'; }, 30000);
       try {
         const res = await fetch('/api/simulate', {
           method: 'POST',
@@ -3149,6 +3150,7 @@ function simulator() {
       } catch (e) {
         this.error = '模拟失败：' + e.message;
       } finally {
+        clearTimeout(timeout);
         this.loading = false;
       }
     },
