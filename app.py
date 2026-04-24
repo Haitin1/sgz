@@ -341,6 +341,76 @@ def list_affinities():
 
 
 # ─────────────────────────────────────────────────────────────
+# 阵容存储
+# ─────────────────────────────────────────────────────────────
+
+import json as _json
+
+class LineupSaveInput(BaseModel):
+    name: str = ""
+    data: dict = Field(default_factory=dict)
+
+
+@app.get("/api/lineups/{user_id}")
+def get_lineups(user_id: str):
+    """返回该用户的所有阵容，格式 {a: [5槽], b: [5槽]}"""
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            "SELECT team, slot, name, data FROM lineups WHERE user_id=%s",
+            (user_id,)
+        )
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+        result = {"a": [None]*5, "b": [None]*5}
+        for r in rows:
+            entry = {"name": r["name"], "data": r["data"]}
+            result[r["team"]][r["slot"]] = entry
+        return result
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
+@app.put("/api/lineups/{user_id}/{team}/{slot}")
+def save_lineup(user_id: str, team: str, slot: int, body: LineupSaveInput):
+    """保存/覆盖某槽阵容"""
+    if team not in ("a", "b") or slot not in range(5):
+        raise HTTPException(400, "参数错误")
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO lineups (user_id, team, slot, name, data, saved_at)
+            VALUES (%s, %s, %s, %s, %s, NOW())
+            ON CONFLICT (user_id, team, slot)
+            DO UPDATE SET name=EXCLUDED.name, data=EXCLUDED.data, saved_at=NOW()
+        """, (user_id, team, slot, body.name, _json.dumps(body.data)))
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
+@app.delete("/api/lineups/{user_id}/{team}/{slot}")
+def delete_lineup(user_id: str, team: str, slot: int):
+    """删除某槽阵容"""
+    if team not in ("a", "b") or slot not in range(5):
+        raise HTTPException(400, "参数错误")
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM lineups WHERE user_id=%s AND team=%s AND slot=%s",
+            (user_id, team, slot)
+        )
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
+# ─────────────────────────────────────────────────────────────
 # 前端静态文件
 # ─────────────────────────────────────────────────────────────
 

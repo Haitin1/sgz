@@ -2043,6 +2043,7 @@ function simulator() {
     result: null,
     error: null,
     showLog: false,
+    userId: '',
     savedLineups: Array(5).fill(null),
     lineupName: '',
     savedLineupsB: Array(5).fill(null),
@@ -2070,11 +2071,22 @@ function simulator() {
         this.generalsData  = [];
         this.skillsData    = [];
       }
-      // 载入本地保存的阵容
-      const _saved = localStorage.getItem('sgz_lineups_v1');
-      if (_saved) try { this.savedLineups = JSON.parse(_saved); } catch(e) {}
-      const _savedB = localStorage.getItem('sgz_lineups_b_v1');
-      if (_savedB) try { this.savedLineupsB = JSON.parse(_savedB); } catch(e) {}
+      // 初始化用户ID（持久化到 localStorage）
+      let uid = localStorage.getItem('sgz_uid');
+      if (!uid) {
+        uid = 'u_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem('sgz_uid', uid);
+      }
+      this.userId = uid;
+      // 从数据库载入阵容
+      try {
+        const lRes = await fetch(`/api/lineups/${this.userId}`);
+        if (lRes.ok) {
+          const ld = await lRes.json();
+          this.savedLineups  = (ld.a || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineupsB = (ld.b || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
+        }
+      } catch(e) {}
 
       // 用数据库数据填充默认将领，并设满级默认值
       const defaults = {
@@ -2346,46 +2358,55 @@ function simulator() {
       });
     },
 
+    // ── API 工具 ──
+    async _apiSave(team, slot, payload) {
+      await fetch(`/api/lineups/${this.userId}/${team}/${slot}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: payload.name, data: payload }),
+      });
+    },
+    async _apiDelete(team, slot) {
+      await fetch(`/api/lineups/${this.userId}/${team}/${slot}`, { method: 'DELETE' });
+    },
+
     // ── 我方阵容 A ──
     canSaveLineup() { return true; },
     lineupSlotsFull() {
       return this.savedLineups.every(s => s !== null);
     },
-    saveLineup() {
+    async saveLineup() {
       if (!this.canSaveLineup()) return;
-      // 若当前有加载中的阵容 → 询问是否直接更新
       if (this.activeLineupSlot.a !== null) {
         const slotIdx = this.activeLineupSlot.a;
         const slotName = this.savedLineups[slotIdx]?.name || ('阵容' + (slotIdx + 1));
         if (!confirm(`是否更新「${slotName}」？`)) return;
         const updated = this._buildLineupPayload('a', this.savedLineups[slotIdx].name);
+        await this._apiSave('a', slotIdx, updated);
         this.savedLineups = [...this.savedLineups];
         this.savedLineups[slotIdx] = updated;
-        localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
         this.loadedSnapshot.a = this.snapshotLineup('a');
         return;
       }
-      // 新增槽位：优先用点击的空槽，否则找第一个空位
       const slot = this.pendingSlot.a !== null ? this.pendingSlot.a : this.savedLineups.findIndex(s => s === null);
       if (slot === -1) return;
       const lineup = this._buildLineupPayload('a', this.lineupName.trim() || ('阵容' + (slot + 1)));
+      await this._apiSave('a', slot, lineup);
       this.savedLineups = [...this.savedLineups];
       this.savedLineups[slot] = lineup;
-      localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
       this.lineupName = '';
       this.pendingSlot.a = null;
       this.activeLineupSlot.a = slot;
       this.loadedSnapshot.a = this.snapshotLineup('a');
     },
-    loadLineup(slot) {
-      // 若当前有加载中的阵容且已修改 → 询问是否保存并离开
+    async loadLineup(slot) {
       if (this.activeLineupSlot.a !== null && this.activeLineupSlot.a !== slot && this.isLineupDirty('a')) {
         const cur = this.savedLineups[this.activeLineupSlot.a]?.name || ('阵容' + (this.activeLineupSlot.a + 1));
         if (confirm(`「${cur}」已变更，是否保存更新并离开？`)) {
           const updated = this._buildLineupPayload('a', this.savedLineups[this.activeLineupSlot.a].name);
+          await this._apiSave('a', this.activeLineupSlot.a, updated);
           this.savedLineups = [...this.savedLineups];
           this.savedLineups[this.activeLineupSlot.a] = updated;
-          localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
         }
       }
       const lineup = this.savedLineups[slot];
@@ -2395,10 +2416,10 @@ function simulator() {
       this.pendingSlot.a = null;
       this.loadedSnapshot.a = this.snapshotLineup('a');
     },
-    deleteLineup(slot) {
+    async deleteLineup(slot) {
+      await this._apiDelete('a', slot);
       this.savedLineups = [...this.savedLineups];
       this.savedLineups[slot] = null;
-      localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
       if (this.activeLineupSlot.a === slot) {
         this.activeLineupSlot.a = null;
         this.loadedSnapshot.a = null;
@@ -2410,38 +2431,38 @@ function simulator() {
     lineupSlotsBFull() {
       return this.savedLineupsB.every(s => s !== null);
     },
-    saveLineupB() {
+    async saveLineupB() {
       if (!this.canSaveLineupB()) return;
       if (this.activeLineupSlot.b !== null) {
         const slotIdx = this.activeLineupSlot.b;
         const slotName = this.savedLineupsB[slotIdx]?.name || ('阵容' + (slotIdx + 1));
         if (!confirm(`是否更新「${slotName}」？`)) return;
         const updated = this._buildLineupPayload('b', this.savedLineupsB[slotIdx].name);
+        await this._apiSave('b', slotIdx, updated);
         this.savedLineupsB = [...this.savedLineupsB];
         this.savedLineupsB[slotIdx] = updated;
-        localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
         this.loadedSnapshot.b = this.snapshotLineup('b');
         return;
       }
       const slot = this.pendingSlot.b !== null ? this.pendingSlot.b : this.savedLineupsB.findIndex(s => s === null);
       if (slot === -1) return;
       const lineup = this._buildLineupPayload('b', this.lineupNameB.trim() || ('阵容' + (slot + 1)));
+      await this._apiSave('b', slot, lineup);
       this.savedLineupsB = [...this.savedLineupsB];
       this.savedLineupsB[slot] = lineup;
-      localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
       this.lineupNameB = '';
       this.pendingSlot.b = null;
       this.activeLineupSlot.b = slot;
       this.loadedSnapshot.b = this.snapshotLineup('b');
     },
-    loadLineupB(slot) {
+    async loadLineupB(slot) {
       if (this.activeLineupSlot.b !== null && this.activeLineupSlot.b !== slot && this.isLineupDirty('b')) {
         const cur = this.savedLineupsB[this.activeLineupSlot.b]?.name || ('阵容' + (this.activeLineupSlot.b + 1));
         if (confirm(`「${cur}」已变更，是否保存更新并离开？`)) {
           const updated = this._buildLineupPayload('b', this.savedLineupsB[this.activeLineupSlot.b].name);
+          await this._apiSave('b', this.activeLineupSlot.b, updated);
           this.savedLineupsB = [...this.savedLineupsB];
           this.savedLineupsB[this.activeLineupSlot.b] = updated;
-          localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
         }
       }
       const lineup = this.savedLineupsB[slot];
@@ -2451,10 +2472,10 @@ function simulator() {
       this.pendingSlot.b = null;
       this.loadedSnapshot.b = this.snapshotLineup('b');
     },
-    deleteLineupB(slot) {
+    async deleteLineupB(slot) {
+      await this._apiDelete('b', slot);
       this.savedLineupsB = [...this.savedLineupsB];
       this.savedLineupsB[slot] = null;
-      localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
       if (this.activeLineupSlot.b === slot) {
         this.activeLineupSlot.b = null;
         this.loadedSnapshot.b = null;
@@ -2483,14 +2504,14 @@ function simulator() {
         this.genOpen[team][idx] = false;
       });
     },
-    newLineup(slot) {
+    async newLineup(slot) {
       if (this.activeLineupSlot.a !== null && this.isLineupDirty('a')) {
         const cur = this.savedLineups[this.activeLineupSlot.a]?.name || ('阵容' + (this.activeLineupSlot.a + 1));
         if (confirm(`「${cur}」已变更，是否保存更新并离开？`)) {
           const updated = this._buildLineupPayload('a', this.savedLineups[this.activeLineupSlot.a].name);
+          await this._apiSave('a', this.activeLineupSlot.a, updated);
           this.savedLineups = [...this.savedLineups];
           this.savedLineups[this.activeLineupSlot.a] = updated;
-          localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
         }
       }
       this.clearTeam('a');
@@ -2498,14 +2519,14 @@ function simulator() {
       this.loadedSnapshot.a = null;
       this.pendingSlot.a = slot;
     },
-    newLineupB(slot) {
+    async newLineupB(slot) {
       if (this.activeLineupSlot.b !== null && this.isLineupDirty('b')) {
         const cur = this.savedLineupsB[this.activeLineupSlot.b]?.name || ('阵容' + (this.activeLineupSlot.b + 1));
         if (confirm(`「${cur}」已变更，是否保存更新并离开？`)) {
           const updated = this._buildLineupPayload('b', this.savedLineupsB[this.activeLineupSlot.b].name);
+          await this._apiSave('b', this.activeLineupSlot.b, updated);
           this.savedLineupsB = [...this.savedLineupsB];
           this.savedLineupsB[this.activeLineupSlot.b] = updated;
-          localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
         }
       }
       this.clearTeam('b');
