@@ -888,34 +888,33 @@ select.w-sm { width: 72px; }
 
   <div class="header">
     <div>
-      <h1>⚔️ 三国志战略版 · 对战模拟器</h1>
-      <div class="subtitle">配置双方武将 → 点击模拟对战</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <!-- 登录后：功能按钮 + 用户信息 -->
-      <template x-if="currentUser">
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="btn btn-sm" :class="activePanel==='lineup'?'btn-active':''" @click="activePanel=activePanel==='lineup'?null:'lineup'">我的阵容</button>
-          <button class="btn btn-sm" :class="activePanel==='equip'?'btn-active':''" @click="openEquipPanel()">我的装备</button>
-          <!-- 用户悬停卡片 -->
-          <div style="position:relative" x-data="{hover:false}" @mouseenter="hover=true" @mouseleave="hover=false">
-            <div class="user-avatar" x-text="currentUser.username.slice(0,1).toUpperCase()" style="cursor:pointer"></div>
-            <div class="user-card" x-show="hover" x-cloak>
-              <div class="user-card-name" x-text="currentUser.username"></div>
-              <div class="user-card-row" x-show="currentUser.server_name"><span>服务器</span><span x-text="currentUser.server_name"></span></div>
-              <div class="user-card-row" x-show="currentUser.alliance_name"><span>联盟</span><span x-text="currentUser.alliance_name"></span></div>
-              <div class="user-card-row"><span>邮箱</span><span x-text="currentUser.email"></span></div>
-              <div class="user-card-row" style="margin-top:8px">
-                <button class="btn btn-sm" style="width:100%" @click="logout()">退出登录</button>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <h1>⚔️ 三国志战略版 · 对战模拟器</h1>
+        <!-- 登录后：功能按钮 + 用户信息 -->
+        <template x-if="currentUser">
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="btn btn-sm" @click="openEquipPanel()">我的装备</button>
+            <!-- 用户悬停卡片 -->
+            <div style="position:relative" x-data="{hover:false}" @mouseenter="hover=true" @mouseleave="hover=false">
+              <div class="user-avatar" x-text="currentUser.username.slice(0,1).toUpperCase()" style="cursor:pointer"></div>
+              <div class="user-card" x-show="hover" x-cloak>
+                <div class="user-card-name" x-text="currentUser.username"></div>
+                <div class="user-card-row" x-show="currentUser.server_name"><span>服务器</span><span x-text="currentUser.server_name"></span></div>
+                <div class="user-card-row" x-show="currentUser.alliance_name"><span>联盟</span><span x-text="currentUser.alliance_name"></span></div>
+                <div class="user-card-row"><span>邮箱</span><span x-text="currentUser.email"></span></div>
+                <div class="user-card-row" style="margin-top:8px">
+                  <button class="btn btn-sm" style="width:100%" @click="logout()">退出登录</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </template>
-      <!-- 未登录 -->
-      <template x-if="!currentUser">
-        <button class="btn btn-primary btn-sm" @click="authModal.open=true;authModal.mode='login'">登录 / 注册</button>
-      </template>
+        </template>
+        <!-- 未登录 -->
+        <template x-if="!currentUser">
+          <button class="btn btn-primary btn-sm" @click="authModal.open=true;authModal.mode='login'">登录 / 注册</button>
+        </template>
+      </div>
+      <div class="subtitle">配置双方武将 → 点击模拟对战</div>
     </div>
   </div>
 
@@ -2256,7 +2255,6 @@ function simulator() {
     authModal: { open: false, mode: 'login' },
     authForm: { username:'', email:'', password:'', server_name:'', alliance_name:'' },
     authError: '',
-    activePanel: null,
     // ── 装备 ──
     equipPanel: { open: false },
     equipForm: { open:false, id:null, data:{name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''}, error:'' },
