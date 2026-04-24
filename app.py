@@ -2,20 +2,77 @@
 三国志战略版战斗模拟器 - FastAPI 后端
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
 import os
 import psycopg2
 import psycopg2.extras
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from datetime import datetime, timedelta, timezone
+from passlib.context import CryptContext
+from jose import JWTError, jwt
 
 from battle_engine import (
     BattleEngine, GeneralConfig, SkillDef, TechConfig
 )
 
 app = FastAPI(title="三国志战略版战斗模拟器", version="0.1")
+
+# ─────────────────────────────────────────────────────────────
+# 认证配置
+# ─────────────────────────────────────────────────────────────
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+JWT_SECRET    = os.getenv("JWT_SECRET", "sgz-dev-secret-change-me")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_DAYS = 30
+
+SMTP_HOST     = "smtp.ionos.co.uk"
+SMTP_PORT     = 465
+SMTP_USER     = "sgzadmin@sjwx.co.uk"
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SITE_URL      = os.getenv("SITE_URL", "http://132.145.24.63:8765")
+
+
+def hash_password(pw: str) -> str:
+    return pwd_context.hash(pw)
+
+def verify_password(pw: str, hashed: str) -> bool:
+    return pwd_context.verify(pw, hashed)
+
+def create_token(user_id: int) -> str:
+    exp = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS)
+    return jwt.encode({"sub": str(user_id), "exp": exp}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def decode_token(token: str) -> int:
+    payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    return int(payload["sub"])
+
+def get_current_user_id(authorization: Optional[str] = Header(None)) -> int:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "未登录")
+    try:
+        return decode_token(authorization.split(" ", 1)[1])
+    except JWTError:
+        raise HTTPException(401, "Token 无效或已过期")
+
+def send_reset_email(to_email: str, reset_link: str):
+    msg = MIMEText(
+        f"您好，\n\n请点击以下链接重置密码（24小时内有效）：\n\n{reset_link}\n\n如非本人操作，请忽略此邮件。",
+        "plain", "utf-8"
+    )
+    msg["Subject"] = "三国志战略版 · 密码重置"
+    msg["From"]    = SMTP_USER
+    msg["To"]      = to_email
+    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as srv:
+        srv.login(SMTP_USER, SMTP_PASSWORD)
+        srv.send_message(msg)
+
 
 # ─────────────────────────────────────────────────────────────
 # 请求 / 响应模型
@@ -174,11 +231,256 @@ def health():
 # 数据库工具
 # ─────────────────────────────────────────────────────────────
 
+
 def get_db():
     return psycopg2.connect(
         host="localhost", port=5432,
         dbname="sgz", user="sgz", password="sgz2026"
     )
+
+
+# ─────────────────────────────────────────────────────────────
+# 用户认证
+# ─────────────────────────────────────────────────────────────
+
+class RegisterInput(BaseModel):
+    username:      str
+    email:         str
+    password:      str
+    server_name:   Optional[str] = None
+    alliance_name: Optional[str] = None
+
+class LoginInput(BaseModel):
+    username: str
+    password: str
+
+class ProfileUpdateInput(BaseModel):
+    server_name:   Optional[str] = None
+    alliance_name: Optional[str] = None
+
+class ForgotPasswordInput(BaseModel):
+    email: str
+
+class ResetPasswordInput(BaseModel):
+    token:    str
+    password: str
+
+
+@app.post("/api/auth/register")
+def register(body: RegisterInput):
+    if len(body.username) < 2:
+        raise HTTPException(400, "用户名至少2个字符")
+    if len(body.password) < 6:
+        raise HTTPException(400, "密码至少6位")
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO users (username, email, password_hash, server_name, alliance_name) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (body.username, body.email, hash_password(body.password),
+             body.server_name, body.alliance_name)
+        )
+        user_id = cur.fetchone()[0]
+        conn.commit(); cur.close(); conn.close()
+        return {"token": create_token(user_id), "user_id": user_id, "username": body.username}
+    except psycopg2.errors.UniqueViolation:
+        raise HTTPException(409, "用户名或邮箱已被注册")
+    except Exception as e:
+        raise HTTPException(500, f"注册失败：{e}")
+
+
+@app.post("/api/auth/login")
+def login(body: LoginInput):
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM users WHERE username=%s", (body.username,))
+        user = cur.fetchone(); cur.close(); conn.close()
+        if not user or not verify_password(body.password, user["password_hash"]):
+            raise HTTPException(401, "用户名或密码错误")
+        return {
+            "token": create_token(user["id"]),
+            "user_id": user["id"],
+            "username": user["username"],
+            "email": user["email"],
+            "server_name": user["server_name"],
+            "alliance_name": user["alliance_name"],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"登录失败：{e}")
+
+
+@app.get("/api/auth/me")
+def me(uid: int = Depends(get_current_user_id)):
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            "SELECT id, username, email, server_name, alliance_name, created_at FROM users WHERE id=%s",
+            (uid,)
+        )
+        user = cur.fetchone(); cur.close(); conn.close()
+        if not user:
+            raise HTTPException(404, "用户不存在")
+        return dict(user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
+@app.put("/api/auth/profile")
+def update_profile(body: ProfileUpdateInput, uid: int = Depends(get_current_user_id)):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute(
+            "UPDATE users SET server_name=%s, alliance_name=%s WHERE id=%s",
+            (body.server_name, body.alliance_name, uid)
+        )
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(body: ForgotPasswordInput):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT id FROM users WHERE email=%s", (body.email,))
+        row = cur.fetchone()
+        if row:
+            token = secrets.token_urlsafe(32)
+            expires = datetime.now(timezone.utc) + timedelta(hours=24)
+            cur.execute(
+                "UPDATE users SET reset_token=%s, reset_token_expires=%s WHERE id=%s",
+                (token, expires, row[0])
+            )
+            conn.commit()
+            link = f"{SITE_URL}/?reset_token={token}"
+            try:
+                send_reset_email(body.email, link)
+            except Exception:
+                pass  # 邮件失败不影响接口响应
+        cur.close(); conn.close()
+        return {"ok": True, "msg": "如果该邮箱已注册，重置邮件已发送"}
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
+@app.post("/api/auth/reset-password")
+def reset_password(body: ResetPasswordInput):
+    if len(body.password) < 6:
+        raise HTTPException(400, "密码至少6位")
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute(
+            "SELECT id, reset_token_expires FROM users WHERE reset_token=%s",
+            (body.token,)
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(400, "重置链接无效")
+        if row[1] < datetime.now(timezone.utc):
+            raise HTTPException(400, "重置链接已过期")
+        cur.execute(
+            "UPDATE users SET password_hash=%s, reset_token=NULL, reset_token_expires=NULL WHERE id=%s",
+            (hash_password(body.password), row[0])
+        )
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
+# ─────────────────────────────────────────────────────────────
+# 用户装备
+# ─────────────────────────────────────────────────────────────
+
+class EquipmentInput(BaseModel):
+    name:           str
+    eq_type:        str = "武器"
+    owner_general:  Optional[str] = None
+    force_bonus:    float = 0
+    intel_bonus:    float = 0
+    command_bonus:  float = 0
+    speed_bonus:    float = 0
+    politics_bonus: float = 0
+    charisma_bonus: float = 0
+    skill1:         Optional[str] = None
+    skill2:         Optional[str] = None
+    notes:          Optional[str] = None
+
+
+@app.get("/api/user/equipment")
+def list_equipment(uid: int = Depends(get_current_user_id)):
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT * FROM user_equipment WHERE user_id=%s ORDER BY id", (uid,))
+        rows = cur.fetchall(); cur.close(); conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
+@app.post("/api/user/equipment")
+def add_equipment(body: EquipmentInput, uid: int = Depends(get_current_user_id)):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO user_equipment
+              (user_id, name, eq_type, owner_general,
+               force_bonus, intel_bonus, command_bonus, speed_bonus,
+               politics_bonus, charisma_bonus, skill1, skill2, notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+        """, (uid, body.name, body.eq_type, body.owner_general,
+              body.force_bonus, body.intel_bonus, body.command_bonus, body.speed_bonus,
+              body.politics_bonus, body.charisma_bonus, body.skill1, body.skill2, body.notes))
+        new_id = cur.fetchone()[0]
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True, "id": new_id}
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
+@app.put("/api/user/equipment/{eq_id}")
+def update_equipment(eq_id: int, body: EquipmentInput, uid: int = Depends(get_current_user_id)):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("""
+            UPDATE user_equipment SET
+              name=%s, eq_type=%s, owner_general=%s,
+              force_bonus=%s, intel_bonus=%s, command_bonus=%s, speed_bonus=%s,
+              politics_bonus=%s, charisma_bonus=%s, skill1=%s, skill2=%s, notes=%s
+            WHERE id=%s AND user_id=%s
+        """, (body.name, body.eq_type, body.owner_general,
+              body.force_bonus, body.intel_bonus, body.command_bonus, body.speed_bonus,
+              body.politics_bonus, body.charisma_bonus, body.skill1, body.skill2, body.notes,
+              eq_id, uid))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "装备不存在")
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
+@app.delete("/api/user/equipment/{eq_id}")
+def delete_equipment(eq_id: int, uid: int = Depends(get_current_user_id)):
+    try:
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM user_equipment WHERE id=%s AND user_id=%s", (eq_id, uid))
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
 
 
 # ─────────────────────────────────────────────────────────────

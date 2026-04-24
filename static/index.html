@@ -41,6 +41,36 @@ body {
   min-height: 100vh;
 }
 
+/* ── Auth & Modal ── */
+[x-cloak] { display:none !important; }
+.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px; }
+.modal-box { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:28px;position:relative;width:min(400px,96vw);max-height:90vh;overflow-y:auto; }
+.modal-close { position:absolute;top:12px;right:14px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);line-height:1; }
+.modal-close:hover { color:var(--text); }
+.modal-title { font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px; }
+.form-group { display:flex;flex-direction:column;gap:4px;margin-bottom:10px; }
+.form-group label { font-size:12px;color:var(--text2); }
+.form-input { border:1px solid var(--border);border-radius:5px;padding:6px 9px;font-size:13px;background:var(--surface);color:var(--text);width:100%; }
+.form-input:focus { outline:none;border-color:var(--accent-a); }
+.auth-error { font-size:12px;color:#dc2626;margin-top:4px; }
+
+/* ── User Avatar & Card ── */
+.user-avatar { width:32px;height:32px;border-radius:50%;background:var(--accent-a);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px; }
+.user-card { position:absolute;top:calc(100% + 8px);right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;min-width:200px;box-shadow:var(--shadow-md);z-index:100; }
+.user-card-name { font-weight:700;font-size:14px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border); }
+.user-card-row { display:flex;justify-content:space-between;gap:12px;font-size:12px;color:var(--text2);margin-bottom:5px; }
+.user-card-row span:last-child { color:var(--text); }
+
+/* ── Equip Table ── */
+.equip-table { width:100%;border-collapse:collapse;font-size:13px; }
+.equip-table th { text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text2);font-weight:600;white-space:nowrap; }
+.equip-table td { padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle; }
+.equip-table tr:hover td { background:var(--surface2); }
+.equip-skill-tag { display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:11px;margin-right:3px; }
+.btn-danger { color:#dc2626;border-color:#fecaca; }
+.btn-danger:hover { background:#fef2f2; }
+.btn-active { background:var(--accent-a);color:#fff;border-color:var(--accent-a); }
+
 /* ── Layout ── */
 .app { max-width: 1200px; margin: 0 auto; padding: 16px; }
 
@@ -860,6 +890,183 @@ select.w-sm { width: 72px; }
     <div>
       <h1>⚔️ 三国志战略版 · 对战模拟器</h1>
       <div class="subtitle">配置双方武将 → 点击模拟对战</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <!-- 登录后：功能按钮 + 用户信息 -->
+      <template x-if="currentUser">
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-sm" :class="activePanel==='lineup'?'btn-active':''" @click="activePanel=activePanel==='lineup'?null:'lineup'">我的阵容</button>
+          <button class="btn btn-sm" :class="activePanel==='equip'?'btn-active':''" @click="openEquipPanel()">我的装备</button>
+          <!-- 用户悬停卡片 -->
+          <div style="position:relative" x-data="{hover:false}" @mouseenter="hover=true" @mouseleave="hover=false">
+            <div class="user-avatar" x-text="currentUser.username.slice(0,1).toUpperCase()" style="cursor:pointer"></div>
+            <div class="user-card" x-show="hover" x-cloak>
+              <div class="user-card-name" x-text="currentUser.username"></div>
+              <div class="user-card-row" x-show="currentUser.server_name"><span>服务器</span><span x-text="currentUser.server_name"></span></div>
+              <div class="user-card-row" x-show="currentUser.alliance_name"><span>联盟</span><span x-text="currentUser.alliance_name"></span></div>
+              <div class="user-card-row"><span>邮箱</span><span x-text="currentUser.email"></span></div>
+              <div class="user-card-row" style="margin-top:8px">
+                <button class="btn btn-sm" style="width:100%" @click="logout()">退出登录</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <!-- 未登录 -->
+      <template x-if="!currentUser">
+        <button class="btn btn-primary btn-sm" @click="authModal.open=true;authModal.mode='login'">登录 / 注册</button>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── 认证弹窗 ── -->
+  <div class="modal-overlay" x-show="authModal.open" x-cloak @click.self="authModal.open=false">
+    <div class="modal-box">
+      <button class="modal-close" @click="authModal.open=false">×</button>
+      <!-- 登录 -->
+      <template x-if="authModal.mode==='login'">
+        <div>
+          <h2 class="modal-title">登录</h2>
+          <div class="form-group"><label>用户名</label><input class="form-input" x-model="authForm.username" @keydown.enter="doLogin()" placeholder="用户名"></div>
+          <div class="form-group"><label>密码</label><input class="form-input" type="password" x-model="authForm.password" @keydown.enter="doLogin()" placeholder="密码"></div>
+          <div class="auth-error" x-show="authError" x-text="authError"></div>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px" @click="doLogin()">登录</button>
+          <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:12px">
+            <span style="color:var(--text2);cursor:pointer" @click="authModal.mode='register'">没有账号？注册</span>
+            <span style="color:var(--text2);cursor:pointer" @click="authModal.mode='forgot'">忘记密码</span>
+          </div>
+        </div>
+      </template>
+      <!-- 注册 -->
+      <template x-if="authModal.mode==='register'">
+        <div>
+          <h2 class="modal-title">注册</h2>
+          <div class="form-group"><label>用户名 *</label><input class="form-input" x-model="authForm.username" placeholder="2-20个字符"></div>
+          <div class="form-group"><label>邮箱 *</label><input class="form-input" type="email" x-model="authForm.email" placeholder="用于密码找回"></div>
+          <div class="form-group"><label>密码 *</label><input class="form-input" type="password" x-model="authForm.password" placeholder="至少6位"></div>
+          <div class="form-group"><label>服务器名（选填）</label><input class="form-input" x-model="authForm.server_name" placeholder="如：S1-天下第一"></div>
+          <div class="form-group"><label>联盟名（选填）</label><input class="form-input" x-model="authForm.alliance_name" placeholder="联盟名称"></div>
+          <div class="auth-error" x-show="authError" x-text="authError"></div>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px" @click="doRegister()">注册</button>
+          <div style="margin-top:10px;font-size:12px;text-align:center">
+            <span style="color:var(--text2);cursor:pointer" @click="authModal.mode='login'">已有账号？登录</span>
+          </div>
+        </div>
+      </template>
+      <!-- 忘记密码 -->
+      <template x-if="authModal.mode==='forgot'">
+        <div>
+          <h2 class="modal-title">找回密码</h2>
+          <div class="form-group"><label>注册邮箱</label><input class="form-input" type="email" x-model="authForm.email" placeholder="输入注册时的邮箱"></div>
+          <div class="auth-error" x-show="authError" x-text="authError" :style="authError.startsWith('✓')?'color:var(--green)':''"></div>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px" @click="doForgot()">发送重置邮件</button>
+          <div style="margin-top:10px;font-size:12px;text-align:center">
+            <span style="color:var(--text2);cursor:pointer" @click="authModal.mode='login'">返回登录</span>
+          </div>
+        </div>
+      </template>
+      <!-- 重置密码 -->
+      <template x-if="authModal.mode==='reset'">
+        <div>
+          <h2 class="modal-title">重置密码</h2>
+          <div class="form-group"><label>新密码</label><input class="form-input" type="password" x-model="authForm.password" placeholder="至少6位"></div>
+          <div class="auth-error" x-show="authError" x-text="authError" :style="authError.startsWith('✓')?'color:var(--green)':''"></div>
+          <button class="btn btn-primary" style="width:100%;margin-top:12px" @click="doReset()">确认重置</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── 我的装备面板 ── -->
+  <div class="modal-overlay" x-show="equipPanel.open" x-cloak @click.self="equipPanel.open=false">
+    <div class="modal-box" style="width:min(900px,96vw);max-height:85vh;display:flex;flex-direction:column">
+      <button class="modal-close" @click="equipPanel.open=false">×</button>
+      <h2 class="modal-title" style="margin-bottom:12px">我的装备</h2>
+      <!-- 工具栏 -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input class="form-input" style="flex:1;min-width:140px" x-model="equipSearch" placeholder="搜索装备名/武将名">
+        <select class="form-input" style="width:100px" x-model="equipTypeFilter">
+          <option>全部</option><option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
+        </select>
+        <select class="form-input" style="width:110px" x-model="equipSort">
+          <option value="">默认排序</option>
+          <option value="force_bonus">武力</option>
+          <option value="intel_bonus">智力</option>
+          <option value="command_bonus">统率</option>
+          <option value="speed_bonus">速度</option>
+          <option value="politics_bonus">政治</option>
+          <option value="charisma_bonus">魅力</option>
+        </select>
+        <button class="btn btn-primary btn-sm" @click="openEquipForm(null)">＋ 添加装备</button>
+      </div>
+      <!-- 列表 -->
+      <div style="overflow-y:auto;flex:1">
+        <table class="equip-table">
+          <thead><tr>
+            <th>装备名</th><th>类型</th><th>持有武将</th>
+            <th>武力</th><th>智力</th><th>统率</th><th>速度</th><th>政治</th><th>魅力</th>
+            <th>技能</th><th></th>
+          </tr></thead>
+          <tbody>
+            <template x-for="eq in filteredEquip()" :key="eq.id">
+              <tr>
+                <td x-text="eq.name" style="font-weight:600;color:var(--gold)"></td>
+                <td x-text="eq.eq_type"></td>
+                <td x-text="eq.owner_general||'—'" style="color:var(--accent-a)"></td>
+                <td x-text="eq.force_bonus>0?'+'+eq.force_bonus:eq.force_bonus||'—'"></td>
+                <td x-text="eq.intel_bonus>0?'+'+eq.intel_bonus:eq.intel_bonus||'—'"></td>
+                <td x-text="eq.command_bonus>0?'+'+eq.command_bonus:eq.command_bonus||'—'"></td>
+                <td x-text="eq.speed_bonus>0?'+'+eq.speed_bonus:eq.speed_bonus||'—'"></td>
+                <td x-text="eq.politics_bonus>0?'+'+eq.politics_bonus:eq.politics_bonus||'—'"></td>
+                <td x-text="eq.charisma_bonus>0?'+'+eq.charisma_bonus:eq.charisma_bonus||'—'"></td>
+                <td>
+                  <span x-show="eq.skill1" class="equip-skill-tag" x-text="eq.skill1"></span>
+                  <span x-show="eq.skill2" class="equip-skill-tag" x-text="eq.skill2"></span>
+                </td>
+                <td style="white-space:nowrap">
+                  <button class="btn btn-sm" @click="openEquipForm(eq)">编辑</button>
+                  <button class="btn btn-sm btn-danger" style="margin-left:4px" @click="deleteEquip(eq.id)">删除</button>
+                </td>
+              </tr>
+            </template>
+            <tr x-show="filteredEquip().length===0">
+              <td colspan="11" style="text-align:center;padding:24px;color:var(--text3)">暂无装备，点击「添加装备」开始录入</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 装备编辑弹窗 ── -->
+  <div class="modal-overlay" x-show="equipForm.open" x-cloak @click.self="equipForm.open=false">
+    <div class="modal-box" style="width:min(480px,96vw)">
+      <button class="modal-close" @click="equipForm.open=false">×</button>
+      <h2 class="modal-title" x-text="equipForm.id?'编辑装备':'添加装备'"></h2>
+      <div class="form-group"><label>装备名 *</label><input class="form-input" x-model="equipForm.data.name" placeholder="装备名称"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label>类型</label>
+          <select class="form-input" x-model="equipForm.data.eq_type">
+            <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
+          </select>
+        </div>
+        <div class="form-group"><label>持有武将</label><input class="form-input" x-model="equipForm.data.owner_general" placeholder="武将名（选填）"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div class="form-group"><label>武力</label><input class="form-input" type="number" step="0.01" x-model.number="equipForm.data.force_bonus"></div>
+        <div class="form-group"><label>智力</label><input class="form-input" type="number" step="0.01" x-model.number="equipForm.data.intel_bonus"></div>
+        <div class="form-group"><label>统率</label><input class="form-input" type="number" step="0.01" x-model.number="equipForm.data.command_bonus"></div>
+        <div class="form-group"><label>速度</label><input class="form-input" type="number" step="0.01" x-model.number="equipForm.data.speed_bonus"></div>
+        <div class="form-group"><label>政治</label><input class="form-input" type="number" step="0.01" x-model.number="equipForm.data.politics_bonus"></div>
+        <div class="form-group"><label>魅力</label><input class="form-input" type="number" step="0.01" x-model.number="equipForm.data.charisma_bonus"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group"><label>技能1</label><input class="form-input" x-model="equipForm.data.skill1" placeholder="技能名（选填）"></div>
+        <div class="form-group"><label>技能2</label><input class="form-input" x-model="equipForm.data.skill2" placeholder="技能名（选填）"></div>
+      </div>
+      <div class="auth-error" x-show="equipForm.error" x-text="equipForm.error"></div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px" @click="saveEquip()">保存</button>
     </div>
   </div>
 
@@ -2043,6 +2250,21 @@ function simulator() {
     result: null,
     error: null,
     showLog: false,
+    // ── 认证 ──
+    authToken: localStorage.getItem('sgz_token') || '',
+    currentUser: null,
+    authModal: { open: false, mode: 'login' },
+    authForm: { username:'', email:'', password:'', server_name:'', alliance_name:'' },
+    authError: '',
+    activePanel: null,
+    // ── 装备 ──
+    equipPanel: { open: false },
+    equipForm: { open:false, id:null, data:{name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''}, error:'' },
+    equipList: [],
+    equipSearch: '',
+    equipTypeFilter: '全部',
+    equipSort: '',
+
     userId: '',
     savedLineups: Array(5).fill(null),
     lineupName: '',
@@ -2071,13 +2293,30 @@ function simulator() {
         this.generalsData  = [];
         this.skillsData    = [];
       }
+      // 检查 URL 中是否有重置密码 token
+      const urlParams = new URLSearchParams(window.location.search);
+      const resetToken = urlParams.get('reset_token');
+      if (resetToken) {
+        this.authForm._resetToken = resetToken;
+        this.authModal.mode = 'reset';
+        this.authModal.open = true;
+        window.history.replaceState({}, '', '/');
+      }
+      // 恢复登录状态
+      if (this.authToken) {
+        try {
+          const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + this.authToken } });
+          if (r.ok) this.currentUser = await r.json();
+          else { this.authToken = ''; localStorage.removeItem('sgz_token'); }
+        } catch(e) {}
+      }
       // 初始化用户ID（持久化到 localStorage）
       let uid = localStorage.getItem('sgz_uid');
       if (!uid) {
         uid = 'u_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
         localStorage.setItem('sgz_uid', uid);
       }
-      this.userId = uid;
+      this.userId = this.currentUser ? ('u' + this.currentUser.id) : uid;
       // 从数据库载入阵容
       try {
         const lRes = await fetch(`/api/lineups/${this.userId}`);
@@ -2533,6 +2772,148 @@ function simulator() {
       this.activeLineupSlot.b = null;
       this.loadedSnapshot.b = null;
       this.pendingSlot.b = slot;
+    },
+
+    // ── 认证方法 ──
+    async doLogin() {
+      this.authError = '';
+      try {
+        const r = await fetch('/api/auth/login', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ username: this.authForm.username, password: this.authForm.password })
+        });
+        const d = await r.json();
+        if (!r.ok) { this.authError = d.detail || '登录失败'; return; }
+        this.authToken = d.token;
+        localStorage.setItem('sgz_token', d.token);
+        this.currentUser = d;
+        this.userId = 'u' + d.user_id;
+        // 重新加载该用户的阵容
+        const lr = await fetch(`/api/lineups/${this.userId}`);
+        if (lr.ok) {
+          const ld = await lr.json();
+          this.savedLineups  = (ld.a || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineupsB = (ld.b || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
+        }
+        this.authModal.open = false;
+        this.authForm = { username:'', email:'', password:'', server_name:'', alliance_name:'' };
+      } catch(e) { this.authError = '网络错误'; }
+    },
+    async doRegister() {
+      this.authError = '';
+      if (!this.authForm.username || !this.authForm.email || !this.authForm.password) {
+        this.authError = '请填写必填项'; return;
+      }
+      try {
+        const r = await fetch('/api/auth/register', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            username: this.authForm.username, email: this.authForm.email,
+            password: this.authForm.password, server_name: this.authForm.server_name,
+            alliance_name: this.authForm.alliance_name
+          })
+        });
+        const d = await r.json();
+        if (!r.ok) { this.authError = d.detail || '注册失败'; return; }
+        this.authToken = d.token;
+        localStorage.setItem('sgz_token', d.token);
+        this.currentUser = { id: d.user_id, username: d.username, email: this.authForm.email,
+          server_name: this.authForm.server_name, alliance_name: this.authForm.alliance_name };
+        this.userId = 'u' + d.user_id;
+        this.authModal.open = false;
+        this.authForm = { username:'', email:'', password:'', server_name:'', alliance_name:'' };
+      } catch(e) { this.authError = '网络错误'; }
+    },
+    async doForgot() {
+      this.authError = '';
+      try {
+        const r = await fetch('/api/auth/forgot-password', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ email: this.authForm.email })
+        });
+        const d = await r.json();
+        if (!r.ok) { this.authError = d.detail || '发送失败'; return; }
+        this.authError = '✓ 如果邮箱已注册，重置链接已发送，请查收邮件';
+      } catch(e) { this.authError = '网络错误'; }
+    },
+    async doReset() {
+      this.authError = '';
+      if (this.authForm.password.length < 6) { this.authError = '密码至少6位'; return; }
+      try {
+        const r = await fetch('/api/auth/reset-password', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ token: this.authForm._resetToken, password: this.authForm.password })
+        });
+        const d = await r.json();
+        if (!r.ok) { this.authError = d.detail || '重置失败'; return; }
+        this.authError = '✓ 密码重置成功，请登录';
+        setTimeout(() => { this.authModal.mode='login'; this.authError=''; }, 1500);
+      } catch(e) { this.authError = '网络错误'; }
+    },
+    logout() {
+      this.authToken = ''; this.currentUser = null;
+      localStorage.removeItem('sgz_token');
+      this.savedLineups = Array(5).fill(null);
+      this.savedLineupsB = Array(5).fill(null);
+      const uid = localStorage.getItem('sgz_uid') || '';
+      this.userId = uid;
+    },
+
+    // ── 装备方法 ──
+    async openEquipPanel() {
+      this.equipPanel.open = true;
+      await this.fetchEquip();
+    },
+    async fetchEquip() {
+      if (!this.authToken) return;
+      try {
+        const r = await fetch('/api/user/equipment', { headers:{ Authorization:'Bearer '+this.authToken } });
+        if (r.ok) this.equipList = await r.json();
+      } catch(e) {}
+    },
+    filteredEquip() {
+      let list = [...this.equipList];
+      if (this.equipTypeFilter !== '全部') list = list.filter(e => e.eq_type === this.equipTypeFilter);
+      if (this.equipSearch) {
+        const q = this.equipSearch.toLowerCase();
+        list = list.filter(e => e.name.toLowerCase().includes(q) || (e.owner_general||'').toLowerCase().includes(q));
+      }
+      if (this.equipSort) list.sort((a,b) => (b[this.equipSort]||0) - (a[this.equipSort]||0));
+      return list;
+    },
+    openEquipForm(eq) {
+      this.equipForm.error = '';
+      if (eq) {
+        this.equipForm.id = eq.id;
+        this.equipForm.data = { name:eq.name, eq_type:eq.eq_type, owner_general:eq.owner_general||'',
+          force_bonus:eq.force_bonus||0, intel_bonus:eq.intel_bonus||0, command_bonus:eq.command_bonus||0,
+          speed_bonus:eq.speed_bonus||0, politics_bonus:eq.politics_bonus||0, charisma_bonus:eq.charisma_bonus||0,
+          skill1:eq.skill1||'', skill2:eq.skill2||'' };
+      } else {
+        this.equipForm.id = null;
+        this.equipForm.data = {name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''};
+      }
+      this.equipForm.open = true;
+    },
+    async saveEquip() {
+      this.equipForm.error = '';
+      if (!this.equipForm.data.name) { this.equipForm.error = '请输入装备名'; return; }
+      const url = this.equipForm.id ? `/api/user/equipment/${this.equipForm.id}` : '/api/user/equipment';
+      const method = this.equipForm.id ? 'PUT' : 'POST';
+      try {
+        const r = await fetch(url, {
+          method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+this.authToken},
+          body: JSON.stringify(this.equipForm.data)
+        });
+        if (!r.ok) { const d=await r.json(); this.equipForm.error=d.detail||'保存失败'; return; }
+        this.equipForm.open = false;
+        await this.fetchEquip();
+      } catch(e) { this.equipForm.error = '网络错误'; }
+    },
+    async deleteEquip(id) {
+      if (!confirm('确认删除这件装备？')) return;
+      await fetch(`/api/user/equipment/${id}`, { method:'DELETE', headers:{ Authorization:'Bearer '+this.authToken } });
+      await this.fetchEquip();
     },
 
     pickGeneral(team, idx, gen) {
