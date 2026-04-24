@@ -642,6 +642,91 @@ select.w-sm { width: 72px; }
   font-weight: 600; margin-bottom: 4px;
 }
 .advisor-card .ac-desc { color: var(--text2); line-height: 1.6; }
+
+/* ═══════════════════════════════════════════
+   移动端适配  ≤ 600px
+═══════════════════════════════════════════ */
+@media (max-width: 600px) {
+  /* 整体 */
+  .app { padding: 8px; }
+  .header { margin-bottom: 12px; padding-bottom: 10px; }
+  .header h1 { font-size: 16px; }
+  .header .subtitle { font-size: 11px; }
+
+  /* 两队已单列，减少间距 */
+  .teams-grid { gap: 10px; margin-bottom: 10px; }
+
+  /* 卡片头 */
+  .card-header { padding: 7px 10px; gap: 5px; flex-wrap: wrap; }
+  .card-body { padding: 8px 10px; }
+  .team-cmd-total { font-size: 11px; }
+  .team-troop-select { font-size: 11px; padding: 2px 4px; }
+  .bonus-badge { font-size: 10px; padding: 2px 6px; }
+  .advisor-selector input { font-size: 11px; }
+
+  /* 武将块 */
+  .general-block { margin-bottom: 8px; }
+  .general-header { padding: 5px 8px; font-size: 11px; }
+  .general-body { padding: 8px; gap: 8px; }
+
+  /* 属性列缩窄，战法列自动填满 */
+  .stats-col { flex: 0 0 58%; }
+
+  /* 7列 stats grid 压缩 */
+  .stats-grid {
+    grid-template-columns: 1.9rem 1fr 2.4rem 0.3rem 1.9rem 1fr 2.4rem;
+    gap: 3px 3px;
+  }
+  .stat-th { font-size: 10px; }
+  .stat-name-cell { font-size: 11px; }
+  .stat-val-input { font-size: 12px; font-weight: 700; padding: 3px 2px; }
+  .stat-grow-disp { font-size: 10px; }
+  .stat-grow-inp { font-size: 10px; padding: 2px; }
+  .stat-free-mini { font-size: 9px; }
+
+  /* 战法槽 */
+  .skills-col-header { font-size: 11px; }
+  .sk-slot { padding: 5px 6px; font-size: 11px; gap: 4px; }
+  .sk-badge { font-size: 9px; padding: 1px 4px; }
+  .sk-slot-name { font-size: 11px; }
+  .sk-slot-empty { font-size: 10px; }
+
+  /* 保存行 */
+  .save-row { gap: 5px; }
+  .btn { font-size: 11px; padding: 4px 8px; }
+
+  /* 战法选择面板：固定到底部弹出，更易操作 */
+  .sk-picker {
+    position: fixed; left: 6px; right: 6px; bottom: 6px;
+    z-index: 500; max-height: 65vh;
+    border-radius: 10px;
+  }
+  .sk-list { max-height: calc(65vh - 44px); }
+  .sk-item-head { padding: 10px 12px; gap: 8px; }
+  .sk-learn-btn { padding: 4px 10px; font-size: 12px; }
+  .sk-picker-search { width: 90px; font-size: 11px; }
+  .sk-tab { padding: 6px 9px; font-size: 11px; }
+
+  /* 科技面板 */
+  .tech-sec-label { font-size: 11px; }
+  .tech-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .tech-grid-5 { grid-template-columns: repeat(3, 1fr); }
+  .tech-grid-6 { grid-template-columns: repeat(3, 1fr); }
+  .tech-cell label { font-size: 9px; }
+  .tech-cell input { font-size: 11px; padding: 2px; }
+  .tech-sec-btn { font-size: 10px; padding: 1px 6px; }
+
+  /* 缘分tooltip：向右弹出避免超出屏幕 */
+  .aff-tooltip { min-width: 160px; max-width: 220px; }
+
+  /* 模拟按钮区 */
+  .run-bar { padding: 10px; gap: 6px; flex-wrap: wrap; }
+  .run-bar .btn { font-size: 12px; padding: 8px 12px; }
+  .run-bar input[type="number"] { width: 60px; }
+
+  /* 战报 */
+  .result-card { padding: 10px 12px; }
+}
 </style>
 </head>
 <body>
