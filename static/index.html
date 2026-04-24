@@ -2009,18 +2009,18 @@ select.w-sm { width: 72px; }
   <!-- Run Bar -->
   <div class="run-bar">
     <button class="btn btn-primary" @click="simulate(1)" :disabled="loading">
-      <span x-show="loading && runs===1" class="spinner"></span>
+      <span x-cloak x-show="loading && runs===1" class="spinner"></span>
       <span>⚔️ 模拟对战（单次）</span>
     </button>
     <div class="runs-field">
       <label>批量次数</label>
       <input type="number" x-model.number="batchRuns" min="2" max="500" style="width:72px">
       <button class="btn btn-secondary" @click="simulate(batchRuns)" :disabled="loading">
-        <span x-show="loading && runs===batchRuns" class="spinner"></span>
+        <span x-cloak x-show="loading && runs===batchRuns" class="spinner"></span>
         <span>📊 批量模拟</span>
       </button>
     </div>
-    <span x-show="loading" style="font-size:12px;color:var(--text3)">模拟中，请稍候…</span>
+    <span x-cloak x-show="loading" style="font-size:12px;color:var(--text3)">模拟中，请稍候…</span>
   </div>
 
   <!-- Error -->
