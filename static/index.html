@@ -861,11 +861,11 @@ select.w-sm { width: 72px; }
                 </div>
                 <div class="save-row" x-show="g.db_id" style="margin-top:6px">
                   <div style="display:flex;gap:8px">
-                    <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
+                    <!-- [隐藏] <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button> -->
                     <button class="btn btn-reset" @click="resetGeneral('a',gi)">↺ 重置</button>
-                    <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('a',gi)">
+                    <!-- [隐藏] <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('a',gi)">
                       <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
-                    </button>
+                    </button> -->
                   </div>
                   <div style="display:flex;align-items:center;gap:6px"
                     x-effect="g.troops = calcTroops(tech.a.jingying, g.level)">
@@ -1198,11 +1198,11 @@ select.w-sm { width: 72px; }
                 </div>
                 <div class="save-row" x-show="g.db_id" style="margin-top:6px">
                   <div style="display:flex;gap:8px">
-                    <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
+                    <!-- [隐藏] <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button> -->
                     <button class="btn btn-reset" @click="resetGeneral('b',gi)">↺ 重置</button>
-                    <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('b',gi)">
+                    <!-- [隐藏] <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('b',gi)">
                       <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
-                    </button>
+                    </button> -->
                   </div>
                   <div style="display:flex;align-items:center;gap:6px"
                     x-effect="g.troops = calcTroops(tech.b.jingying, g.level)">
