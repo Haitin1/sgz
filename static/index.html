@@ -41,6 +41,9 @@ body {
   min-height: 100vh;
 }
 
+/* ── Top-right fixed bar ── */
+.topright-bar { position:fixed;top:12px;right:12px;z-index:500;display:flex;align-items:center;gap:6px; }
+
 /* ── Auth & Modal ── */
 [x-cloak] { display:none !important; }
 .modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px; }
@@ -886,34 +889,33 @@ select.w-sm { width: 72px; }
 <body>
 <div class="app" x-data="simulator()">
 
-  <div class="header">
-    <div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <h1>⚔️ 三国志战略版 · 对战模拟器</h1>
-        <!-- 登录后：功能按钮 + 用户信息 -->
-        <template x-if="currentUser">
-          <div style="display:flex;align-items:center;gap:6px">
-            <button class="btn btn-sm" @click="openEquipPanel()">我的装备</button>
-            <!-- 用户悬停卡片 -->
-            <div style="position:relative" x-data="{hover:false}" @mouseenter="hover=true" @mouseleave="hover=false">
-              <div class="user-avatar" x-text="currentUser.username.slice(0,1).toUpperCase()" style="cursor:pointer"></div>
-              <div class="user-card" x-show="hover" x-cloak>
-                <div class="user-card-name" x-text="currentUser.username"></div>
-                <div class="user-card-row" x-show="currentUser.server_name"><span>服务器</span><span x-text="currentUser.server_name"></span></div>
-                <div class="user-card-row" x-show="currentUser.alliance_name"><span>联盟</span><span x-text="currentUser.alliance_name"></span></div>
-                <div class="user-card-row"><span>邮箱</span><span x-text="currentUser.email"></span></div>
-                <div class="user-card-row" style="margin-top:8px">
-                  <button class="btn btn-sm" style="width:100%" @click="logout()">退出登录</button>
-                </div>
-              </div>
+  <!-- 固定右上角：用户控件 -->
+  <div class="topright-bar">
+    <template x-if="currentUser">
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="btn btn-sm" @click="openEquipPanel()">我的装备</button>
+        <div style="position:relative" x-data="{hover:false}" @mouseenter="hover=true" @mouseleave="hover=false">
+          <div class="user-avatar" x-text="currentUser.username.slice(0,1).toUpperCase()" style="cursor:pointer"></div>
+          <div class="user-card" x-show="hover" x-cloak>
+            <div class="user-card-name" x-text="currentUser.username"></div>
+            <div class="user-card-row" x-show="currentUser.server_name"><span>服务器</span><span x-text="currentUser.server_name"></span></div>
+            <div class="user-card-row" x-show="currentUser.alliance_name"><span>联盟</span><span x-text="currentUser.alliance_name"></span></div>
+            <div class="user-card-row"><span>邮箱</span><span x-text="currentUser.email"></span></div>
+            <div class="user-card-row" style="margin-top:8px">
+              <button class="btn btn-sm" style="width:100%" @click="logout()">退出登录</button>
             </div>
           </div>
-        </template>
-        <!-- 未登录 -->
-        <template x-if="!currentUser">
-          <button class="btn btn-primary btn-sm" @click="authModal.open=true;authModal.mode='login'">登录 / 注册</button>
-        </template>
+        </div>
       </div>
+    </template>
+    <template x-if="!currentUser">
+      <button class="btn btn-primary btn-sm" @click="authModal.open=true;authModal.mode='login'">登录 / 注册</button>
+    </template>
+  </div>
+
+  <div class="header">
+    <div>
+      <h1>⚔️ 三国志战略版 · 对战模拟器</h1>
       <div class="subtitle">配置双方武将 → 点击模拟对战</div>
     </div>
   </div>
@@ -1070,9 +1072,8 @@ select.w-sm { width: 72px; }
   </div>
 
   <!-- Teams -->
-  <!-- 保存阵容栏 -->
-  <div class="lineup-row">
-    <!-- 我方阵容 -->
+  <!-- 我方阵容保存栏 -->
+  <div style="margin-bottom:12px">
     <div class="lineup-bar team-a">
       <button class="lineup-save-btn"
         :disabled="!canSaveLineup() || lineupSlotsFull()"
@@ -1094,32 +1095,6 @@ select.w-sm { width: 72px; }
               <button class="lineup-slot-empty" :class="pendingSlot.a===idx ? 'pending' : ''" @click="newLineup(idx)" x-text="'阵容' + (idx+1)"></button>
             </template>
             <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineup(idx)" title="删除">×</button>
-          </div>
-        </template>
-      </div>
-    </div>
-    <!-- 敌方阵容 -->
-    <div class="lineup-bar team-b">
-      <button class="lineup-save-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 1px 3px rgba(220,38,38,.35)"
-        :disabled="!canSaveLineupB() || lineupSlotsBFull()"
-        @click="saveLineupB()"
-        :title="lineupSlotsBFull() ? '已存满5个阵容' : '保存当前敌方阵容'">
-        💾 保存阵容
-      </button>
-      <input class="lineup-name-input" type="text" x-model="lineupNameB" placeholder="阵容名称" maxlength="10">
-      <div class="lineup-slots">
-        <template x-for="(slot, idx) in savedLineupsB" :key="idx">
-          <div class="lineup-slot">
-            <template x-if="slot">
-              <button class="lineup-slot-btn" @click="loadLineupB(idx)"
-                :class="activeLineupSlot.b === idx ? 'active' : ''"
-                :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '') + (activeLineupSlot.b===idx && isLineupDirty('b') ? ' (已修改)' : '')"
-                x-text="slot.name + (activeLineupSlot.b===idx && isLineupDirty('b') ? ' *' : '')"></button>
-            </template>
-            <template x-if="!slot">
-              <button class="lineup-slot-empty" :class="pendingSlot.b===idx ? 'pending' : ''" @click="newLineupB(idx)" x-text="'阵容' + (idx+1)"></button>
-            </template>
-            <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineupB(idx)" title="删除">×</button>
           </div>
         </template>
       </div>
@@ -1622,6 +1597,32 @@ select.w-sm { width: 72px; }
         </div>
       </div>
       <div class="card-body">
+        <!-- 敌方阵容保存栏 -->
+        <div class="lineup-bar team-b" style="margin-bottom:10px">
+          <button class="lineup-save-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 1px 3px rgba(220,38,38,.35)"
+            :disabled="!canSaveLineupB() || lineupSlotsBFull()"
+            @click="saveLineupB()"
+            :title="lineupSlotsBFull() ? '已存满5个阵容' : '保存当前敌方阵容'">
+            💾 保存阵容
+          </button>
+          <input class="lineup-name-input" type="text" x-model="lineupNameB" placeholder="阵容名称" maxlength="10">
+          <div class="lineup-slots">
+            <template x-for="(slot, idx) in savedLineupsB" :key="idx">
+              <div class="lineup-slot">
+                <template x-if="slot">
+                  <button class="lineup-slot-btn" @click="loadLineupB(idx)"
+                    :class="activeLineupSlot.b === idx ? 'active' : ''"
+                    :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '') + (activeLineupSlot.b===idx && isLineupDirty('b') ? ' (已修改)' : '')"
+                    x-text="slot.name + (activeLineupSlot.b===idx && isLineupDirty('b') ? ' *' : '')"></button>
+                </template>
+                <template x-if="!slot">
+                  <button class="lineup-slot-empty" :class="pendingSlot.b===idx ? 'pending' : ''" @click="newLineupB(idx)" x-text="'阵容' + (idx+1)"></button>
+                </template>
+                <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineupB(idx)" title="删除">×</button>
+              </div>
+            </template>
+          </div>
+        </div>
         <!-- 军师技信息卡 -->
         <div class="advisor-card team-b" x-show="advisor.b" x-transition>
           <div class="ac-head">
