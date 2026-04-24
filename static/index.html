@@ -1089,15 +1089,25 @@ select.w-sm { width: 72px; }
               <div class="tech-cell"><label>器械营</label><input type="number" x-model.number="tech.a.camp_machine" min="0" max="10"></div>
             </div>
           </div>
-          <!-- 军营守备 -->
+          <!-- 军营 -->
           <div class="tech-sec">
             <div class="tech-sec-hd">
-              <span class="tech-sec-label">军营守备</span>
+              <span class="tech-sec-label">军营</span>
+              <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('a','jingying')">一键满级</button>
+              <button class="tech-sec-btn rst" @click="techReset('a','jingying')">重置</button></div>
+            </div>
+            <div class="tech-grid tech-grid-4">
+              <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.a.jingying" min="0" max="20"></div>
+            </div>
+          </div>
+          <!-- 守备 -->
+          <div class="tech-sec">
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">守备</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('a','guard')">一键满级</button>
               <button class="tech-sec-btn rst" @click="techReset('a','guard')">重置</button></div>
             </div>
             <div class="tech-grid tech-grid-4">
-              <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.a.jingying" min="0" max="20"></div>
               <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.a.jiugong" min="0" max="5"></div>
               <div class="tech-cell"><label>八卦阵</label><input type="number" x-model.number="tech.a.bagua" min="0" max="5"></div>
             </div>
@@ -1426,15 +1436,25 @@ select.w-sm { width: 72px; }
               <div class="tech-cell"><label>器械营</label><input type="number" x-model.number="tech.b.camp_machine" min="0" max="10"></div>
             </div>
           </div>
-          <!-- 军营守备 -->
+          <!-- 军营 -->
           <div class="tech-sec">
             <div class="tech-sec-hd">
-              <span class="tech-sec-label">军营守备</span>
+              <span class="tech-sec-label">军营</span>
+              <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('b','jingying')">一键满级</button>
+              <button class="tech-sec-btn rst" @click="techReset('b','jingying')">重置</button></div>
+            </div>
+            <div class="tech-grid tech-grid-4">
+              <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.b.jingying" min="0" max="20"></div>
+            </div>
+          </div>
+          <!-- 守备 -->
+          <div class="tech-sec">
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">守备</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('b','guard')">一键满级</button>
               <button class="tech-sec-btn rst" @click="techReset('b','guard')">重置</button></div>
             </div>
             <div class="tech-grid tech-grid-4">
-              <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.b.jingying" min="0" max="20"></div>
               <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.b.jiugong" min="0" max="5"></div>
               <div class="tech-cell"><label>八卦阵</label><input type="number" x-model.number="tech.b.bagua" min="0" max="5"></div>
             </div>
@@ -1811,7 +1831,8 @@ function simulator() {
         bingzhan: { bingzhan_wu:10, bingzhan_mou:10, bingzhan_fang:10, bingzhan_su:10 },
         xieli:    { xieli_wei:10, xieli_shu:10, xieli_wu:10, xieli_han:10, xieli_qun:10 },
         camp:     { camp_shield:10, camp_cavalry:10, camp_bow:10, camp_spear:10, camp_machine:10 },
-        guard:    { jingying:20, jiugong:5, bagua:5 },
+        jingying: { jingying:20 },
+        guard:    { jiugong:5, bagua:5 },
       };
       Object.assign(t, maxMap[sec]);
     },
@@ -1821,7 +1842,8 @@ function simulator() {
         bingzhan: ['bingzhan_wu','bingzhan_mou','bingzhan_fang','bingzhan_su'],
         xieli:    ['xieli_wei','xieli_shu','xieli_wu','xieli_han','xieli_qun'],
         camp:     ['camp_shield','camp_cavalry','camp_bow','camp_spear','camp_machine'],
-        guard:    ['jingying','jiugong','bagua'],
+        jingying: ['jingying'],
+        guard:    ['jiugong','bagua'],
       };
       keys[sec].forEach(k => t[k] = 0);
     },
