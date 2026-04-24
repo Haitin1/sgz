@@ -177,16 +177,29 @@ select.w-sm { width: 72px; }
 .troop-inline { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 .troop-inline label { font-size: 12px; color: var(--text2); white-space: nowrap; }
 .troop-inline input { width: 72px; }
-/* Stats 2 列 */
-.stats-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; }
-.stat-cell { display: flex; flex-direction: column; gap: 2px; }
-.stat-main-row { display: flex; align-items: center; gap: 4px; min-height: 28px; }
-.stat-name { font-size: 12px; color: var(--text2); width: 26px; letter-spacing: 2px; flex-shrink: 0; }
-.stat-val-input { width: 60px; font-size: 13px; font-weight: 600; text-align: right; padding: 3px 5px; flex-shrink: 0; }
-.stat-free-label { font-size: 11px; color: #16a34a; font-weight: 600; white-space: nowrap; }
-.growth-row { display: flex; align-items: center; gap: 3px; }
-.growth-label { font-size: 10px; color: var(--text3); flex-shrink: 0; }
-.growth-input { width: 52px; font-size: 11px; color: #166534; border-color: #bbf7d0; background: #f0fdf4; padding: 2px 4px; }
+/* Stats 左右两组各自3行小表格 */
+.stats-grid { display: flex; gap: 14px; margin-top: 2px; }
+.stats-half {
+  flex: 1; min-width: 0;
+  display: grid;
+  grid-template-columns: 2.2rem 1fr 2.8rem;
+  gap: 4px 8px;
+  align-items: center;
+}
+.stat-th-spacer { padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.stat-th { font-size: 11px; color: var(--text3); text-align: center; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+.stat-name-cell { font-size: 13px; color: var(--text2); white-space: nowrap; }
+.stat-val-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.stat-val-input {
+  width: 100%; text-align: center; font-size: 14px; font-weight: 700;
+  padding: 5px 4px; border: 1.5px solid var(--border2); border-radius: 7px;
+  background: #fff; color: var(--text);
+}
+.stat-val-input:focus { border-color: #93c5fd; box-shadow: 0 0 0 2px rgba(59,130,246,.1); }
+.stat-free-mini { font-size: 10px; color: #16a34a; font-weight: 600; line-height: 1; }
+.stat-grow-cell { display: flex; align-items: center; justify-content: center; }
+.stat-grow-disp { font-size: 12px; color: var(--text3); text-align: center; }
+.stat-grow-inp { width: 100%; font-size: 11px; color: #166534; border-color: #bbf7d0; background: #f0fdf4; padding: 2px 3px; text-align: center; }
 /* 战法列标题 */
 .skills-col-header { font-size: 12px; font-weight: 700; color: var(--text2); padding-bottom: 5px; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
 /* 战法槽 */
@@ -728,72 +741,68 @@ select.w-sm { width: 72px; }
                     <input type="number" x-model.number="g.troops" min="1000" max="50000">
                   </div>
                 </div>
-                <!-- 6属性 2列 -->
-                <div class="stats-2col">
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">武力</span>
+                <!-- 6属性：左武/统/政，右智/速/魅 -->
+                <div class="stats-grid">
+                  <!-- 左半 -->
+                  <div class="stats-half">
+                    <div class="stat-th-spacer"></div><div class="stat-th">基础值</div><div class="stat-th">成长</div>
+                    <span class="stat-name-cell">武力</span>
+                    <div class="stat-val-cell">
                       <input class="stat-val-input" type="number" x-effect="$el.value=g.force" step="1" @input="g.editing?syncBase(g,'force',+$event.target.value):adjustFree(g,'force',+$event.target.value);$el.value=g.force">
-                      <span class="stat-free-label" x-show="g.free_force>0" x-text="'(+'+g.free_force.toFixed(2)+')'"></span>
+                      <span class="stat-free-mini" x-show="g.free_force>0" x-text="'+'+g.free_force.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.force_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')">
                     </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">智力</span>
-                      <input class="stat-val-input" type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
-                      <span class="stat-free-label" x-show="g.free_intel>0" x-text="'(+'+g.free_intel.toFixed(2)+')'"></span>
-                    </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
-                    </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">统率</span>
+                    <span class="stat-name-cell">统率</span>
+                    <div class="stat-val-cell">
                       <input class="stat-val-input" type="number" x-effect="$el.value=g.command" step="1" @input="g.editing?syncBase(g,'command',+$event.target.value):adjustFree(g,'command',+$event.target.value);$el.value=g.command">
-                      <span class="stat-free-label" x-show="g.free_command>0" x-text="'(+'+g.free_command.toFixed(2)+')'"></span>
+                      <span class="stat-free-mini" x-show="g.free_command>0" x-text="'+'+g.free_command.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.command_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')">
                     </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">速度</span>
-                      <input class="stat-val-input" type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
-                      <span class="stat-free-label" x-show="g.free_speed>0" x-text="'(+'+g.free_speed.toFixed(2)+')'"></span>
-                    </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
-                    </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">政治</span>
+                    <span class="stat-name-cell">政治</span>
+                    <div class="stat-val-cell">
                       <input class="stat-val-input" type="number" x-effect="$el.value=g.politics" step="1" @input="g.editing?syncBase(g,'politics',+$event.target.value):adjustFree(g,'politics',+$event.target.value);$el.value=g.politics">
-                      <span class="stat-free-label" x-show="g.free_politics>0" x-text="'(+'+g.free_politics.toFixed(2)+')'"></span>
+                      <span class="stat-free-mini" x-show="g.free_politics>0" x-text="'+'+g.free_politics.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.politics_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')">
                     </div>
                   </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">魅力</span>
-                      <input class="stat-val-input" type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
-                      <span class="stat-free-label" x-show="g.free_charisma>0" x-text="'(+'+g.free_charisma.toFixed(2)+')'"></span>
+                  <!-- 右半 -->
+                  <div class="stats-half">
+                    <div class="stat-th-spacer"></div><div class="stat-th">基础值</div><div class="stat-th">成长</div>
+                    <span class="stat-name-cell">智力</span>
+                    <div class="stat-val-cell">
+                      <input class="stat-val-input" type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
+                      <span class="stat-free-mini" x-show="g.free_intel>0" x-text="'+'+g.free_intel.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.intel_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')">
+                    </div>
+                    <span class="stat-name-cell">速度</span>
+                    <div class="stat-val-cell">
+                      <input class="stat-val-input" type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
+                      <span class="stat-free-mini" x-show="g.free_speed>0" x-text="'+'+g.free_speed.toFixed(2)"></span>
+                    </div>
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.speed_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')">
+                    </div>
+                    <span class="stat-name-cell">魅力</span>
+                    <div class="stat-val-cell">
+                      <input class="stat-val-input" type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
+                      <span class="stat-free-mini" x-show="g.free_charisma>0" x-text="'+'+g.free_charisma.toFixed(2)"></span>
+                    </div>
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.charisma_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
                     </div>
                   </div>
                 </div>
@@ -1002,72 +1011,68 @@ select.w-sm { width: 72px; }
                     <input type="number" x-model.number="g.troops" min="1000" max="50000">
                   </div>
                 </div>
-                <!-- 6属性 2列 -->
-                <div class="stats-2col">
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">武力</span>
+                <!-- 6属性：左武/统/政，右智/速/魅 -->
+                <div class="stats-grid">
+                  <!-- 左半 -->
+                  <div class="stats-half">
+                    <div class="stat-th-spacer"></div><div class="stat-th">基础值</div><div class="stat-th">成长</div>
+                    <span class="stat-name-cell">武力</span>
+                    <div class="stat-val-cell">
                       <input class="stat-val-input" type="number" x-effect="$el.value=g.force" step="1" @input="g.editing?syncBase(g,'force',+$event.target.value):adjustFree(g,'force',+$event.target.value);$el.value=g.force">
-                      <span class="stat-free-label" x-show="g.free_force>0" x-text="'(+'+g.free_force.toFixed(2)+')'"></span>
+                      <span class="stat-free-mini" x-show="g.free_force>0" x-text="'+'+g.free_force.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.force_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.force_growth" step="0.01" @change="syncGrowth(g,'force')">
                     </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">智力</span>
-                      <input class="stat-val-input" type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
-                      <span class="stat-free-label" x-show="g.free_intel>0" x-text="'(+'+g.free_intel.toFixed(2)+')'"></span>
-                    </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
-                    </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">统率</span>
+                    <span class="stat-name-cell">统率</span>
+                    <div class="stat-val-cell">
                       <input class="stat-val-input" type="number" x-effect="$el.value=g.command" step="1" @input="g.editing?syncBase(g,'command',+$event.target.value):adjustFree(g,'command',+$event.target.value);$el.value=g.command">
-                      <span class="stat-free-label" x-show="g.free_command>0" x-text="'(+'+g.free_command.toFixed(2)+')'"></span>
+                      <span class="stat-free-mini" x-show="g.free_command>0" x-text="'+'+g.free_command.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.command_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.command_growth" step="0.01" @change="syncGrowth(g,'command')">
                     </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">速度</span>
-                      <input class="stat-val-input" type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
-                      <span class="stat-free-label" x-show="g.free_speed>0" x-text="'(+'+g.free_speed.toFixed(2)+')'"></span>
-                    </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
-                    </div>
-                  </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">政治</span>
+                    <span class="stat-name-cell">政治</span>
+                    <div class="stat-val-cell">
                       <input class="stat-val-input" type="number" x-effect="$el.value=g.politics" step="1" @input="g.editing?syncBase(g,'politics',+$event.target.value):adjustFree(g,'politics',+$event.target.value);$el.value=g.politics">
-                      <span class="stat-free-label" x-show="g.free_politics>0" x-text="'(+'+g.free_politics.toFixed(2)+')'"></span>
+                      <span class="stat-free-mini" x-show="g.free_politics>0" x-text="'+'+g.free_politics.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.politics_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.politics_growth" step="0.01" @change="syncGrowth(g,'politics')">
                     </div>
                   </div>
-                  <div class="stat-cell">
-                    <div class="stat-main-row">
-                      <span class="stat-name">魅力</span>
-                      <input class="stat-val-input" type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
-                      <span class="stat-free-label" x-show="g.free_charisma>0" x-text="'(+'+g.free_charisma.toFixed(2)+')'"></span>
+                  <!-- 右半 -->
+                  <div class="stats-half">
+                    <div class="stat-th-spacer"></div><div class="stat-th">基础值</div><div class="stat-th">成长</div>
+                    <span class="stat-name-cell">智力</span>
+                    <div class="stat-val-cell">
+                      <input class="stat-val-input" type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
+                      <span class="stat-free-mini" x-show="g.free_intel>0" x-text="'+'+g.free_intel.toFixed(2)"></span>
                     </div>
-                    <div class="growth-row" x-show="g.editing">
-                      <span class="growth-label">成长</span>
-                      <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.intel_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.intel_growth" step="0.01" @change="syncGrowth(g,'intel')">
+                    </div>
+                    <span class="stat-name-cell">速度</span>
+                    <div class="stat-val-cell">
+                      <input class="stat-val-input" type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
+                      <span class="stat-free-mini" x-show="g.free_speed>0" x-text="'+'+g.free_speed.toFixed(2)"></span>
+                    </div>
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.speed_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.speed_growth" step="0.01" @change="syncGrowth(g,'speed')">
+                    </div>
+                    <span class="stat-name-cell">魅力</span>
+                    <div class="stat-val-cell">
+                      <input class="stat-val-input" type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
+                      <span class="stat-free-mini" x-show="g.free_charisma>0" x-text="'+'+g.free_charisma.toFixed(2)"></span>
+                    </div>
+                    <div class="stat-grow-cell">
+                      <span class="stat-grow-disp" x-show="!g.editing" x-text="g.charisma_growth.toFixed(2)"></span>
+                      <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
                     </div>
                   </div>
                 </div>
