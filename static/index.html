@@ -827,7 +827,7 @@ select.w-sm { width: 72px; }
               x-text="slot.name"></button>
           </template>
           <template x-if="!slot">
-            <span class="lineup-slot-empty" x-text="'空 ' + (idx+1)"></span>
+            <span class="lineup-slot-empty" x-text="'阵容' + (idx+1)"></span>
           </template>
           <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineup(idx)" title="删除">×</button>
         </div>
