@@ -829,9 +829,11 @@ select.w-sm { width: 72px; }
                       <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
                     </button>
                   </div>
-                  <div style="display:flex;align-items:center;gap:6px">
+                  <div style="display:flex;align-items:center;gap:6px"
+                    x-effect="g.troops = calcTroops(tech.a.jingying, g.level)">
                     <label style="font-size:12px;color:var(--text2);white-space:nowrap">兵力</label>
-                    <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:80px">
+                    <span style="font-size:13px;font-weight:700;color:var(--text)"
+                      x-text="g.troops.toLocaleString()"></span>
                   </div>
                 </div>
               </div>
@@ -1151,9 +1153,11 @@ select.w-sm { width: 72px; }
                       <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
                     </button>
                   </div>
-                  <div style="display:flex;align-items:center;gap:6px">
+                  <div style="display:flex;align-items:center;gap:6px"
+                    x-effect="g.troops = calcTroops(tech.b.jingying, g.level)">
                     <label style="font-size:12px;color:var(--text2);white-space:nowrap">兵力</label>
-                    <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:80px">
+                    <span style="font-size:13px;font-weight:700;color:var(--text)"
+                      x-text="g.troops.toLocaleString()"></span>
                   </div>
                 </div>
               </div>
@@ -1612,6 +1616,14 @@ function simulator() {
       if (!name) return '';
       const sk = this.skillsData.find(s => s.name === name);
       return sk ? (sk.description || sk.effect || '') : '';
+    },
+    calcTroops(jingying, level) {
+      // 军营1-10级：每级+200；11-20级：每级+300；满级=5000
+      const j = jingying || 0;
+      const campBonus = j <= 10 ? j * 200 : 2000 + (j - 10) * 300;
+      // 武将每级+100，Lv50=5000
+      const lvBonus = (level || 1) * 100;
+      return campBonus + lvBonus;
     },
     techMax(side, sec) {
       const t = this.tech[side];
