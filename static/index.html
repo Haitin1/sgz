@@ -643,6 +643,52 @@ select.w-sm { width: 72px; }
 }
 .advisor-card .ac-desc { color: var(--text2); line-height: 1.6; }
 
+/* ── 保存阵容栏 ── */
+.lineup-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 8px 12px;
+  margin-bottom: 12px; box-shadow: var(--shadow);
+}
+.lineup-save-btn {
+  font-size: 12px; font-weight: 700; padding: 5px 12px;
+  border-radius: 6px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #fff; box-shadow: 0 1px 3px rgba(22,163,74,.35);
+  white-space: nowrap; transition: opacity .15s;
+}
+.lineup-save-btn:disabled { background: #d1d5db; color: #9ca3af; box-shadow: none; cursor: not-allowed; }
+.lineup-save-btn:not(:disabled):hover { opacity: .88; }
+.lineup-name-input {
+  font-size: 12px; padding: 4px 8px; border-radius: 5px;
+  border: 1px solid var(--border2); width: 100px;
+}
+.lineup-slots { display: flex; gap: 5px; flex-wrap: wrap; }
+.lineup-slot {
+  position: relative; display: inline-flex; align-items: center;
+  border-radius: 5px; overflow: visible;
+}
+.lineup-slot-btn {
+  font-size: 11px; font-weight: 600; padding: 4px 10px;
+  border-radius: 5px; border: 1px solid #6ee7b7;
+  background: #ecfdf5; color: #065f46; cursor: pointer;
+  max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: background .15s;
+}
+.lineup-slot-btn:hover { background: #d1fae5; }
+.lineup-slot-empty {
+  font-size: 11px; color: #9ca3af; padding: 4px 10px;
+  border: 1px dashed #d1d5db; border-radius: 5px; white-space: nowrap;
+}
+.lineup-slot-del {
+  position: absolute; top: -5px; right: -5px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #ef4444; color: #fff; border: none;
+  font-size: 10px; line-height: 16px; text-align: center;
+  cursor: pointer; display: none; padding: 0;
+}
+.lineup-slot:hover .lineup-slot-del { display: block; }
+
 /* ═══════════════════════════════════════════
    移动端适配  ≤ 600px
 ═══════════════════════════════════════════ */
@@ -763,6 +809,32 @@ select.w-sm { width: 72px; }
   </div>
 
   <!-- Teams -->
+  <!-- 保存阵容栏 -->
+  <div class="lineup-bar">
+    <button class="lineup-save-btn"
+      :disabled="!canSaveLineup() || lineupSlotsFull()"
+      @click="saveLineup()"
+      :title="lineupSlotsFull() ? '已存满5个阵容' : (!canSaveLineup() ? '请配置兵种、红度、典藏和至少一个战法' : '保存当前我方阵容')">
+      💾 保存阵容
+    </button>
+    <input class="lineup-name-input" type="text" x-model="lineupName" placeholder="阵容名称" maxlength="10">
+    <div class="lineup-slots">
+      <template x-for="(slot, idx) in savedLineups" :key="idx">
+        <div class="lineup-slot">
+          <template x-if="slot">
+            <button class="lineup-slot-btn" @click="loadLineup(idx)"
+              :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '')"
+              x-text="slot.name"></button>
+          </template>
+          <template x-if="!slot">
+            <span class="lineup-slot-empty" x-text="'空 ' + (idx+1)"></span>
+          </template>
+          <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineup(idx)" title="删除">×</button>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <div class="teams-grid">
 
     <!-- Team A -->
@@ -1707,6 +1779,8 @@ function simulator() {
     result: null,
     error: null,
     showLog: false,
+    savedLineups: Array(5).fill(null),
+    lineupName: '',
 
     async init() {
       try {
@@ -1725,6 +1799,10 @@ function simulator() {
         this.generalsData  = [];
         this.skillsData    = [];
       }
+      // 载入本地保存的阵容
+      const _saved = localStorage.getItem('sgz_lineups_v1');
+      if (_saved) try { this.savedLineups = JSON.parse(_saved); } catch(e) {}
+
       // 用数据库数据填充默认将领
       const defaults = {
         a: ['关羽', '张飞', '诸葛亮'],
@@ -1885,6 +1963,70 @@ function simulator() {
       return order.map(t => ({ type: t, name: names[t], grade: aff[t] || 'C' }));
     },
 
+    canSaveLineup() {
+      const team = this.teams.a;
+      if (!this.teamTroop.a) return false;
+      if (!team.some(g => g.name)) return false;
+      if (!team.some(g => (g.red_dots || 0) > 0)) return false;
+      if (!team.some(g => g.is_collection)) return false;
+      if (!team.some(g => g.skills[1].name || g.skills[2].name)) return false;
+      return true;
+    },
+    lineupSlotsFull() {
+      return this.savedLineups.every(s => s !== null);
+    },
+    saveLineup() {
+      if (!this.canSaveLineup()) return;
+      const slot = this.savedLineups.findIndex(s => s === null);
+      if (slot === -1) return;
+      const lineup = {
+        name: this.lineupName.trim() || ('阵容' + (slot + 1)),
+        teamTroop: this.teamTroop.a,
+        advisor: this.advisor.a ? JSON.parse(JSON.stringify(this.advisor.a)) : null,
+        generals: this.teams.a.map(g => ({
+          name: g.name, level: g.level,
+          troop_type: g.troop_type, troop_grade: g.troop_grade,
+          red_dots: g.red_dots || 0, is_collection: g.is_collection || false,
+          skills: g.skills.map(s => ({ name: s.name || '' })),
+          free_force: g.free_force||0, free_intel: g.free_intel||0,
+          free_command: g.free_command||0, free_speed: g.free_speed||0,
+          free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
+        })),
+        savedAt: new Date().toLocaleDateString('zh-CN'),
+      };
+      this.savedLineups = [...this.savedLineups];
+      this.savedLineups[slot] = lineup;
+      localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
+      this.lineupName = '';
+    },
+    loadLineup(slot) {
+      const lineup = this.savedLineups[slot];
+      if (!lineup) return;
+      this.teamTroop.a = lineup.teamTroop || '';
+      this.advisor.a = lineup.advisor || null;
+      if (lineup.teamTroop) this.lockTeamTroop('a');
+      lineup.generals.forEach((saved, idx) => {
+        if (!saved.name) return;
+        const gen = this.generalsData.find(g => g.name === saved.name);
+        if (!gen) return;
+        this.pickGeneral('a', idx, gen);
+        const g = this.teams.a[idx];
+        g.level = saved.level || 1;
+        g.red_dots = saved.red_dots || 0;
+        g.is_collection = saved.is_collection || false;
+        if (saved.skills[1]) g.skills[1].name = saved.skills[1].name || '';
+        if (saved.skills[2]) g.skills[2].name = saved.skills[2].name || '';
+        g.free_force = saved.free_force||0; g.free_intel = saved.free_intel||0;
+        g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
+        g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
+        this.recalcStats('a', idx);
+      });
+    },
+    deleteLineup(slot) {
+      this.savedLineups = [...this.savedLineups];
+      this.savedLineups[slot] = null;
+      localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
+    },
     pickGeneral(team, idx, gen) {
       const g = this.teams[team][idx];
       g.name           = gen.name;
