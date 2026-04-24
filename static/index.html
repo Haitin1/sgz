@@ -185,8 +185,6 @@ select.w-sm { width: 72px; }
 .troop-top { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .troop-top label { font-size: 12px; color: var(--text2); white-space: nowrap; }
 .troop-top input { flex: 1; min-width: 0; }
-/* 编辑/保存 按钮行靠左 */
-.save-row { display: flex; justify-content: flex-start; gap: 8px; flex-wrap: wrap; }
 .stat-name-cell { font-size: 13px; color: var(--text2); white-space: nowrap; }
 .stat-val-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .stat-val-input {
@@ -577,7 +575,7 @@ select.w-sm { width: 72px; }
 
 /* 保存按钮 */
 .save-row {
-  display: flex; justify-content: flex-end; margin-top: 6px;
+  display: flex; justify-content: space-between; align-items: center; margin-top: 6px; gap: 8px;
 }
 .btn-save { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; font-size: 12px; padding: 4px 12px; }
 .btn-save:hover { background: #dcfce7; }
@@ -801,7 +799,7 @@ select.w-sm { width: 72px; }
                     <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
                   </div>
                 </div>
-                <div class="save-row" x-show="g.db_id" style="margin-top:6px;justify-content:space-between;align-items:center">
+                <div class="save-row" x-show="g.db_id" style="margin-top:6px">
                   <div style="display:flex;gap:8px">
                     <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
                     <button class="btn btn-reset" @click="resetGeneral('a',gi)">↺ 重置</button>
@@ -1069,7 +1067,7 @@ select.w-sm { width: 72px; }
                     <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
                   </div>
                 </div>
-                <div class="save-row" x-show="g.db_id" style="margin-top:6px;justify-content:space-between;align-items:center">
+                <div class="save-row" x-show="g.db_id" style="margin-top:6px">
                   <div style="display:flex;gap:8px">
                     <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
                     <button class="btn btn-reset" @click="resetGeneral('b',gi)">↺ 重置</button>
