@@ -2022,6 +2022,7 @@ function simulator() {
         gens: this.teams[team].map(g => ({
           n: g.name, lv: g.level,
           rd: g.red_dots||0, col: g.is_collection||false,
+          tg: g.troop_grade||'',
           s1: g.skills[1]?.name||'', s2: g.skills[2]?.name||'',
           ff: g.free_force||0, fi: g.free_intel||0,
           fc: g.free_command||0, fs: g.free_speed||0,
