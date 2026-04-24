@@ -290,6 +290,26 @@ def list_advisor_skills():
         raise HTTPException(500, f"数据库错误：{e}")
 
 
+
+@app.get("/api/affinities")
+def list_affinities():
+    """返回所有缘分数据"""
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT id, name, min_members, members, effect
+            FROM affinities
+            ORDER BY id
+        """)
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
 # ─────────────────────────────────────────────────────────────
 # 前端静态文件
 # ─────────────────────────────────────────────────────────────

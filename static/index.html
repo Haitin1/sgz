@@ -550,6 +550,25 @@ select.w-sm { width: 72px; }
 .bonus-badge.clickable { cursor: pointer; }
 .bonus-badge.clickable:hover { border-color: #fbbf24; color: #92400e; }
 .bonus-badge.active { border-color: #fbbf24; background: #fef3c7; color: #92400e; }
+.aff-wrap { position: relative; display: inline-block; }
+.aff-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #f59e0b; color: #fff; border-radius: 50%;
+  font-size: 9px; font-weight: 700; width: 13px; height: 13px;
+  margin-left: 2px; vertical-align: middle;
+}
+.aff-tooltip {
+  position: absolute; top: calc(100% + 5px); left: 0;
+  background: #fff; border: 1px solid #fbbf24;
+  border-radius: 6px; padding: 6px 8px;
+  min-width: 190px; max-width: 270px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  z-index: 200; pointer-events: none;
+}
+.aff-item { padding: 3px 0; }
+.aff-item + .aff-item { border-top: 1px solid #fef3c7; padding-top: 4px; margin-top: 1px; }
+.aff-name { font-size: 12px; font-weight: 700; color: #92400e; display: block; }
+.aff-effect { font-size: 11px; color: var(--text2); display: block; margin-top: 1px; }
 .btn-reset {
   font-size: 12px; padding: 4px 10px; border-radius: 5px; cursor: pointer;
   border: 1px solid #fca5a5; background: #fff1f2; color: #b91c1c;
@@ -646,7 +665,19 @@ select.w-sm { width: 72px; }
           <option value="machine">器械</option>
         </select>
         <div class="bonus-group">
-          <span class="bonus-badge clickable" :class="bonus.a.affinity?'active':''" @click="bonus.a.affinity=!bonus.a.affinity">缘分</span>
+          <div class="aff-wrap" x-data="{show:false}" @mouseenter="show=true" @mouseleave="show=false">
+            <span class="bonus-badge clickable"
+              :class="(bonus.a.affinity || triggeredAffinities('a').length>0) ? 'active' : ''"
+              @click="bonus.a.affinity=!bonus.a.affinity">缘分<span class="aff-count" x-show="triggeredAffinities('a').length>0" x-text="triggeredAffinities('a').length"></span></span>
+            <div class="aff-tooltip" x-show="show && triggeredAffinities('a').length>0">
+              <template x-for="aff in triggeredAffinities('a')" :key="aff.id">
+                <div class="aff-item">
+                  <span class="aff-name" x-text="aff.name"></span>
+                  <span class="aff-effect" x-text="aff.effect||'效果待录入'"></span>
+                </div>
+              </template>
+            </div>
+          </div>
           <span class="bonus-badge clickable" :class="bonus.a.faction?'active':''" @click="bonus.a.faction=!bonus.a.faction">阵营</span>
           <span class="bonus-badge" :class="troopBonus('a')?'active':''" title="兵种科技等级>0时自动激活">兵种</span>
         </div>
@@ -974,7 +1005,19 @@ select.w-sm { width: 72px; }
           <option value="machine">器械</option>
         </select>
         <div class="bonus-group">
-          <span class="bonus-badge clickable" :class="bonus.b.affinity?'active':''" @click="bonus.b.affinity=!bonus.b.affinity">缘分</span>
+          <div class="aff-wrap" x-data="{show:false}" @mouseenter="show=true" @mouseleave="show=false">
+            <span class="bonus-badge clickable"
+              :class="(bonus.b.affinity || triggeredAffinities('b').length>0) ? 'active' : ''"
+              @click="bonus.b.affinity=!bonus.b.affinity">缘分<span class="aff-count" x-show="triggeredAffinities('b').length>0" x-text="triggeredAffinities('b').length"></span></span>
+            <div class="aff-tooltip" x-show="show && triggeredAffinities('b').length>0">
+              <template x-for="aff in triggeredAffinities('b')" :key="aff.id">
+                <div class="aff-item">
+                  <span class="aff-name" x-text="aff.name"></span>
+                  <span class="aff-effect" x-text="aff.effect||'效果待录入'"></span>
+                </div>
+              </template>
+            </div>
+          </div>
           <span class="bonus-badge clickable" :class="bonus.b.faction?'active':''" @click="bonus.b.faction=!bonus.b.faction">阵营</span>
           <span class="bonus-badge" :class="troopBonus('b')?'active':''" title="兵种科技等级>0时自动激活">兵种</span>
         </div>
@@ -1517,6 +1560,7 @@ function simulator() {
     advisorSearch: { a: '', b: '' },
     advisorOpen: { a: false, b: false },
     generalsData: [],
+    affinitiesData: [],
     genSearch: { a: ['','',''], b: ['','',''] },
     genOpen:   { a: [false,false,false], b: [false,false,false] },
     levelOptions: Array.from({length:50}, (_,i)=>i+1),
@@ -1529,14 +1573,16 @@ function simulator() {
 
     async init() {
       try {
-        const [advRes, genRes, skillRes] = await Promise.all([
+        const [advRes, genRes, skillRes, affRes] = await Promise.all([
           fetch('/api/advisor_skills'),
           fetch('/api/generals'),
           fetch('/api/skills'),
+          fetch('/api/affinities'),
         ]);
-        this.advisorSkills = await advRes.json();
-        this.generalsData  = await genRes.json();
-        this.skillsData    = await skillRes.json();
+        this.advisorSkills  = await advRes.json();
+        this.generalsData   = await genRes.json();
+        this.skillsData     = await skillRes.json();
+        this.affinitiesData = await affRes.json();
       } catch(e) {
         this.advisorSkills = [];
         this.generalsData  = [];
@@ -1612,6 +1658,27 @@ function simulator() {
       if (!name) return '';
       const sk = this.skillsData.find(s => s.name === name);
       return sk ? (sk.description || sk.effect || '') : '';
+    },
+    getBaseName(name) {
+      return (name || '').replace(/^SP /, '').trim();
+    },
+    triggeredAffinities(team) {
+      const names = this.teams[team].map(g => g.name).filter(n => n);
+      if (names.length === 0) return [];
+      return this.affinitiesData.filter(aff => {
+        // 按基础名字分组
+        const groups = {};
+        for (const m of (aff.members || [])) {
+          const base = this.getBaseName(m);
+          if (!groups[base]) groups[base] = true;
+        }
+        // 统计队伍里命中几个组
+        let matched = 0;
+        for (const base of Object.keys(groups)) {
+          if (names.some(n => this.getBaseName(n) === base)) matched++;
+        }
+        return matched >= aff.min_members;
+      });
     },
     calcTroops(jingying, level) {
       // 军营1-10级：每级+200；11-20级：每级+300；满级=5000
