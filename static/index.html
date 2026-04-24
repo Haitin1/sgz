@@ -41,8 +41,8 @@ body {
   min-height: 100vh;
 }
 
-/* ── Top-right fixed bar ── */
-.topright-bar { position:fixed;top:12px;right:12px;z-index:500;display:flex;align-items:center;gap:6px; }
+/* ── Sticky header bar ── */
+.topright-bar { display:flex;align-items:center;gap:6px;flex-shrink:0; }
 
 /* ── Auth & Modal ── */
 [x-cloak] { display:none !important; }
@@ -78,9 +78,11 @@ body {
 .app { max-width: 1200px; margin: 0 auto; padding: 16px; }
 
 .header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 0 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
   margin-bottom: 20px;
+  position: sticky; top: 0; z-index: 200;
+  background: var(--bg);
 }
 .header h1 { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: 1px; }
 .header .subtitle { font-size: 12px; color: var(--text3); margin-top: 2px; }
@@ -889,34 +891,32 @@ select.w-sm { width: 72px; }
 <body>
 <div class="app" x-data="simulator()">
 
-  <!-- 固定右上角：用户控件 -->
-  <div class="topright-bar">
-    <template x-if="currentUser">
-      <div style="display:flex;align-items:center;gap:6px">
-        <button class="btn btn-sm" @click="openEquipPanel()">我的装备</button>
-        <div style="position:relative" x-data="{hover:false}" @mouseenter="hover=true" @mouseleave="hover=false">
-          <div class="user-avatar" x-text="currentUser.username.slice(0,1).toUpperCase()" style="cursor:pointer"></div>
-          <div class="user-card" x-show="hover" x-cloak>
-            <div class="user-card-name" x-text="currentUser.username"></div>
-            <div class="user-card-row" x-show="currentUser.server_name"><span>服务器</span><span x-text="currentUser.server_name"></span></div>
-            <div class="user-card-row" x-show="currentUser.alliance_name"><span>联盟</span><span x-text="currentUser.alliance_name"></span></div>
-            <div class="user-card-row"><span>邮箱</span><span x-text="currentUser.email"></span></div>
-            <div class="user-card-row" style="margin-top:8px">
-              <button class="btn btn-sm" style="width:100%" @click="logout()">退出登录</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </template>
-    <template x-if="!currentUser">
-      <button class="btn btn-primary btn-sm" @click="authModal.open=true;authModal.mode='login'">登录 / 注册</button>
-    </template>
-  </div>
-
   <div class="header">
     <div>
       <h1>⚔️ 三国志战略版 · 对战模拟器</h1>
       <div class="subtitle">配置双方武将 → 点击模拟对战</div>
+    </div>
+    <div class="topright-bar">
+      <template x-if="currentUser">
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="btn btn-sm" @click="openEquipPanel()">我的装备</button>
+          <div style="position:relative" x-data="{hover:false}" @mouseenter="hover=true" @mouseleave="hover=false">
+            <div class="user-avatar" x-text="currentUser.username.slice(0,1).toUpperCase()" style="cursor:pointer"></div>
+            <div class="user-card" x-show="hover" x-cloak>
+              <div class="user-card-name" x-text="currentUser.username"></div>
+              <div class="user-card-row" x-show="currentUser.server_name"><span>服务器</span><span x-text="currentUser.server_name"></span></div>
+              <div class="user-card-row" x-show="currentUser.alliance_name"><span>联盟</span><span x-text="currentUser.alliance_name"></span></div>
+              <div class="user-card-row"><span>邮箱</span><span x-text="currentUser.email"></span></div>
+              <div class="user-card-row" style="margin-top:8px">
+                <button class="btn btn-sm" style="width:100%" @click="logout()">退出登录</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template x-if="!currentUser">
+        <button class="btn btn-primary btn-sm" @click="authModal.open=true;authModal.mode='login'">登录 / 注册</button>
+      </template>
     </div>
   </div>
 
