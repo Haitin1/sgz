@@ -2318,6 +2318,7 @@ function simulator() {
           free_force: g.free_force||0, free_intel: g.free_intel||0,
           free_command: g.free_command||0, free_speed: g.free_speed||0,
           free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
+          main_book: g.main_book||null, sub_book1: g.sub_book1||null, sub_book2: g.sub_book2||null,
         })),
         savedAt: new Date().toLocaleDateString('zh-CN'),
       };
@@ -2340,6 +2341,7 @@ function simulator() {
         g.free_force = saved.free_force||0; g.free_intel = saved.free_intel||0;
         g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
         g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
+        g.main_book = saved.main_book||null; g.sub_book1 = saved.sub_book1||null; g.sub_book2 = saved.sub_book2||null;
         this.recalcStats(team, idx);
       });
     },
@@ -2527,9 +2529,10 @@ function simulator() {
       g.innate_skill_name = gen.innate_skill || '';
       const innateObj = this.skillsData.find(s => s.name === gen.innate_skill);
       g.innate_skill_desc = innateObj ? (innateObj.description || '') : '';
-      // 重置技能槽2/3
+      // 重置技能槽2/3 和兵书
       g.skills[1] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
       g.skills[2] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
+      g.main_book = null; g.sub_book1 = null; g.sub_book2 = null;
       g.force_base     = +parseFloat(gen.strength    ?? 0).toFixed(2);
       g.intel_base     = +parseFloat(gen.intelligence?? 0).toFixed(2);
       g.command_base   = +parseFloat(gen.leadership  ?? 0).toFixed(2);
