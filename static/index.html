@@ -233,7 +233,14 @@ select.w-sm { width: 72px; }
   background: #fff; margin-top: 2px; overflow: hidden;
   box-shadow: 0 4px 16px rgba(0,0,0,.1);
 }
-.sk-picker-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto; }
+.sk-picker-tabs { display: flex; align-items: center; border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto; }
+.sk-picker-search {
+  margin-left: auto; flex-shrink: 0;
+  padding: 4px 8px; border: none; border-left: 1px solid var(--border);
+  background: var(--surface2); font-size: 12px; color: var(--text);
+  outline: none; width: 120px;
+}
+.sk-picker-search::placeholder { color: var(--text3); }
 .sk-tab {
   padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
   color: var(--text3); white-space: nowrap; flex-shrink: 0; border-bottom: 2px solid transparent;
@@ -905,6 +912,7 @@ select.w-sm { width: 72px; }
                 <template x-for="cat in ['全部','指挥','主动','突击','被动','兵种','阵法','内政']" :key="cat">
                   <div class="sk-tab" :class="skillPicker.category===cat?'active':''" @click="skillPicker.category=cat;skillPicker.expandedId=null" x-text="cat"></div>
                 </template>
+                <input class="sk-picker-search" type="text" placeholder="搜索战法…" x-model="skillPicker.search" @click.stop>
               </div>
               <div class="sk-list">
                 <template x-for="sk in filteredSkills()" :key="sk.id">
@@ -1241,6 +1249,7 @@ select.w-sm { width: 72px; }
                 <template x-for="cat in ['全部','指挥','主动','突击','被动','兵种','阵法','内政']" :key="cat">
                   <div class="sk-tab" :class="skillPicker.category===cat?'active':''" @click="skillPicker.category=cat;skillPicker.expandedId=null" x-text="cat"></div>
                 </template>
+                <input class="sk-picker-search" type="text" placeholder="搜索战法…" x-model="skillPicker.search" @click.stop>
               </div>
               <div class="sk-list">
                 <template x-for="sk in filteredSkills()" :key="sk.id">
@@ -1555,7 +1564,7 @@ function simulator() {
     teamTroop: { a: '', b: '' },
     bonus: { a: { affinity: false, faction: false }, b: { affinity: false, faction: false } },
     skillsData: [],
-    skillPicker: { open: false, team: null, idx: null, slot: null, category: '全部', expandedId: null },
+    skillPicker: { open: false, team: null, idx: null, slot: null, category: '全部', expandedId: null, search: '' },
     advisorSkills: [],
     advisorSearch: { a: '', b: '' },
     advisorOpen: { a: false, b: false },
@@ -1638,7 +1647,7 @@ function simulator() {
       if (this.skillPicker.open && this.skillPicker.team===team && this.skillPicker.idx===idx && this.skillPicker.slot===slot) {
         this.skillPicker.open = false;
       } else {
-        this.skillPicker = { open: true, team, idx, slot, category: '全部', expandedId: null };
+        this.skillPicker = { open: true, team, idx, slot, category: '全部', expandedId: null, search: '' };
       }
     },
     selectSkill(sk) {
@@ -1710,7 +1719,10 @@ function simulator() {
     },
     filteredSkills() {
       const cat = this.skillPicker.category;
-      return cat === '全部' ? this.skillsData : this.skillsData.filter(s => s.category === cat);
+      const q = (this.skillPicker.search || '').trim();
+      let list = cat === '全部' ? this.skillsData : this.skillsData.filter(s => s.category === cat);
+      if (q) list = list.filter(s => s.name.includes(q) || (s.effect || '').includes(q));
+      return list;
     },
 
     // 阵营加成：三将同阵营（魏/蜀/吴/群/汉）
