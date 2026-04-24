@@ -1300,7 +1300,7 @@ function simulator() {
       name, troops, troop_type: type, troop_grade: grade, skills,
       innate_skill_name: '',
       innate_skill_desc: '',
-      level: 5, faction: '',
+      level: 1, faction: '',
       db_id: null, dirty: false, editing: false,
       red_dots: 0, is_collection: false, command_value: 5,
       free_force: 0, free_intel: 0, free_command: 0, free_speed: 0, free_politics: 0, free_charisma: 0,
@@ -1382,7 +1382,7 @@ function simulator() {
     generalsData: [],
     genSearch: { a: ['','',''], b: ['','',''] },
     genOpen:   { a: [false,false,false], b: [false,false,false] },
-    levelOptions: Array.from({length:46}, (_,i)=>i+5),
+    levelOptions: Array.from({length:50}, (_,i)=>i+1),
     batchRuns: 100,
     loading: false,
     runs: 1,
@@ -1425,7 +1425,7 @@ function simulator() {
     },
 
     freeTotal(g) {
-      return 10 + (g.red_dots||0)*10 + (g.is_collection ? 10 : 0) + Math.floor((g.level||5)/10)*10;
+      return 10 + (g.red_dots||0)*10 + (g.is_collection ? 10 : 0) + Math.floor((g.level||1)/10)*10;
     },
     freeUsed(g) {
       return (g.free_force||0)+(g.free_intel||0)+(g.free_command||0)+(g.free_speed||0)+(g.free_politics||0)+(g.free_charisma||0);
@@ -1440,7 +1440,7 @@ function simulator() {
     },
     resetGeneral(team, idx) {
       const g = this.teams[team][idx];
-      g.level       = 5;
+      g.level       = 1;
       g.force       = g.force_base;
       g.intel       = g.intel_base;
       g.command     = g.command_base;
@@ -1569,7 +1569,7 @@ function simulator() {
 
     recalcStats(team, idx) {
       const g = this.teams[team][idx];
-      const lv = g.level - 5;
+      const lv = g.level - 1;
       g.force    = +( g.force_base    + g.force_growth    * lv + (g.free_force   ||0) ).toFixed(2);
       g.intel    = +( g.intel_base    + g.intel_growth    * lv + (g.free_intel   ||0) ).toFixed(2);
       g.command  = +( g.command_base  + g.command_growth  * lv + (g.free_command ||0) ).toFixed(2);
@@ -1581,7 +1581,7 @@ function simulator() {
     // 编辑模式：手动改属性值，反推基础值
     syncBase(g, stat, newVal) {
       g[stat] = +newVal;
-      const lv = g.level - 5;
+      const lv = g.level - 1;
       const free = g['free_' + stat] || 0;
       g[stat + '_base'] = +( newVal - free - g[stat + '_growth'] * lv ).toFixed(2);
       g.dirty = true;
@@ -1589,7 +1589,7 @@ function simulator() {
 
     // 编辑模式：改成长值时，反推基础值
     syncGrowth(g, stat) {
-      const lv = g.level - 5;
+      const lv = g.level - 1;
       const free = g['free_' + stat] || 0;
       g[stat + '_base'] = +( g[stat] - free - g[stat + '_growth'] * lv ).toFixed(2);
       g.dirty = true;
@@ -1599,7 +1599,7 @@ function simulator() {
     adjustFree(g, stat, newVal) {
       newVal = +newVal;
       const freeStat = 'free_' + stat;
-      const lv = g.level - 5;
+      const lv = g.level - 1;
       const baseAtLevel = +(g[stat + '_base'] + g[stat + '_growth'] * lv).toFixed(2);
       const currentFree = g[freeStat] || 0;
       const currentStat = +(baseAtLevel + currentFree).toFixed(2);
