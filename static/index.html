@@ -627,88 +627,47 @@ select.w-sm { width: 72px; }
 }
 
 /* ── 兵书区 ── */
-.books-section {
-  border-top: 1px solid var(--border);
-  padding: 8px 10px 6px;
-  background: var(--surface2);
-}
-.books-header {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
-}
-.books-system-title {
-  font-size: 12px; font-weight: 700; color: var(--gold);
-  letter-spacing: 2px;
-}
-.books-row {
-  display: flex; align-items: flex-start; gap: 10px;
-}
-.book-slot {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  cursor: pointer; user-select: none;
-}
-.book-slot.main .book-icon { width: 52px; height: 52px; }
-.book-slot.sub  .book-icon { width: 36px; height: 36px; }
-.book-icon {
-  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
-  display: flex; align-items: center; justify-content: center;
-  background: #2a1f0e; border: none; transition: background .15s;
-  font-size: 10px; color: #a0845c;
-}
-.book-icon.filled { background: linear-gradient(135deg, #3d2b0c, #5a3d14); }
-.book-icon:hover  { background: linear-gradient(135deg, #4a3510, #6b4a1a); }
-.book-icon .book-inner-ring {
-  width: 80%; height: 80%;
-  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
-  background: rgba(180,130,50,0.15);
-  display: flex; align-items: center; justify-content: center;
-}
-.book-name {
-  font-size: 11px; font-weight: 600; color: var(--gold);
-  text-align: center; max-width: 52px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.book-slot.sub .book-name { font-size: 10px; max-width: 36px; }
-.book-name.empty { color: var(--text3); font-weight: 400; }
-.book-remove {
-  font-size: 9px; color: #9ca3af; cursor: pointer; line-height: 1;
-}
-.book-remove:hover { color: #ef4444; }
-.books-sub-group { display: flex; gap: 8px; align-items: flex-start; }
+.books-section { border-top:1px solid var(--border); padding:5px 8px; background:var(--surface2); }
+.books-header { font-size:11px; font-weight:700; color:var(--gold); letter-spacing:1px; margin-bottom:5px; cursor:pointer; }
+.books-display { display:flex; align-items:flex-end; gap:8px; }
+.bk-badge { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:pointer; position:relative; }
+.bk-badge-outer { position:relative; width:36px; height:36px; flex-shrink:0; }
+.bk-badge-outer.sub { width:28px; height:28px; }
+.bk-badge-outer::before { content:''; position:absolute; inset:0; clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%); background:#7a5c1a; }
+.bk-badge-fg { position:absolute; inset:2px; clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%); background:#1a1208; display:flex; align-items:center; justify-content:center; font-size:9px; color:#7a5c1a; font-weight:700; }
+.bk-badge-fg.filled { background:#2a1e0a; color:#c8a060; }
+.bk-badge-name { font-size:10px; font-weight:600; color:var(--gold); text-align:center; max-width:36px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bk-badge-name.sub { max-width:28px; font-size:9px; }
+.bk-badge-name.empty { color:var(--text3); font-weight:400; }
+.bk-badge-remove { position:absolute; top:-4px; right:-4px; width:13px; height:13px; border-radius:50%; background:#ef4444; color:#fff; border:none; font-size:8px; line-height:13px; text-align:center; cursor:pointer; display:none; padding:0; }
+.bk-badge:hover .bk-badge-remove { display:block; }
 
-/* 兵书选择面板 */
-.book-picker {
-  position: absolute; left: 0; right: 0;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 0 0 var(--radius) var(--radius);
-  z-index: 200; box-shadow: var(--shadow-md);
-  max-height: 260px; overflow-y: auto;
-}
-.book-picker-tabs {
-  display: flex; gap: 4px; padding: 8px 10px 0; flex-wrap: wrap;
-  border-bottom: 1px solid var(--border); padding-bottom: 6px;
-}
-.book-tab {
-  font-size: 11px; padding: 3px 8px; border-radius: 4px;
-  cursor: pointer; background: var(--surface2); border: 1px solid var(--border);
-  color: var(--text2);
-}
-.book-tab.active { background: var(--gold-light); color: var(--gold); border-color: #fcd34d; font-weight: 700; }
-.book-list { padding: 6px 8px; display: flex; flex-wrap: wrap; gap: 6px; }
-.book-item {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 6px 8px; border-radius: 6px; cursor: pointer;
-  background: var(--surface2); border: 1px solid var(--border);
-  min-width: 60px; max-width: 80px;
-  transition: background .12s;
-}
-.book-item:hover { background: var(--gold-light); border-color: #fcd34d; }
-.book-item.selected { background: var(--gold-light); border-color: var(--gold); }
-.book-item-type {
-  font-size: 9px; padding: 1px 4px; border-radius: 3px;
-  background: #fef3c7; color: var(--gold); font-weight: 700;
-}
-.book-item-name { font-size: 12px; font-weight: 700; color: var(--text); text-align: center; }
-.book-item-desc { font-size: 10px; color: var(--text3); text-align: center; line-height: 1.3; }
+/* picker — same base as sk-picker */
+.bk-picker { background:var(--surface); border:1px solid var(--border2); border-top:none; max-height:320px; overflow-y:auto; }
+.bk-picker-head { display:flex; align-items:center; justify-content:space-between; padding:7px 12px; border-bottom:1px solid var(--border); background:var(--surface2); font-size:12px; font-weight:700; color:var(--text2); gap:8px; }
+.bk-back-btn { font-size:11px; background:none; border:none; cursor:pointer; color:var(--text3); padding:0; }
+.bk-close-btn { background:none; border:none; cursor:pointer; color:var(--text3); font-size:14px; line-height:1; }
+.bk-system-grid { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px; }
+.bk-system-btn { flex:1; min-width:60px; padding:8px 6px; border-radius:6px; cursor:pointer; text-align:center; border:1px solid var(--border); background:var(--surface2); font-size:13px; font-weight:700; color:var(--text2); letter-spacing:1px; transition:all .15s; }
+.bk-system-btn:hover { border-color:var(--gold); color:var(--gold); }
+.bk-system-btn.active { border-color:var(--gold); color:var(--gold); background:var(--gold-light); }
+.bk-system-actions { padding:0 12px 10px; display:flex; justify-content:flex-end; }
+.bk-read-btn { padding:5px 18px; border-radius:5px; cursor:pointer; background:linear-gradient(135deg,#b45309,#92400e); color:#fff; border:none; font-size:12px; font-weight:700; }
+.bk-read-btn:disabled { background:#d1d5db; color:#9ca3af; cursor:not-allowed; }
+.bk-read-btn.small { padding:4px 12px; font-size:11px; }
+.bk-list { padding:0; }
+.bk-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid var(--border); transition:background .12s; }
+.bk-item:last-child { border-bottom:none; }
+.bk-item:hover { background:var(--gold-light); }
+.bk-item.selected { background:#fef9ec; }
+.bk-icon-wrap { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:3px; }
+.bk-icon-outer { position:relative; width:44px; height:44px; }
+.bk-icon-outer::before { content:''; position:absolute; inset:0; clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%); background:#7a5c1a; }
+.bk-icon-inner-hex { position:absolute; inset:2px; clip-path:polygon(30% 0%,70% 0%,100% 30%,100% 70%,70% 100%,30% 100%,0% 70%,0% 30%); background:#1a1208; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#c8a060; }
+.bk-icon-name { font-size:10px; color:var(--gold); font-weight:700; text-align:center; max-width:44px; }
+.bk-content { flex:1; min-width:0; font-size:12px; color:var(--text2); line-height:1.5; }
+.bk-action { flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+.bk-cost { font-size:10px; color:var(--text3); white-space:nowrap; }
 .btn-save { background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; font-size: 12px; padding: 4px 12px; }
 .btn-save:hover { background: #dcfce7; }
 .btn-save.dirty { background: var(--green); color: #fff; border-color: var(--green); }
@@ -1204,58 +1163,32 @@ select.w-sm { width: 72px; }
                   <div class="sk-tooltip" x-text="skillDesc(g.skills[2].name)"></div>
                 </div>
                 <!-- 兵书区 -->
-                <div class="books-section" @click.outside="bookPicker.open && bookPicker.team==='a' && bookPicker.idx===gi ? bookPicker.open=false : null">
-                  <div class="books-header">
-                    <span class="books-system-title" x-text="getBookSystem(g) || '兵书配置'"></span>
-                  </div>
-                  <div class="books-row">
-                    <!-- 主兵书 -->
-                    <div class="book-slot main" @click="openBookPicker('a',gi,'main')" :title="bookDesc(g.main_book)">
-                      <div class="book-icon" :class="g.main_book ? 'filled' : ''">
-                        <div class="book-inner-ring">
-                          <span style="font-size:9px;color:#c8a060" x-text="g.main_book ? '主' : '+'"></span>
-                        </div>
+                <div class="books-section" @click="openBookPicker('a',gi)">
+                  <div class="books-header" x-text="getBookSystem(g) || '兵书配置'"></div>
+                  <div class="books-display">
+                    <!-- 主兵书 badge -->
+                    <div class="bk-badge" @click.stop="openBookPicker('a',gi)">
+                      <div class="bk-badge-outer">
+                        <div class="bk-badge-fg" :class="g.main_book ? 'filled' : ''" x-text="g.main_book ? g.main_book.slice(0,2) : '主'"></div>
                       </div>
-                      <div class="book-name" :class="g.main_book ? '' : 'empty'" x-text="g.main_book || '主兵书'"></div>
-                      <span class="book-remove" x-show="g.main_book" @click.stop="g.main_book=null">✕</span>
+                      <div class="bk-badge-name" :class="g.main_book ? '' : 'empty'" x-text="g.main_book || '主兵书'"></div>
+                      <button class="bk-badge-remove" x-show="g.main_book" @click.stop="g.main_book=null;g.sub_book1=null;g.sub_book2=null">✕</button>
                     </div>
-                    <!-- 副兵书 -->
-                    <div class="books-sub-group">
-                      <div class="book-slot sub" @click="openBookPicker('a',gi,'sub1')" :title="bookDesc(g.sub_book1)">
-                        <div class="book-icon" :class="g.sub_book1 ? 'filled' : ''">
-                          <div class="book-inner-ring">
-                            <span style="font-size:8px;color:#c8a060" x-text="g.sub_book1 ? '副' : '+'"></span>
-                          </div>
-                        </div>
-                        <div class="book-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></div>
-                        <span class="book-remove" x-show="g.sub_book1" @click.stop="g.sub_book1=null">✕</span>
+                    <!-- 副兵书1 badge -->
+                    <div class="bk-badge" @click.stop="openBookPicker('a',gi)">
+                      <div class="bk-badge-outer sub">
+                        <div class="bk-badge-fg" :class="g.sub_book1 ? 'filled' : ''" x-text="g.sub_book1 ? g.sub_book1.slice(0,2) : '副'"></div>
                       </div>
-                      <div class="book-slot sub" @click="openBookPicker('a',gi,'sub2')" :title="bookDesc(g.sub_book2)">
-                        <div class="book-icon" :class="g.sub_book2 ? 'filled' : ''">
-                          <div class="book-inner-ring">
-                            <span style="font-size:8px;color:#c8a060" x-text="g.sub_book2 ? '副' : '+'"></span>
-                          </div>
-                        </div>
-                        <div class="book-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></div>
-                        <span class="book-remove" x-show="g.sub_book2" @click.stop="g.sub_book2=null">✕</span>
+                      <div class="bk-badge-name sub" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></div>
+                      <button class="bk-badge-remove" x-show="g.sub_book1" @click.stop="g.sub_book1=null">✕</button>
+                    </div>
+                    <!-- 副兵书2 badge -->
+                    <div class="bk-badge" @click.stop="openBookPicker('a',gi)">
+                      <div class="bk-badge-outer sub">
+                        <div class="bk-badge-fg" :class="g.sub_book2 ? 'filled' : ''" x-text="g.sub_book2 ? g.sub_book2.slice(0,2) : '副'"></div>
                       </div>
-                    </div>
-                  </div>
-                  <!-- 兵书选择面板 -->
-                  <div class="book-picker" x-show="bookPicker.open && bookPicker.team==='a' && bookPicker.idx===gi" @click.outside="bookPicker.open=false">
-                    <div class="book-picker-tabs">
-                      <template x-for="sys in ['全部',...bookSystems()]" :key="sys">
-                        <div class="book-tab" :class="bookPicker.system===sys?'active':''" @click.stop="bookPicker.system=sys" x-text="sys"></div>
-                      </template>
-                    </div>
-                    <div class="book-list">
-                      <template x-for="bk in filteredBooks()" :key="bk.id">
-                        <div class="book-item" :class="(g.main_book===bk.name||g.sub_book1===bk.name||g.sub_book2===bk.name)?'selected':''"
-                          @click.stop="selectBook(bk)" :title="bk.description">
-                          <span class="book-item-type" x-text="bk.book_type==='主兵书'?'主':'副'"></span>
-                          <span class="book-item-name" x-text="bk.name"></span>
-                        </div>
-                      </template>
+                      <div class="bk-badge-name sub" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></div>
+                      <button class="bk-badge-remove" x-show="g.sub_book2" @click.stop="g.sub_book2=null">✕</button>
                     </div>
                   </div>
                 </div>
@@ -1284,6 +1217,81 @@ select.w-sm { width: 72px; }
                   </div>
                 </template>
               </div>
+            </div>
+            <!-- 兵书选择面板 -->
+            <div class="bk-picker" x-show="bookPicker.open && bookPicker.team==='a' && bookPicker.idx===gi">
+              <!-- stage: system -->
+              <template x-if="bookPicker.stage==='system'">
+                <div>
+                  <div class="bk-picker-head">
+                    <span>选择兵书体系</span>
+                    <button class="bk-close-btn" @click="bookPicker.open=false">✕</button>
+                  </div>
+                  <div class="bk-system-grid">
+                    <template x-for="sys in bookSystems()" :key="sys">
+                      <button class="bk-system-btn" :class="bookPicker.selectedSystem===sys?'active':''" @click="bookPicker.selectedSystem=sys" x-text="sys"></button>
+                    </template>
+                  </div>
+                  <div class="bk-system-actions">
+                    <button class="bk-read-btn" :disabled="!bookPicker.selectedSystem" @click="bookPicker.stage='main'">研读</button>
+                  </div>
+                </div>
+              </template>
+              <!-- stage: main -->
+              <template x-if="bookPicker.stage==='main'">
+                <div>
+                  <div class="bk-picker-head">
+                    <button class="bk-back-btn" @click="bookPicker.stage='system'">← 返回</button>
+                    <span x-text="bookPicker.selectedSystem + ' · 主兵书'"></span>
+                    <button class="bk-close-btn" @click="bookPicker.open=false">✕</button>
+                  </div>
+                  <div class="bk-list">
+                    <template x-for="bk in booksForStage()" :key="bk.id">
+                      <div class="bk-item">
+                        <div class="bk-icon-wrap">
+                          <div class="bk-icon-outer">
+                            <div class="bk-icon-inner-hex" x-text="bk.name.slice(0,2)"></div>
+                          </div>
+                          <div class="bk-icon-name" x-text="bk.name"></div>
+                        </div>
+                        <div class="bk-content" x-text="bk.description || bk.effect || '—'"></div>
+                        <div class="bk-action">
+                          <span class="bk-cost">消耗: ⛟ 60000</span>
+                          <button class="bk-read-btn small" @click="selectMainBook('a',gi,bk)">研读</button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <!-- stage: sub -->
+              <template x-if="bookPicker.stage==='sub'">
+                <div>
+                  <div class="bk-picker-head">
+                    <button class="bk-back-btn" @click="bookPicker.stage='main'">← 返回</button>
+                    <span x-text="bookPicker.selectedSystem + ' · 副兵书'"></span>
+                    <button class="bk-close-btn" @click="bookPicker.open=false">✕</button>
+                  </div>
+                  <div class="bk-list">
+                    <template x-for="bk in booksForStage()" :key="bk.id">
+                      <div class="bk-item" :class="(teams['a'][gi].sub_book1===bk.name||teams['a'][gi].sub_book2===bk.name)?'selected':''">
+                        <div class="bk-icon-wrap">
+                          <div class="bk-icon-outer">
+                            <div class="bk-icon-inner-hex" x-text="bk.name.slice(0,2)"></div>
+                          </div>
+                          <div class="bk-icon-name" x-text="bk.name"></div>
+                        </div>
+                        <div class="bk-content" x-text="bk.description || bk.effect || '—'"></div>
+                        <div class="bk-action">
+                          <span class="bk-cost">消耗: ⛟ 30000</span>
+                          <button class="bk-read-btn small" @click="selectSubBook('a',gi,bk)"
+                            x-text="(teams['a'][gi].sub_book1===bk.name||teams['a'][gi].sub_book2===bk.name)?'已选':'研读'"></button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -1601,58 +1609,32 @@ select.w-sm { width: 72px; }
                   <div class="sk-tooltip" x-text="skillDesc(g.skills[2].name)"></div>
                 </div>
                 <!-- 兵书区 -->
-                <div class="books-section">
-                  <div class="books-header">
-                    <span class="books-system-title" x-text="getBookSystem(g) || '兵书配置'"></span>
-                  </div>
-                  <div class="books-row">
-                    <!-- 主兵书 -->
-                    <div class="book-slot main" @click="openBookPicker('b',gi,'main')" :title="bookDesc(g.main_book)">
-                      <div class="book-icon" :class="g.main_book ? 'filled' : ''">
-                        <div class="book-inner-ring">
-                          <span style="font-size:9px;color:#c8a060" x-text="g.main_book ? '主' : '+'"></span>
-                        </div>
+                <div class="books-section" @click="openBookPicker('b',gi)">
+                  <div class="books-header" x-text="getBookSystem(g) || '兵书配置'"></div>
+                  <div class="books-display">
+                    <!-- 主兵书 badge -->
+                    <div class="bk-badge" @click.stop="openBookPicker('b',gi)">
+                      <div class="bk-badge-outer">
+                        <div class="bk-badge-fg" :class="g.main_book ? 'filled' : ''" x-text="g.main_book ? g.main_book.slice(0,2) : '主'"></div>
                       </div>
-                      <div class="book-name" :class="g.main_book ? '' : 'empty'" x-text="g.main_book || '主兵书'"></div>
-                      <span class="book-remove" x-show="g.main_book" @click.stop="g.main_book=null">✕</span>
+                      <div class="bk-badge-name" :class="g.main_book ? '' : 'empty'" x-text="g.main_book || '主兵书'"></div>
+                      <button class="bk-badge-remove" x-show="g.main_book" @click.stop="g.main_book=null;g.sub_book1=null;g.sub_book2=null">✕</button>
                     </div>
-                    <!-- 副兵书 -->
-                    <div class="books-sub-group">
-                      <div class="book-slot sub" @click="openBookPicker('b',gi,'sub1')" :title="bookDesc(g.sub_book1)">
-                        <div class="book-icon" :class="g.sub_book1 ? 'filled' : ''">
-                          <div class="book-inner-ring">
-                            <span style="font-size:8px;color:#c8a060" x-text="g.sub_book1 ? '副' : '+'"></span>
-                          </div>
-                        </div>
-                        <div class="book-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></div>
-                        <span class="book-remove" x-show="g.sub_book1" @click.stop="g.sub_book1=null">✕</span>
+                    <!-- 副兵书1 badge -->
+                    <div class="bk-badge" @click.stop="openBookPicker('b',gi)">
+                      <div class="bk-badge-outer sub">
+                        <div class="bk-badge-fg" :class="g.sub_book1 ? 'filled' : ''" x-text="g.sub_book1 ? g.sub_book1.slice(0,2) : '副'"></div>
                       </div>
-                      <div class="book-slot sub" @click="openBookPicker('b',gi,'sub2')" :title="bookDesc(g.sub_book2)">
-                        <div class="book-icon" :class="g.sub_book2 ? 'filled' : ''">
-                          <div class="book-inner-ring">
-                            <span style="font-size:8px;color:#c8a060" x-text="g.sub_book2 ? '副' : '+'"></span>
-                          </div>
-                        </div>
-                        <div class="book-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></div>
-                        <span class="book-remove" x-show="g.sub_book2" @click.stop="g.sub_book2=null">✕</span>
+                      <div class="bk-badge-name sub" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></div>
+                      <button class="bk-badge-remove" x-show="g.sub_book1" @click.stop="g.sub_book1=null">✕</button>
+                    </div>
+                    <!-- 副兵书2 badge -->
+                    <div class="bk-badge" @click.stop="openBookPicker('b',gi)">
+                      <div class="bk-badge-outer sub">
+                        <div class="bk-badge-fg" :class="g.sub_book2 ? 'filled' : ''" x-text="g.sub_book2 ? g.sub_book2.slice(0,2) : '副'"></div>
                       </div>
-                    </div>
-                  </div>
-                  <!-- 兵书选择面板 -->
-                  <div class="book-picker" x-show="bookPicker.open && bookPicker.team==='b' && bookPicker.idx===gi" @click.outside="bookPicker.open=false">
-                    <div class="book-picker-tabs">
-                      <template x-for="sys in ['全部',...bookSystems()]" :key="sys">
-                        <div class="book-tab" :class="bookPicker.system===sys?'active':''" @click.stop="bookPicker.system=sys" x-text="sys"></div>
-                      </template>
-                    </div>
-                    <div class="book-list">
-                      <template x-for="bk in filteredBooks()" :key="bk.id">
-                        <div class="book-item" :class="(g.main_book===bk.name||g.sub_book1===bk.name||g.sub_book2===bk.name)?'selected':''"
-                          @click.stop="selectBook(bk)" :title="bk.description">
-                          <span class="book-item-type" x-text="bk.book_type==='主兵书'?'主':'副'"></span>
-                          <span class="book-item-name" x-text="bk.name"></span>
-                        </div>
-                      </template>
+                      <div class="bk-badge-name sub" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></div>
+                      <button class="bk-badge-remove" x-show="g.sub_book2" @click.stop="g.sub_book2=null">✕</button>
                     </div>
                   </div>
                 </div>
@@ -1681,6 +1663,81 @@ select.w-sm { width: 72px; }
                   </div>
                 </template>
               </div>
+            </div>
+            <!-- 兵书选择面板 -->
+            <div class="bk-picker" x-show="bookPicker.open && bookPicker.team==='b' && bookPicker.idx===gi">
+              <!-- stage: system -->
+              <template x-if="bookPicker.stage==='system'">
+                <div>
+                  <div class="bk-picker-head">
+                    <span>选择兵书体系</span>
+                    <button class="bk-close-btn" @click="bookPicker.open=false">✕</button>
+                  </div>
+                  <div class="bk-system-grid">
+                    <template x-for="sys in bookSystems()" :key="sys">
+                      <button class="bk-system-btn" :class="bookPicker.selectedSystem===sys?'active':''" @click="bookPicker.selectedSystem=sys" x-text="sys"></button>
+                    </template>
+                  </div>
+                  <div class="bk-system-actions">
+                    <button class="bk-read-btn" :disabled="!bookPicker.selectedSystem" @click="bookPicker.stage='main'">研读</button>
+                  </div>
+                </div>
+              </template>
+              <!-- stage: main -->
+              <template x-if="bookPicker.stage==='main'">
+                <div>
+                  <div class="bk-picker-head">
+                    <button class="bk-back-btn" @click="bookPicker.stage='system'">← 返回</button>
+                    <span x-text="bookPicker.selectedSystem + ' · 主兵书'"></span>
+                    <button class="bk-close-btn" @click="bookPicker.open=false">✕</button>
+                  </div>
+                  <div class="bk-list">
+                    <template x-for="bk in booksForStage()" :key="bk.id">
+                      <div class="bk-item">
+                        <div class="bk-icon-wrap">
+                          <div class="bk-icon-outer">
+                            <div class="bk-icon-inner-hex" x-text="bk.name.slice(0,2)"></div>
+                          </div>
+                          <div class="bk-icon-name" x-text="bk.name"></div>
+                        </div>
+                        <div class="bk-content" x-text="bk.description || bk.effect || '—'"></div>
+                        <div class="bk-action">
+                          <span class="bk-cost">消耗: ⛟ 60000</span>
+                          <button class="bk-read-btn small" @click="selectMainBook('b',gi,bk)">研读</button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+              <!-- stage: sub -->
+              <template x-if="bookPicker.stage==='sub'">
+                <div>
+                  <div class="bk-picker-head">
+                    <button class="bk-back-btn" @click="bookPicker.stage='main'">← 返回</button>
+                    <span x-text="bookPicker.selectedSystem + ' · 副兵书'"></span>
+                    <button class="bk-close-btn" @click="bookPicker.open=false">✕</button>
+                  </div>
+                  <div class="bk-list">
+                    <template x-for="bk in booksForStage()" :key="bk.id">
+                      <div class="bk-item" :class="(teams['b'][gi].sub_book1===bk.name||teams['b'][gi].sub_book2===bk.name)?'selected':''">
+                        <div class="bk-icon-wrap">
+                          <div class="bk-icon-outer">
+                            <div class="bk-icon-inner-hex" x-text="bk.name.slice(0,2)"></div>
+                          </div>
+                          <div class="bk-icon-name" x-text="bk.name"></div>
+                        </div>
+                        <div class="bk-content" x-text="bk.description || bk.effect || '—'"></div>
+                        <div class="bk-action">
+                          <span class="bk-cost">消耗: ⛟ 30000</span>
+                          <button class="bk-read-btn small" @click="selectSubBook('b',gi,bk)"
+                            x-text="(teams['b'][gi].sub_book1===bk.name||teams['b'][gi].sub_book2===bk.name)?'已选':'研读'"></button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </template>
@@ -1991,7 +2048,7 @@ function simulator() {
     bonus: { a: { affinity: false, faction: false }, b: { affinity: false, faction: false } },
     skillsData: [],
     skillPicker: { open: false, team: null, idx: null, slot: null, category: '全部', expandedId: null, search: '' },
-    bookPicker: { open: false, team: null, idx: null, slot: null, system: '全部' },
+    bookPicker: { open: false, team: null, idx: null, stage: 'system', selectedSystem: null },
     booksData: [],
     advisorSkills: [],
     advisorSearch: { a: '', b: '' },
@@ -2179,14 +2236,13 @@ function simulator() {
 
     // ── 兵书 ──
     bookSystems() {
-      const sys = [...new Set(this.booksData.map(b => b.book_system))];
-      return sys;
+      return [...new Set(this.booksData.map(b => b.book_system))];
     },
-    filteredBooks() {
-      const sys = this.bookPicker.system;
-      const type = this.bookPicker.slot === 'main' ? '主兵书' : '副兵书';
+    booksForStage() {
+      const sys = this.bookPicker.selectedSystem;
+      const type = this.bookPicker.stage === 'main' ? '主兵书' : '副兵书';
       let list = this.booksData.filter(b => b.book_type === type);
-      if (sys !== '全部') list = list.filter(b => b.book_system === sys);
+      if (sys) list = list.filter(b => b.book_system === sys);
       return list;
     },
     getBookSystem(g) {
@@ -2196,19 +2252,24 @@ function simulator() {
       }
       return '';
     },
-    openBookPicker(team, idx, slot) {
-      if (this.bookPicker.open && this.bookPicker.team === team && this.bookPicker.idx === idx && this.bookPicker.slot === slot) {
+    openBookPicker(team, idx) {
+      if (this.bookPicker.open && this.bookPicker.team === team && this.bookPicker.idx === idx) {
         this.bookPicker.open = false; return;
       }
-      this.bookPicker = { open: true, team, idx, slot, system: '全部' };
+      const keepSystem = this.bookPicker.team === team && this.bookPicker.idx === idx ? this.bookPicker.selectedSystem : null;
+      this.bookPicker = { open: true, team, idx, stage: 'system', selectedSystem: keepSystem };
     },
-    selectBook(book) {
-      const g = this.teams[this.bookPicker.team][this.bookPicker.idx];
-      const slot = this.bookPicker.slot;
-      if (slot === 'main') g.main_book = book.name;
-      else if (slot === 'sub1') g.sub_book1 = book.name;
-      else if (slot === 'sub2') g.sub_book2 = book.name;
-      this.bookPicker.open = false;
+    selectMainBook(team, idx, bk) {
+      this.teams[team][idx].main_book = bk.name;
+      this.teams[team][idx].sub_book1 = null;
+      this.teams[team][idx].sub_book2 = null;
+      this.bookPicker.stage = 'sub';
+    },
+    selectSubBook(team, idx, bk) {
+      const g = this.teams[team][idx];
+      if (g.sub_book1 === bk.name || g.sub_book2 === bk.name) return;
+      if (!g.sub_book1) { g.sub_book1 = bk.name; }
+      else if (!g.sub_book2) { g.sub_book2 = bk.name; this.bookPicker.open = false; }
     },
     bookDesc(name) {
       if (!name) return '';
