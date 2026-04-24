@@ -683,6 +683,7 @@ select.w-sm { width: 72px; }
   transition: background .15s;
 }
 .lineup-slot-btn:hover { background: #d1fae5; }
+.lineup-slot-btn.active { background: #a7f3d0; border-color: #10b981; color: #064e3b; font-weight: 700; }
 .lineup-slot-empty {
   font-size: 11px; color: #9ca3af; padding: 4px 10px;
   border: 1px dashed #d1d5db; border-radius: 5px; white-space: nowrap;
@@ -832,8 +833,9 @@ select.w-sm { width: 72px; }
           <div class="lineup-slot">
             <template x-if="slot">
               <button class="lineup-slot-btn" @click="loadLineup(idx)"
-                :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '')"
-                x-text="slot.name"></button>
+                :class="activeLineupSlot.a === idx ? 'active' : ''"
+                :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '') + (activeLineupSlot.a===idx && isLineupDirty('a') ? ' (已修改)' : '')"
+                x-text="slot.name + (activeLineupSlot.a===idx && isLineupDirty('a') ? ' *' : '')"></button>
             </template>
             <template x-if="!slot">
               <span class="lineup-slot-empty" x-text="'阵容' + (idx+1)"></span>
@@ -857,8 +859,9 @@ select.w-sm { width: 72px; }
           <div class="lineup-slot">
             <template x-if="slot">
               <button class="lineup-slot-btn" @click="loadLineupB(idx)"
-                :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '')"
-                x-text="slot.name"></button>
+                :class="activeLineupSlot.b === idx ? 'active' : ''"
+                :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '') + (activeLineupSlot.b===idx && isLineupDirty('b') ? ' (已修改)' : '')"
+                x-text="slot.name + (activeLineupSlot.b===idx && isLineupDirty('b') ? ' *' : '')"></button>
             </template>
             <template x-if="!slot">
               <span class="lineup-slot-empty" x-text="'阵容' + (idx+1)"></span>
@@ -1818,6 +1821,8 @@ function simulator() {
     lineupName: '',
     savedLineupsB: Array(5).fill(null),
     lineupNameB: '',
+    activeLineupSlot: { a: null, b: null },
+    loadedSnapshot: { a: null, b: null },
 
     async init() {
       try {
@@ -2009,6 +2014,64 @@ function simulator() {
       return order.map(t => ({ type: t, name: names[t], grade: aff[t] || 'C' }));
     },
 
+    // ── 阵容快照（用于脏检测）──
+    snapshotLineup(team) {
+      return JSON.stringify({
+        troop: this.teamTroop[team],
+        adv: this.advisor[team]?.id || null,
+        gens: this.teams[team].map(g => ({
+          n: g.name, lv: g.level,
+          rd: g.red_dots||0, col: g.is_collection||false,
+          s1: g.skills[1]?.name||'', s2: g.skills[2]?.name||'',
+          ff: g.free_force||0, fi: g.free_intel||0,
+          fc: g.free_command||0, fs: g.free_speed||0,
+        })),
+      });
+    },
+    isLineupDirty(team) {
+      if (this.activeLineupSlot[team] === null) return false;
+      return this.snapshotLineup(team) !== this.loadedSnapshot[team];
+    },
+    _buildLineupPayload(team, name) {
+      return {
+        name,
+        teamTroop: this.teamTroop[team],
+        advisor: this.advisor[team] ? JSON.parse(JSON.stringify(this.advisor[team])) : null,
+        generals: this.teams[team].map(g => ({
+          name: g.name, level: g.level,
+          troop_type: g.troop_type, troop_grade: g.troop_grade,
+          red_dots: g.red_dots||0, is_collection: g.is_collection||false,
+          skills: g.skills.map(s => ({ name: s.name||'' })),
+          free_force: g.free_force||0, free_intel: g.free_intel||0,
+          free_command: g.free_command||0, free_speed: g.free_speed||0,
+          free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
+        })),
+        savedAt: new Date().toLocaleDateString('zh-CN'),
+      };
+    },
+    _applyLineupToTeam(team, lineup) {
+      this.teamTroop[team] = lineup.teamTroop || '';
+      this.advisor[team] = lineup.advisor || null;
+      if (lineup.teamTroop) this.lockTeamTroop(team);
+      lineup.generals.forEach((saved, idx) => {
+        if (!saved.name) return;
+        const gen = this.generalsData.find(g => g.name === saved.name);
+        if (!gen) return;
+        this.pickGeneral(team, idx, gen);
+        const g = this.teams[team][idx];
+        g.level = saved.level || 1;
+        g.red_dots = saved.red_dots || 0;
+        g.is_collection = saved.is_collection || false;
+        if (saved.skills[1]) g.skills[1].name = saved.skills[1].name || '';
+        if (saved.skills[2]) g.skills[2].name = saved.skills[2].name || '';
+        g.free_force = saved.free_force||0; g.free_intel = saved.free_intel||0;
+        g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
+        g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
+        this.recalcStats(team, idx);
+      });
+    },
+
+    // ── 我方阵容 A ──
     canSaveLineup() {
       const team = this.teams.a;
       if (!this.teamTroop.a) return false;
@@ -2023,55 +2086,54 @@ function simulator() {
     },
     saveLineup() {
       if (!this.canSaveLineup()) return;
+      // 若当前有加载中的阵容 → 询问是否直接更新
+      if (this.activeLineupSlot.a !== null) {
+        const slotIdx = this.activeLineupSlot.a;
+        const slotName = this.savedLineups[slotIdx]?.name || ('阵容' + (slotIdx + 1));
+        if (!confirm(`是否更新「${slotName}」？`)) return;
+        const updated = this._buildLineupPayload('a', this.savedLineups[slotIdx].name);
+        this.savedLineups = [...this.savedLineups];
+        this.savedLineups[slotIdx] = updated;
+        localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
+        this.loadedSnapshot.a = this.snapshotLineup('a');
+        return;
+      }
+      // 新增槽位
       const slot = this.savedLineups.findIndex(s => s === null);
       if (slot === -1) return;
-      const lineup = {
-        name: this.lineupName.trim() || ('阵容' + (slot + 1)),
-        teamTroop: this.teamTroop.a,
-        advisor: this.advisor.a ? JSON.parse(JSON.stringify(this.advisor.a)) : null,
-        generals: this.teams.a.map(g => ({
-          name: g.name, level: g.level,
-          troop_type: g.troop_type, troop_grade: g.troop_grade,
-          red_dots: g.red_dots || 0, is_collection: g.is_collection || false,
-          skills: g.skills.map(s => ({ name: s.name || '' })),
-          free_force: g.free_force||0, free_intel: g.free_intel||0,
-          free_command: g.free_command||0, free_speed: g.free_speed||0,
-          free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
-        })),
-        savedAt: new Date().toLocaleDateString('zh-CN'),
-      };
+      const lineup = this._buildLineupPayload('a', this.lineupName.trim() || ('阵容' + (slot + 1)));
       this.savedLineups = [...this.savedLineups];
       this.savedLineups[slot] = lineup;
       localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
       this.lineupName = '';
+      this.activeLineupSlot.a = slot;
+      this.loadedSnapshot.a = this.snapshotLineup('a');
     },
     loadLineup(slot) {
+      // 若当前有加载中的阵容且已修改 → 询问是否保存并离开
+      if (this.activeLineupSlot.a !== null && this.activeLineupSlot.a !== slot && this.isLineupDirty('a')) {
+        const cur = this.savedLineups[this.activeLineupSlot.a]?.name || ('阵容' + (this.activeLineupSlot.a + 1));
+        if (confirm(`「${cur}」已变更，是否保存更新并离开？`)) {
+          const updated = this._buildLineupPayload('a', this.savedLineups[this.activeLineupSlot.a].name);
+          this.savedLineups = [...this.savedLineups];
+          this.savedLineups[this.activeLineupSlot.a] = updated;
+          localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
+        }
+      }
       const lineup = this.savedLineups[slot];
       if (!lineup) return;
-      this.teamTroop.a = lineup.teamTroop || '';
-      this.advisor.a = lineup.advisor || null;
-      if (lineup.teamTroop) this.lockTeamTroop('a');
-      lineup.generals.forEach((saved, idx) => {
-        if (!saved.name) return;
-        const gen = this.generalsData.find(g => g.name === saved.name);
-        if (!gen) return;
-        this.pickGeneral('a', idx, gen);
-        const g = this.teams.a[idx];
-        g.level = saved.level || 1;
-        g.red_dots = saved.red_dots || 0;
-        g.is_collection = saved.is_collection || false;
-        if (saved.skills[1]) g.skills[1].name = saved.skills[1].name || '';
-        if (saved.skills[2]) g.skills[2].name = saved.skills[2].name || '';
-        g.free_force = saved.free_force||0; g.free_intel = saved.free_intel||0;
-        g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
-        g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
-        this.recalcStats('a', idx);
-      });
+      this._applyLineupToTeam('a', lineup);
+      this.activeLineupSlot.a = slot;
+      this.loadedSnapshot.a = this.snapshotLineup('a');
     },
     deleteLineup(slot) {
       this.savedLineups = [...this.savedLineups];
       this.savedLineups[slot] = null;
       localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
+      if (this.activeLineupSlot.a === slot) {
+        this.activeLineupSlot.a = null;
+        this.loadedSnapshot.a = null;
+      }
     },
 
     // ── 敌方阵容 B ──
@@ -2089,55 +2151,51 @@ function simulator() {
     },
     saveLineupB() {
       if (!this.canSaveLineupB()) return;
+      if (this.activeLineupSlot.b !== null) {
+        const slotIdx = this.activeLineupSlot.b;
+        const slotName = this.savedLineupsB[slotIdx]?.name || ('阵容' + (slotIdx + 1));
+        if (!confirm(`是否更新「${slotName}」？`)) return;
+        const updated = this._buildLineupPayload('b', this.savedLineupsB[slotIdx].name);
+        this.savedLineupsB = [...this.savedLineupsB];
+        this.savedLineupsB[slotIdx] = updated;
+        localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
+        this.loadedSnapshot.b = this.snapshotLineup('b');
+        return;
+      }
       const slot = this.savedLineupsB.findIndex(s => s === null);
       if (slot === -1) return;
-      const lineup = {
-        name: this.lineupNameB.trim() || ('阵容' + (slot + 1)),
-        teamTroop: this.teamTroop.b,
-        advisor: this.advisor.b ? JSON.parse(JSON.stringify(this.advisor.b)) : null,
-        generals: this.teams.b.map(g => ({
-          name: g.name, level: g.level,
-          troop_type: g.troop_type, troop_grade: g.troop_grade,
-          red_dots: g.red_dots || 0, is_collection: g.is_collection || false,
-          skills: g.skills.map(s => ({ name: s.name || '' })),
-          free_force: g.free_force||0, free_intel: g.free_intel||0,
-          free_command: g.free_command||0, free_speed: g.free_speed||0,
-          free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
-        })),
-        savedAt: new Date().toLocaleDateString('zh-CN'),
-      };
+      const lineup = this._buildLineupPayload('b', this.lineupNameB.trim() || ('阵容' + (slot + 1)));
       this.savedLineupsB = [...this.savedLineupsB];
       this.savedLineupsB[slot] = lineup;
       localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
       this.lineupNameB = '';
+      this.activeLineupSlot.b = slot;
+      this.loadedSnapshot.b = this.snapshotLineup('b');
     },
     loadLineupB(slot) {
+      if (this.activeLineupSlot.b !== null && this.activeLineupSlot.b !== slot && this.isLineupDirty('b')) {
+        const cur = this.savedLineupsB[this.activeLineupSlot.b]?.name || ('阵容' + (this.activeLineupSlot.b + 1));
+        if (confirm(`「${cur}」已变更，是否保存更新并离开？`)) {
+          const updated = this._buildLineupPayload('b', this.savedLineupsB[this.activeLineupSlot.b].name);
+          this.savedLineupsB = [...this.savedLineupsB];
+          this.savedLineupsB[this.activeLineupSlot.b] = updated;
+          localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
+        }
+      }
       const lineup = this.savedLineupsB[slot];
       if (!lineup) return;
-      this.teamTroop.b = lineup.teamTroop || '';
-      this.advisor.b = lineup.advisor || null;
-      if (lineup.teamTroop) this.lockTeamTroop('b');
-      lineup.generals.forEach((saved, idx) => {
-        if (!saved.name) return;
-        const gen = this.generalsData.find(g => g.name === saved.name);
-        if (!gen) return;
-        this.pickGeneral('b', idx, gen);
-        const g = this.teams.b[idx];
-        g.level = saved.level || 1;
-        g.red_dots = saved.red_dots || 0;
-        g.is_collection = saved.is_collection || false;
-        if (saved.skills[1]) g.skills[1].name = saved.skills[1].name || '';
-        if (saved.skills[2]) g.skills[2].name = saved.skills[2].name || '';
-        g.free_force = saved.free_force||0; g.free_intel = saved.free_intel||0;
-        g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
-        g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
-        this.recalcStats('b', idx);
-      });
+      this._applyLineupToTeam('b', lineup);
+      this.activeLineupSlot.b = slot;
+      this.loadedSnapshot.b = this.snapshotLineup('b');
     },
     deleteLineupB(slot) {
       this.savedLineupsB = [...this.savedLineupsB];
       this.savedLineupsB[slot] = null;
       localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
+      if (this.activeLineupSlot.b === slot) {
+        this.activeLineupSlot.b = null;
+        this.loadedSnapshot.b = null;
+      }
     },
 
     pickGeneral(team, idx, gen) {
