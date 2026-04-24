@@ -1719,11 +1719,12 @@ function simulator() {
       return factions.length === 3 && factions.every(f => f === factions[0]);
     },
 
-    // 兵种加成：科技中该兵种等级>0（不可手动修改）
+    // 兵种加成：选定兵种 且 对应兵营科技等级>0 则自动激活
     troopBonus(team) {
       const type = this.teamTroop[team];
       if (!type) return false;
-      return (this.tech[team]['troop_' + type] || 0) > 0;
+      const campKey = { cavalry:'camp_cavalry', bow:'camp_bow', spear:'camp_spear', shield:'camp_shield', machine:'camp_machine' };
+      return (this.tech[team][campKey[type]] || 0) > 0;
     },
 
     lockTeamTroop(team) {
