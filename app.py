@@ -294,6 +294,7 @@ def list_advisor_skills():
 @app.get("/api/affinities")
 def list_affinities():
     """返回所有缘分数据"""
+    import json as _json
     try:
         conn = get_db()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -305,7 +306,17 @@ def list_affinities():
         rows = cur.fetchall()
         cur.close()
         conn.close()
-        return [dict(r) for r in rows]
+        result = []
+        for r in rows:
+            d = dict(r)
+            # members 是 text 列存的 JSON 字符串，手动解析成数组
+            if isinstance(d.get('members'), str):
+                try:
+                    d['members'] = _json.loads(d['members'])
+                except Exception:
+                    d['members'] = []
+            result.append(d)
+        return result
     except Exception as e:
         raise HTTPException(500, f"数据库错误：{e}")
 
