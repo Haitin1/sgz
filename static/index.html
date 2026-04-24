@@ -197,27 +197,79 @@ select.w-sm { width: 72px; }
   -webkit-appearance: none; width: 14px;
 }
 
-/* ── Skills ── */
-.skills-label {
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: 12px; color: var(--text2); font-weight: 600;
-  margin-bottom: 5px;
-}
-.skill-row {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  padding: 7px 8px;
-  margin-bottom: 6px;
+/* ── 新版武将 body 布局：左属性 + 右战法 ── */
+.general-body { padding: 10px; display: flex; gap: 10px; }
+.stats-col { flex: 0 0 54%; display: flex; flex-direction: column; gap: 0; }
+.stats-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+.stat-cell { display: flex; flex-direction: column; gap: 2px; }
+.stat-cell label { font-size: 11px; color: var(--text3); }
+.stat-cell input[type=number] { width: 100%; padding: 3px 5px; font-size: 13px; font-weight: 600; color: var(--text); }
+.growth-wrap { display: flex; align-items: center; gap: 3px; margin-top: 1px; }
+.growth-label { font-size: 10px; color: var(--text3); flex-shrink: 0; }
+.growth-input { flex: 1; font-size: 11px; color: var(--green-dark,#166534); border-color: #bbf7d0; background: #f0fdf4; padding: 2px 4px; }
+.troop-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.troop-row label { font-size: 11px; color: var(--text3); }
+.troop-row input { width: 80px; }
+.skills-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+/* 战法槽 */
+.sk-slot {
+  border: 1px dashed #d1d5db; border-radius: 6px; padding: 6px 8px;
+  font-size: 12px; cursor: pointer; background: #fafafa;
+  display: flex; align-items: flex-start; gap: 6px;
+  transition: border-color .15s, background .15s;
   position: relative;
 }
-.skill-row-top {
-  display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 5px;
+.sk-slot:hover { border-color: #93c5fd; background: #eff6ff; }
+.sk-slot.innate { cursor: default; background: #fffbeb; border-color: #fde68a; border-style: solid; }
+.sk-slot.innate:hover { background: #fef3c7; }
+.sk-slot.selected { background: #eff6ff; border-color: #93c5fd; border-style: solid; }
+.sk-badge { font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; margin-top: 1px; }
+.sk-badge.innate-badge { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.sk-badge.slot-badge { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+.sk-slot-name { flex: 1; color: var(--text); font-weight: 600; line-height: 1.4; }
+.sk-slot-empty { color: #9ca3af; font-style: italic; }
+.sk-remove { font-size: 11px; color: #9ca3af; flex-shrink: 0; line-height: 1; padding: 1px 3px; border-radius: 3px; }
+.sk-remove:hover { background: #fee2e2; color: #b91c1c; }
+/* 悬停描述 tooltip */
+.sk-tooltip {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+  background: #1e293b; color: #e2e8f0; font-size: 11px;
+  padding: 8px 10px; border-radius: 6px; width: 280px; line-height: 1.6;
+  white-space: pre-wrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.3);
 }
-.skill-row-bot {
-  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+.sk-slot.innate:hover .sk-tooltip { display: block; }
+/* 战法选择面板 */
+.sk-picker {
+  border: 1px solid var(--border2); border-radius: 8px;
+  background: #fff; margin-top: 2px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
 }
-.skill-row-bot label { font-size: 11px; color: var(--text3); }
+.sk-picker-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); overflow-x: auto; }
+.sk-tab {
+  padding: 5px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+  color: var(--text3); white-space: nowrap; flex-shrink: 0; border-bottom: 2px solid transparent;
+  transition: all .1s;
+}
+.sk-tab.active { color: var(--accent-a); border-bottom-color: var(--accent-a); background: #fff; }
+.sk-list { max-height: 300px; overflow-y: auto; }
+.sk-item { border-bottom: 1px solid var(--border); }
+.sk-item-head {
+  display: grid; grid-template-columns: 28px 1fr 52px 60px 1fr 70px; align-items: center;
+  padding: 6px 10px; gap: 6px; cursor: pointer; font-size: 12px;
+  transition: background .1s;
+}
+.sk-item-head:hover { background: var(--surface2); }
+.sk-quality { font-weight: 700; font-size: 11px; text-align: center; }
+.sk-quality-S { color: #d97706; }
+.sk-quality-A { color: #16a34a; }
+.sk-quality-B { color: #2563eb; }
+.sk-item-desc { padding: 6px 10px 8px 10px; font-size: 11px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; background: #f8fafc; border-top: 1px solid var(--border); }
+.sk-learn-btn {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; cursor: pointer;
+  border: 1px solid #fbbf24; background: #fef3c7; color: #92400e;
+  transition: all .15s; white-space: nowrap;
+}
+.sk-learn-btn:hover { background: #fde68a; }
 
 /* ── Tech Panel ── */
 .tech-grid {
@@ -675,128 +727,127 @@ select.w-sm { width: 72px; }
               </div>
             </div>
             <div class="general-body">
-              <!-- Stats + 成长值 -->
-              <div class="stats-row">
-                <div class="stat-cell">
-                  <label>武力</label>
-                  <input type="number" x-effect="$el.value=g.force" step="1" @input="g.editing?syncBase(g,'force',+$event.target.value):adjustFree(g,'force',+$event.target.value);$el.value=g.force">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
+              <!-- 左：属性列 -->
+              <div class="stats-col">
+                <div class="stats-2col">
+                  <div class="stat-cell">
+                    <label>武力</label>
+                    <input type="number" x-effect="$el.value=g.force" step="1" @input="g.editing?syncBase(g,'force',+$event.target.value):adjustFree(g,'force',+$event.target.value);$el.value=g.force">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>智力</label>
+                    <input type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>统率</label>
+                    <input type="number" x-effect="$el.value=g.command" step="1" @input="g.editing?syncBase(g,'command',+$event.target.value):adjustFree(g,'command',+$event.target.value);$el.value=g.command">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>速度</label>
+                    <input type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>政治</label>
+                    <input type="number" x-effect="$el.value=g.politics" step="1" @input="g.editing?syncBase(g,'politics',+$event.target.value):adjustFree(g,'politics',+$event.target.value);$el.value=g.politics">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>魅力</label>
+                    <input type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
+                    </div>
                   </div>
                 </div>
-                <div class="stat-cell">
-                  <label>智力</label>
-                  <input type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
-                  </div>
+                <div class="troop-row">
+                  <label>兵力</label>
+                  <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:80px">
                 </div>
-                <div class="stat-cell">
-                  <label>统率</label>
-                  <input type="number" x-effect="$el.value=g.command" step="1" @input="g.editing?syncBase(g,'command',+$event.target.value):adjustFree(g,'command',+$event.target.value);$el.value=g.command">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
-                  </div>
+                <div class="affinity-badges">
+                  <template x-for="af in affinityList(g)" :key="af.type">
+                    <div class="affinity-badge" style="position:relative"
+                      :class="['grade-'+g.affinities[af.type], g.troop_type===af.type ? 'active' : '', teamTroop.a && af.type!==teamTroop.a ? 'locked' : '']">
+                      <span x-text="af.name"></span>
+                      <span x-text="g.affinities[af.type]"></span>
+                      <select style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                        x-model="g.affinities[af.type]"
+                        @change="g.troop_type = teamTroop.a || af.type; g.troop_grade=g.affinities[af.type]">
+                        <option>S</option><option>A</option><option>B</option><option>C</option>
+                      </select>
+                    </div>
+                  </template>
                 </div>
-                <div class="stat-cell">
-                  <label>速度</label>
-                  <input type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
-                  </div>
+                <div class="save-row" x-show="g.db_id" style="margin-top:6px">
+                  <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
+                  <button class="btn btn-reset" @click="resetGeneral('a',gi)">↺ 重置</button>
+                  <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('a',gi)">
+                    <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
+                  </button>
                 </div>
               </div>
-              <div class="stats-row" style="grid-template-columns:1fr 1fr;">
-                <div class="stat-cell">
-                  <label>政治</label>
-                  <input type="number" x-effect="$el.value=g.politics" step="1" @input="g.editing?syncBase(g,'politics',+$event.target.value):adjustFree(g,'politics',+$event.target.value);$el.value=g.politics">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
-                  </div>
+              <!-- 右：战法槽 -->
+              <div class="skills-col">
+                <!-- 战法1：自带（只读） -->
+                <div class="sk-slot innate">
+                  <span class="sk-badge innate-badge">自带</span>
+                  <span class="sk-slot-name" x-text="g.innate_skill_name || '—'"></span>
+                  <template x-if="g.innate_skill_desc">
+                    <div class="sk-tooltip" x-text="g.innate_skill_desc"></div>
+                  </template>
                 </div>
-                <div class="stat-cell">
-                  <label>魅力</label>
-                  <input type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
-                  </div>
+                <!-- 战法2 -->
+                <div class="sk-slot" :class="g.skills[1].name ? 'selected' : ''"
+                  @click="openSkillPicker('a', gi, 1)">
+                  <span class="sk-badge slot-badge">战法2</span>
+                  <span class="sk-slot-name" x-show="g.skills[1].name" x-text="g.skills[1].name"></span>
+                  <span class="sk-slot-empty" x-show="!g.skills[1].name">点击选择战法</span>
+                  <span class="sk-remove" x-show="g.skills[1].name" @click.stop="g.skills[1].name='';skillPicker.open=false">✕</span>
+                </div>
+                <!-- 战法3 -->
+                <div class="sk-slot" :class="g.skills[2].name ? 'selected' : ''"
+                  @click="openSkillPicker('a', gi, 2)">
+                  <span class="sk-badge slot-badge">战法3</span>
+                  <span class="sk-slot-name" x-show="g.skills[2].name" x-text="g.skills[2].name"></span>
+                  <span class="sk-slot-empty" x-show="!g.skills[2].name">点击选择战法</span>
+                  <span class="sk-remove" x-show="g.skills[2].name" @click.stop="g.skills[2].name='';skillPicker.open=false">✕</span>
                 </div>
               </div>
-              <div class="troop-row">
-                <label>兵力</label>
-                <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:90px">
-              </div>
-              <div class="affinity-badges">
-                <template x-for="af in affinityList(g)" :key="af.type">
-                  <div class="affinity-badge" style="position:relative"
-                    :class="['grade-'+g.affinities[af.type], g.troop_type===af.type ? 'active' : '', teamTroop.a && af.type!==teamTroop.a ? 'locked' : '']">
-                    <span x-text="af.name"></span>
-                    <span x-text="g.affinities[af.type]"></span>
-                    <select style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
-                      x-model="g.affinities[af.type]"
-                      @change="g.troop_type = teamTroop.a || af.type; g.troop_grade=g.affinities[af.type]">
-                      <option>S</option><option>A</option><option>B</option><option>C</option>
-                    </select>
-                  </div>
+            </div>
+            <!-- 战法选择面板 -->
+            <div class="sk-picker" x-show="skillPicker.open && skillPicker.team==='a' && skillPicker.idx===gi">
+              <div class="sk-picker-tabs">
+                <template x-for="cat in ['全部','指挥','主动','突击','被动','兵种','阵法','内政']" :key="cat">
+                  <div class="sk-tab" :class="skillPicker.category===cat?'active':''" @click="skillPicker.category=cat;skillPicker.expandedId=null" x-text="cat"></div>
                 </template>
               </div>
-              <hr class="sep">
-              <!-- Skills -->
-              <div class="skills-label"><span>战法</span></div>
-              <template x-for="(s, si) in g.skills" :key="si">
-                <div class="skill-row">
-                  <div class="skill-row-top">
-                    <span style="font-size:11px;color:var(--text3);flex-shrink:0" x-text="'战法'+(si+1)"></span>
-                    <input type="text" x-model="s.name" placeholder="战法名" style="width:100px">
-                    <select class="w-md" x-model="s.skill_type">
-                      <option value="主动">主动</option>
-                      <option value="突击">突击</option>
-                      <option value="指挥">指挥</option>
-                      <option value="被动">被动</option>
-                      <option value="兵种">兵种</option>
-                      <option value="阵法">阵法</option>
-                    </select>
-                    <span style="font-size:12px;color:var(--text3)">发动率</span>
-                    <input type="number" x-model.number="s.activation_rate" min="0" max="1" step="0.05" style="width:60px">
+              <div class="sk-list">
+                <template x-for="sk in filteredSkills()" :key="sk.id">
+                  <div class="sk-item">
+                    <div class="sk-item-head" @click="skillPicker.expandedId = skillPicker.expandedId===sk.id ? null : sk.id">
+                      <span class="sk-quality" :class="'sk-quality-'+(sk.quality||'B')" x-text="sk.quality||'B'"></span>
+                      <span style="font-weight:600" x-text="sk.name"></span>
+                      <span style="color:var(--text3)" x-text="sk.category"></span>
+                      <span style="color:var(--text3)" x-text="sk.trigger_prob ? (sk.trigger_prob*100).toFixed(0)+'%' : '—'"></span>
+                      <span style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="sk.effect||'—'"></span>
+                      <button class="sk-learn-btn" @click.stop="selectSkill(sk)">学习</button>
+                    </div>
+                    <div class="sk-item-desc" x-show="skillPicker.expandedId===sk.id" x-text="sk.description||'暂无详细描述'"></div>
                   </div>
-                  <div class="skill-row-bot">
-                    <label>伤害系数</label>
-                    <input type="number" x-model.number="s.damage_rate" min="0" max="10" step="0.1" style="width:60px">
-                    <label>伤害类型</label>
-                    <select x-model="s.damage_type" style="width:72px">
-                      <option value="兵刃">兵刃</option>
-                      <option value="谋略">谋略</option>
-                    </select>
-                    <label>目标</label>
-                    <select x-model="s.target_mode" style="width:100px">
-                      <option value="single_enemy">单体敌</option>
-                      <option value="all_enemy">全体敌</option>
-                      <option value="self">自身</option>
-                      <option value="all_ally">全体友</option>
-                      <option value="single_ally">单体友</option>
-                    </select>
-                  </div>
-                  <div class="skill-row-bot" style="margin-top:4px">
-                    <label>治疗率</label>
-                    <input type="number" x-model.number="s.heal_rate" min="0" max="5" step="0.05" style="width:60px">
-                    <label>治疗目标</label>
-                    <select x-model="s.heal_target" style="width:80px">
-                      <option value="self">自身</option>
-                      <option value="all_ally">全体友</option>
-                      <option value="single_ally">单体友</option>
-                    </select>
-                    <label>施加状态</label>
-                    <input type="text" x-model="s.apply_status" placeholder="无" style="width:72px">
-                  </div>
-                </div>
-              </template>
-              <!-- 编辑/重置/保存按钮 -->
-              <div class="save-row" x-show="g.db_id">
-                <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
-                <button class="btn btn-reset" @click="resetGeneral('a',gi)">↺ 重置</button>
-                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('a',gi)">
-                  <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
-                </button>
+                </template>
               </div>
             </div>
           </div>
@@ -921,126 +972,127 @@ select.w-sm { width: 72px; }
               </div>
             </div>
             <div class="general-body">
-              <div class="stats-row">
-                <div class="stat-cell">
-                  <label>武力</label>
-                  <input type="number" x-effect="$el.value=g.force" step="1" @input="g.editing?syncBase(g,'force',+$event.target.value):adjustFree(g,'force',+$event.target.value);$el.value=g.force">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
+              <!-- 左：属性列 -->
+              <div class="stats-col">
+                <div class="stats-2col">
+                  <div class="stat-cell">
+                    <label>武力</label>
+                    <input type="number" x-effect="$el.value=g.force" step="1" @input="g.editing?syncBase(g,'force',+$event.target.value):adjustFree(g,'force',+$event.target.value);$el.value=g.force">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.force_growth" step="1" @change="syncGrowth(g,'force')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>智力</label>
+                    <input type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>统率</label>
+                    <input type="number" x-effect="$el.value=g.command" step="1" @input="g.editing?syncBase(g,'command',+$event.target.value):adjustFree(g,'command',+$event.target.value);$el.value=g.command">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>速度</label>
+                    <input type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>政治</label>
+                    <input type="number" x-effect="$el.value=g.politics" step="1" @input="g.editing?syncBase(g,'politics',+$event.target.value):adjustFree(g,'politics',+$event.target.value);$el.value=g.politics">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
+                    </div>
+                  </div>
+                  <div class="stat-cell">
+                    <label>魅力</label>
+                    <input type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
+                    <div class="growth-wrap"><span class="growth-label">成长</span>
+                      <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
+                    </div>
                   </div>
                 </div>
-                <div class="stat-cell">
-                  <label>智力</label>
-                  <input type="number" x-effect="$el.value=g.intel" step="1" @input="g.editing?syncBase(g,'intel',+$event.target.value):adjustFree(g,'intel',+$event.target.value);$el.value=g.intel">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.intel_growth" step="1" @change="syncGrowth(g,'intel')">
-                  </div>
+                <div class="troop-row">
+                  <label>兵力</label>
+                  <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:80px">
                 </div>
-                <div class="stat-cell">
-                  <label>统率</label>
-                  <input type="number" x-effect="$el.value=g.command" step="1" @input="g.editing?syncBase(g,'command',+$event.target.value):adjustFree(g,'command',+$event.target.value);$el.value=g.command">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.command_growth" step="1" @change="syncGrowth(g,'command')">
-                  </div>
+                <div class="affinity-badges">
+                  <template x-for="af in affinityList(g)" :key="af.type">
+                    <div class="affinity-badge" style="position:relative"
+                      :class="['grade-'+g.affinities[af.type], g.troop_type===af.type ? 'active' : '', teamTroop.b && af.type!==teamTroop.b ? 'locked' : '']">
+                      <span x-text="af.name"></span>
+                      <span x-text="g.affinities[af.type]"></span>
+                      <select style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+                        x-model="g.affinities[af.type]"
+                        @change="g.troop_type = teamTroop.b || af.type; g.troop_grade=g.affinities[af.type]">
+                        <option>S</option><option>A</option><option>B</option><option>C</option>
+                      </select>
+                    </div>
+                  </template>
                 </div>
-                <div class="stat-cell">
-                  <label>速度</label>
-                  <input type="number" x-effect="$el.value=g.speed" step="1" @input="g.editing?syncBase(g,'speed',+$event.target.value):adjustFree(g,'speed',+$event.target.value);$el.value=g.speed">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.speed_growth" step="1" @change="syncGrowth(g,'speed')">
-                  </div>
+                <div class="save-row" x-show="g.db_id" style="margin-top:6px">
+                  <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
+                  <button class="btn btn-reset" @click="resetGeneral('b',gi)">↺ 重置</button>
+                  <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('b',gi)">
+                    <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
+                  </button>
                 </div>
               </div>
-              <div class="stats-row" style="grid-template-columns:1fr 1fr;">
-                <div class="stat-cell">
-                  <label>政治</label>
-                  <input type="number" x-effect="$el.value=g.politics" step="1" @input="g.editing?syncBase(g,'politics',+$event.target.value):adjustFree(g,'politics',+$event.target.value);$el.value=g.politics">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.politics_growth" step="1" @change="syncGrowth(g,'politics')">
-                  </div>
+              <!-- 右：战法槽 -->
+              <div class="skills-col">
+                <!-- 战法1：自带（只读） -->
+                <div class="sk-slot innate">
+                  <span class="sk-badge innate-badge">自带</span>
+                  <span class="sk-slot-name" x-text="g.innate_skill_name || '—'"></span>
+                  <template x-if="g.innate_skill_desc">
+                    <div class="sk-tooltip" x-text="g.innate_skill_desc"></div>
+                  </template>
                 </div>
-                <div class="stat-cell">
-                  <label>魅力</label>
-                  <input type="number" x-effect="$el.value=g.charisma" step="1" @input="g.editing?syncBase(g,'charisma',+$event.target.value):adjustFree(g,'charisma',+$event.target.value);$el.value=g.charisma">
-                  <div class="growth-wrap"><span class="growth-label">成长</span>
-                    <input class="growth-input" type="number" x-model.number="g.charisma_growth" step="1" @change="syncGrowth(g,'charisma')">
-                  </div>
+                <!-- 战法2 -->
+                <div class="sk-slot" :class="g.skills[1].name ? 'selected' : ''"
+                  @click="openSkillPicker('b', gi, 1)">
+                  <span class="sk-badge slot-badge">战法2</span>
+                  <span class="sk-slot-name" x-show="g.skills[1].name" x-text="g.skills[1].name"></span>
+                  <span class="sk-slot-empty" x-show="!g.skills[1].name">点击选择战法</span>
+                  <span class="sk-remove" x-show="g.skills[1].name" @click.stop="g.skills[1].name='';skillPicker.open=false">✕</span>
+                </div>
+                <!-- 战法3 -->
+                <div class="sk-slot" :class="g.skills[2].name ? 'selected' : ''"
+                  @click="openSkillPicker('b', gi, 2)">
+                  <span class="sk-badge slot-badge">战法3</span>
+                  <span class="sk-slot-name" x-show="g.skills[2].name" x-text="g.skills[2].name"></span>
+                  <span class="sk-slot-empty" x-show="!g.skills[2].name">点击选择战法</span>
+                  <span class="sk-remove" x-show="g.skills[2].name" @click.stop="g.skills[2].name='';skillPicker.open=false">✕</span>
                 </div>
               </div>
-              <div class="troop-row">
-                <label>兵力</label>
-                <input type="number" x-model.number="g.troops" min="1000" max="50000" style="width:90px">
-              </div>
-              <div class="affinity-badges">
-                <template x-for="af in affinityList(g)" :key="af.type">
-                  <div class="affinity-badge" style="position:relative"
-                    :class="['grade-'+g.affinities[af.type], g.troop_type===af.type ? 'active' : '', teamTroop.b && af.type!==teamTroop.b ? 'locked' : '']">
-                    <span x-text="af.name"></span>
-                    <span x-text="g.affinities[af.type]"></span>
-                    <select style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
-                      x-model="g.affinities[af.type]"
-                      @change="g.troop_type = teamTroop.b || af.type; g.troop_grade=g.affinities[af.type]">
-                      <option>S</option><option>A</option><option>B</option><option>C</option>
-                    </select>
-                  </div>
+            </div>
+            <!-- 战法选择面板 -->
+            <div class="sk-picker" x-show="skillPicker.open && skillPicker.team==='b' && skillPicker.idx===gi">
+              <div class="sk-picker-tabs">
+                <template x-for="cat in ['全部','指挥','主动','突击','被动','兵种','阵法','内政']" :key="cat">
+                  <div class="sk-tab" :class="skillPicker.category===cat?'active':''" @click="skillPicker.category=cat;skillPicker.expandedId=null" x-text="cat"></div>
                 </template>
               </div>
-              <hr class="sep">
-              <div class="skills-label"><span>战法</span></div>
-              <template x-for="(s, si) in g.skills" :key="si">
-                <div class="skill-row">
-                  <div class="skill-row-top">
-                    <span style="font-size:11px;color:var(--text3);flex-shrink:0" x-text="'战法'+(si+1)"></span>
-                    <input type="text" x-model="s.name" placeholder="战法名" style="width:100px">
-                    <select class="w-md" x-model="s.skill_type">
-                      <option value="主动">主动</option>
-                      <option value="突击">突击</option>
-                      <option value="指挥">指挥</option>
-                      <option value="被动">被动</option>
-                      <option value="兵种">兵种</option>
-                      <option value="阵法">阵法</option>
-                    </select>
-                    <span style="font-size:12px;color:var(--text3)">发动率</span>
-                    <input type="number" x-model.number="s.activation_rate" min="0" max="1" step="0.05" style="width:60px">
+              <div class="sk-list">
+                <template x-for="sk in filteredSkills()" :key="sk.id">
+                  <div class="sk-item">
+                    <div class="sk-item-head" @click="skillPicker.expandedId = skillPicker.expandedId===sk.id ? null : sk.id">
+                      <span class="sk-quality" :class="'sk-quality-'+(sk.quality||'B')" x-text="sk.quality||'B'"></span>
+                      <span style="font-weight:600" x-text="sk.name"></span>
+                      <span style="color:var(--text3)" x-text="sk.category"></span>
+                      <span style="color:var(--text3)" x-text="sk.trigger_prob ? (sk.trigger_prob*100).toFixed(0)+'%' : '—'"></span>
+                      <span style="color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="sk.effect||'—'"></span>
+                      <button class="sk-learn-btn" @click.stop="selectSkill(sk)">学习</button>
+                    </div>
+                    <div class="sk-item-desc" x-show="skillPicker.expandedId===sk.id" x-text="sk.description||'暂无详细描述'"></div>
                   </div>
-                  <div class="skill-row-bot">
-                    <label>伤害系数</label>
-                    <input type="number" x-model.number="s.damage_rate" min="0" max="10" step="0.1" style="width:60px">
-                    <label>伤害类型</label>
-                    <select x-model="s.damage_type" style="width:72px">
-                      <option value="兵刃">兵刃</option>
-                      <option value="谋略">谋略</option>
-                    </select>
-                    <label>目标</label>
-                    <select x-model="s.target_mode" style="width:100px">
-                      <option value="single_enemy">单体敌</option>
-                      <option value="all_enemy">全体敌</option>
-                      <option value="self">自身</option>
-                      <option value="all_ally">全体友</option>
-                      <option value="single_ally">单体友</option>
-                    </select>
-                  </div>
-                  <div class="skill-row-bot" style="margin-top:4px">
-                    <label>治疗率</label>
-                    <input type="number" x-model.number="s.heal_rate" min="0" max="5" step="0.05" style="width:60px">
-                    <label>治疗目标</label>
-                    <select x-model="s.heal_target" style="width:80px">
-                      <option value="self">自身</option>
-                      <option value="all_ally">全体友</option>
-                      <option value="single_ally">单体友</option>
-                    </select>
-                    <label>施加状态</label>
-                    <input type="text" x-model="s.apply_status" placeholder="无" style="width:72px">
-                  </div>
-                </div>
-              </template>
-              <!-- 编辑/重置/保存按钮 -->
-              <div class="save-row" x-show="g.db_id">
-                <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button>
-                <button class="btn btn-reset" @click="resetGeneral('b',gi)">↺ 重置</button>
-                <button class="btn btn-save" :class="g.dirty ? 'dirty' : ''" :disabled="!g.editing" @click="saveGeneral('b',gi)">
-                  <span x-text="g.dirty ? '💾 保存修改' : '✓ 已保存'"></span>
-                </button>
+                </template>
               </div>
             </div>
           </div>
@@ -1203,6 +1255,8 @@ function simulator() {
   function general(name, force, intel, command, speed, troops, type, grade, skills) {
     return {
       name, troops, troop_type: type, troop_grade: grade, skills,
+      innate_skill_name: '',
+      innate_skill_desc: '',
       level: 5, faction: '',
       db_id: null, dirty: false, editing: false,
       red_dots: 0, is_collection: false, command_value: 5,
@@ -1277,6 +1331,8 @@ function simulator() {
     advisor: { a: null, b: null },
     teamTroop: { a: '', b: '' },
     bonus: { a: { affinity: false, faction: false }, b: { affinity: false, faction: false } },
+    skillsData: [],
+    skillPicker: { open: false, team: null, idx: null, slot: null, category: '全部', expandedId: null },
     advisorSkills: [],
     advisorSearch: { a: '', b: '' },
     advisorOpen: { a: false, b: false },
@@ -1293,15 +1349,18 @@ function simulator() {
 
     async init() {
       try {
-        const [advRes, genRes] = await Promise.all([
+        const [advRes, genRes, skillRes] = await Promise.all([
           fetch('/api/advisor_skills'),
           fetch('/api/generals'),
+          fetch('/api/skills'),
         ]);
         this.advisorSkills = await advRes.json();
         this.generalsData  = await genRes.json();
+        this.skillsData    = await skillRes.json();
       } catch(e) {
         this.advisorSkills = [];
         this.generalsData  = [];
+        this.skillsData    = [];
       }
       // 用数据库数据填充默认将领
       const defaults = {
@@ -1353,6 +1412,31 @@ function simulator() {
       return this.teams[team].reduce((sum, g) => sum + (g.command_value || 5), 0);
     },
 
+    openSkillPicker(team, idx, slot) {
+      if (this.skillPicker.open && this.skillPicker.team===team && this.skillPicker.idx===idx && this.skillPicker.slot===slot) {
+        this.skillPicker.open = false;
+      } else {
+        this.skillPicker = { open: true, team, idx, slot, category: '全部', expandedId: null };
+      }
+    },
+    selectSkill(sk) {
+      const g = this.teams[this.skillPicker.team][this.skillPicker.idx];
+      const slot = this.skillPicker.slot;
+      g.skills[slot] = {
+        name: sk.name,
+        skill_type: sk.category || '主动',
+        activation_rate: +(sk.trigger_prob || 0.35),
+        damage_rate: 0, damage_type: '兵刃',
+        target_mode: sk.target === '敌军全体' ? 'all_enemy' : sk.target === '自身' ? 'self' : 'single_enemy',
+        heal_rate: 0, heal_target: 'self', apply_status: '',
+      };
+      this.skillPicker.open = false;
+    },
+    filteredSkills() {
+      const cat = this.skillPicker.category;
+      return cat === '全部' ? this.skillsData : this.skillsData.filter(s => s.category === cat);
+    },
+
     // 阵营加成：三将同阵营（魏/蜀/吴/群/汉）
     factionBonus(team) {
       const factions = this.teams[team].map(g => g.faction).filter(f => f);
@@ -1394,6 +1478,12 @@ function simulator() {
       g.free_force = g.free_intel = g.free_command = g.free_speed = g.free_politics = g.free_charisma = 0;
       g.command_value  = +(gen.command_value ?? 5);
       g.faction        = gen.faction || '';
+      g.innate_skill_name = gen.innate_skill || '';
+      const innateObj = this.skillsData.find(s => s.name === gen.innate_skill);
+      g.innate_skill_desc = innateObj ? (innateObj.description || '') : '';
+      // 重置技能槽2/3
+      g.skills[1] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
+      g.skills[2] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
       g.force_base     = +parseFloat(gen.strength    ?? 0).toFixed(2);
       g.intel_base     = +parseFloat(gen.intelligence?? 0).toFixed(2);
       g.command_base   = +parseFloat(gen.leadership  ?? 0).toFixed(2);

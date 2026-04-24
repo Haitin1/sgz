@@ -251,6 +251,23 @@ def update_general(general_id: int, body: GeneralUpdateInput):
         raise HTTPException(500, f"数据库错误：{e}")
 
 
+@app.get("/api/skills")
+def list_skills():
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT id, name, category, trigger_prob, target, description, quality, effect
+            FROM skills
+            ORDER BY category, name
+        """)
+        rows = cur.fetchall()
+        cur.close(); conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
 @app.get("/api/advisor_skills")
 def list_advisor_skills():
     """返回所有已实装的军师技列表"""
