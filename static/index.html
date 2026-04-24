@@ -1056,6 +1056,11 @@ select.w-sm { width: 72px; }
                       </select>
                     </div>
                   </template>
+                  <div style="display:flex;align-items:center;gap:3px;margin-left:4px;white-space:nowrap"
+                    x-effect="g.troops = calcTroops(tech.a.jingying, g.level)">
+                    <span style="font-size:10px;color:var(--text2)">兵力</span>
+                    <span style="font-size:11px;font-weight:700;color:var(--text)" x-text="g.troops.toLocaleString()"></span>
+                  </div>
                 </div>
                 <!-- 6属性：单一 7列 grid 精确对齐 -->
                 <div class="stats-grid">
@@ -1126,12 +1131,6 @@ select.w-sm { width: 72px; }
                 </div>
                 <div class="save-row" style="margin-top:6px">
                   <button class="btn btn-reset" @click="resetGeneral('a',gi)">↺ 重置</button>
-                  <div style="display:flex;align-items:center;gap:5px"
-                    x-effect="g.troops = calcTroops(tech.a.jingying, g.level)">
-                    <label style="font-size:12px;color:var(--text2);white-space:nowrap">兵力</label>
-                    <span style="font-size:13px;font-weight:700;color:var(--text)"
-                      x-text="g.troops.toLocaleString()"></span>
-                  </div>
                 </div>
               </div>
               <!-- 右：战法槽 -->
@@ -1496,6 +1495,11 @@ select.w-sm { width: 72px; }
                       </select>
                     </div>
                   </template>
+                  <div style="display:flex;align-items:center;gap:3px;margin-left:4px;white-space:nowrap"
+                    x-effect="g.troops = calcTroops(tech.b.jingying, g.level)">
+                    <span style="font-size:10px;color:var(--text2)">兵力</span>
+                    <span style="font-size:11px;font-weight:700;color:var(--text)" x-text="g.troops.toLocaleString()"></span>
+                  </div>
                 </div>
                 <!-- 6属性：单一 7列 grid 精确对齐 -->
                 <div class="stats-grid">
@@ -1562,12 +1566,6 @@ select.w-sm { width: 72px; }
                 </div>
                 <div class="save-row" style="margin-top:6px">
                   <button class="btn btn-reset" @click="resetGeneral('b',gi)">↺ 重置</button>
-                  <div style="display:flex;align-items:center;gap:5px"
-                    x-effect="g.troops = calcTroops(tech.b.jingying, g.level)">
-                    <label style="font-size:12px;color:var(--text2);white-space:nowrap">兵力</label>
-                    <span style="font-size:13px;font-weight:700;color:var(--text)"
-                      x-text="g.troops.toLocaleString()"></span>
-                  </div>
                 </div>
               </div>
               <!-- 右：战法槽 -->
