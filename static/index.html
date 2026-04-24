@@ -827,7 +827,7 @@ select.w-sm { width: 72px; }
       <button class="lineup-save-btn"
         :disabled="!canSaveLineup() || lineupSlotsFull()"
         @click="saveLineup()"
-        :title="lineupSlotsFull() ? '已存满5个阵容' : (!canSaveLineup() ? '请配置兵种、红度、典藏和至少一个战法' : '保存当前我方阵容')">
+        :title="lineupSlotsFull() ? '已存满5个阵容' : '保存当前我方阵容'">
         💾 保存阵容
       </button>
       <input class="lineup-name-input" type="text" x-model="lineupName" placeholder="阵容名称" maxlength="10">
@@ -853,7 +853,7 @@ select.w-sm { width: 72px; }
       <button class="lineup-save-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 1px 3px rgba(220,38,38,.35)"
         :disabled="!canSaveLineupB() || lineupSlotsBFull()"
         @click="saveLineupB()"
-        :title="lineupSlotsBFull() ? '已存满5个阵容' : (!canSaveLineupB() ? '请配置兵种、红度、典藏和至少一个战法' : '保存当前敌方阵容')">
+        :title="lineupSlotsBFull() ? '已存满5个阵容' : '保存当前敌方阵容'">
         💾 保存阵容
       </button>
       <input class="lineup-name-input" type="text" x-model="lineupNameB" placeholder="阵容名称" maxlength="10">
@@ -2077,15 +2077,7 @@ function simulator() {
     },
 
     // ── 我方阵容 A ──
-    canSaveLineup() {
-      const team = this.teams.a;
-      if (!this.teamTroop.a) return false;
-      if (!team.some(g => g.name)) return false;
-      if (!team.some(g => (g.red_dots || 0) > 0)) return false;
-      if (!team.some(g => g.is_collection)) return false;
-      if (!team.some(g => g.skills[1].name || g.skills[2].name)) return false;
-      return true;
-    },
+    canSaveLineup() { return true; },
     lineupSlotsFull() {
       return this.savedLineups.every(s => s !== null);
     },
@@ -2144,15 +2136,7 @@ function simulator() {
     },
 
     // ── 敌方阵容 B ──
-    canSaveLineupB() {
-      const team = this.teams.b;
-      if (!this.teamTroop.b) return false;
-      if (!team.some(g => g.name)) return false;
-      if (!team.some(g => (g.red_dots || 0) > 0)) return false;
-      if (!team.some(g => g.is_collection)) return false;
-      if (!team.some(g => g.skills[1].name || g.skills[2].name)) return false;
-      return true;
-    },
+    canSaveLineupB() { return true; },
     lineupSlotsBFull() {
       return this.savedLineupsB.every(s => s !== null);
     },
