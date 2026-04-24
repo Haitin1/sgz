@@ -263,12 +263,18 @@ select.w-sm { width: 72px; }
 /* ── Tech Panel ── */
 .tech-sections { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .tech-sec { display: flex; flex-direction: column; gap: 3px; }
+.tech-sec-hd { display: flex; align-items: center; gap: 5px; }
 .tech-sec-label {
   font-size: 10px; font-weight: 600; color: var(--text2);
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: 3px; padding: 1px 5px;
-  display: inline-block;
 }
+.tech-sec-btn {
+  font-size: 10px; padding: 1px 6px; border-radius: 3px; border: 1px solid;
+  cursor: pointer; line-height: 1.5; font-weight: 600;
+}
+.tech-sec-btn.max { background: #fef3c7; border-color: #d97706; color: #92400e; }
+.tech-sec-btn.rst { background: var(--surface2); border-color: var(--border2); color: var(--text3); }
 .tech-grid { display: grid; gap: 4px; }
 .tech-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .tech-grid-4 { grid-template-columns: repeat(4, 1fr); }
@@ -884,7 +890,11 @@ select.w-sm { width: 72px; }
         <div class="tech-sections">
           <!-- 兵战 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">兵战</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">兵战</span>
+              <button class="tech-sec-btn max" @click="techMax('a','bingzhan')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('a','bingzhan')">清</button>
+            </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>兵战-武</label><input type="number" x-model.number="tech.a.bingzhan_wu" min="0" max="10"></div>
               <div class="tech-cell"><label>兵战-谋</label><input type="number" x-model.number="tech.a.bingzhan_mou" min="0" max="10"></div>
@@ -894,7 +904,11 @@ select.w-sm { width: 72px; }
           </div>
           <!-- 协力 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">协力</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">协力</span>
+              <button class="tech-sec-btn max" @click="techMax('a','xieli')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('a','xieli')">清</button>
+            </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>协力-魏</label><input type="number" x-model.number="tech.a.xieli_wei" min="0" max="10"></div>
               <div class="tech-cell"><label>协力-蜀</label><input type="number" x-model.number="tech.a.xieli_shu" min="0" max="10"></div>
@@ -905,7 +919,11 @@ select.w-sm { width: 72px; }
           </div>
           <!-- 兵营 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">兵营</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">兵营</span>
+              <button class="tech-sec-btn max" @click="techMax('a','camp')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('a','camp')">清</button>
+            </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>盾兵营</label><input type="number" x-model.number="tech.a.camp_shield" min="0" max="10"></div>
               <div class="tech-cell"><label>骑兵营</label><input type="number" x-model.number="tech.a.camp_cavalry" min="0" max="10"></div>
@@ -916,7 +934,11 @@ select.w-sm { width: 72px; }
           </div>
           <!-- 军营守备 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">军营守备</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">军营守备</span>
+              <button class="tech-sec-btn max" @click="techMax('a','guard')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('a','guard')">清</button>
+            </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.a.jingying" min="0" max="20"></div>
               <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.a.jiugong" min="0" max="5"></div>
@@ -1190,7 +1212,11 @@ select.w-sm { width: 72px; }
         <div class="tech-sections">
           <!-- 兵战 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">兵战</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">兵战</span>
+              <button class="tech-sec-btn max" @click="techMax('b','bingzhan')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('b','bingzhan')">清</button>
+            </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>兵战-武</label><input type="number" x-model.number="tech.b.bingzhan_wu" min="0" max="10"></div>
               <div class="tech-cell"><label>兵战-谋</label><input type="number" x-model.number="tech.b.bingzhan_mou" min="0" max="10"></div>
@@ -1200,7 +1226,11 @@ select.w-sm { width: 72px; }
           </div>
           <!-- 协力 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">协力</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">协力</span>
+              <button class="tech-sec-btn max" @click="techMax('b','xieli')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('b','xieli')">清</button>
+            </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>协力-魏</label><input type="number" x-model.number="tech.b.xieli_wei" min="0" max="10"></div>
               <div class="tech-cell"><label>协力-蜀</label><input type="number" x-model.number="tech.b.xieli_shu" min="0" max="10"></div>
@@ -1211,7 +1241,11 @@ select.w-sm { width: 72px; }
           </div>
           <!-- 兵营 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">兵营</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">兵营</span>
+              <button class="tech-sec-btn max" @click="techMax('b','camp')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('b','camp')">清</button>
+            </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>盾兵营</label><input type="number" x-model.number="tech.b.camp_shield" min="0" max="10"></div>
               <div class="tech-cell"><label>骑兵营</label><input type="number" x-model.number="tech.b.camp_cavalry" min="0" max="10"></div>
@@ -1222,7 +1256,11 @@ select.w-sm { width: 72px; }
           </div>
           <!-- 军营守备 -->
           <div class="tech-sec">
-            <span class="tech-sec-label">军营守备</span>
+            <div class="tech-sec-hd">
+              <span class="tech-sec-label">军营守备</span>
+              <button class="tech-sec-btn max" @click="techMax('b','guard')">满</button>
+              <button class="tech-sec-btn rst" @click="techReset('b','guard')">清</button>
+            </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.b.jingying" min="0" max="20"></div>
               <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.b.jiugong" min="0" max="5"></div>
@@ -1566,6 +1604,26 @@ function simulator() {
       if (!name) return '';
       const sk = this.skillsData.find(s => s.name === name);
       return sk ? (sk.description || sk.effect || '') : '';
+    },
+    techMax(side, sec) {
+      const t = this.tech[side];
+      const maxMap = {
+        bingzhan: { bingzhan_wu:10, bingzhan_mou:10, bingzhan_fang:10, bingzhan_su:10 },
+        xieli:    { xieli_wei:10, xieli_shu:10, xieli_wu:10, xieli_han:10, xieli_qun:10 },
+        camp:     { camp_shield:10, camp_cavalry:10, camp_bow:10, camp_spear:10, camp_machine:10 },
+        guard:    { jingying:20, jiugong:5, bagua:5 },
+      };
+      Object.assign(t, maxMap[sec]);
+    },
+    techReset(side, sec) {
+      const t = this.tech[side];
+      const keys = {
+        bingzhan: ['bingzhan_wu','bingzhan_mou','bingzhan_fang','bingzhan_su'],
+        xieli:    ['xieli_wei','xieli_shu','xieli_wu','xieli_han','xieli_qun'],
+        camp:     ['camp_shield','camp_cavalry','camp_bow','camp_spear','camp_machine'],
+        guard:    ['jingying','jiugong','bagua'],
+      };
+      keys[sec].forEach(k => t[k] = 0);
     },
     filteredSkills() {
       const cat = this.skillPicker.category;
