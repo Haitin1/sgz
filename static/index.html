@@ -222,10 +222,11 @@ select.w-sm { width: 72px; }
 .sk-tooltip {
   display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
   background: #1e293b; color: #e2e8f0; font-size: 11px;
-  padding: 8px 10px; border-radius: 6px; width: 280px; line-height: 1.6;
+  padding: 8px 10px; border-radius: 6px; width: 100%; line-height: 1.6;
   white-space: pre-wrap; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.3);
 }
-.sk-slot.innate:hover .sk-tooltip { display: block; }
+.sk-slot:hover .sk-tooltip { display: block; }
+.sk-tooltip:empty { display: none !important; }
 /* 战法选择面板 */
 .sk-picker {
   border: 1px solid var(--border2); border-radius: 8px;
@@ -831,6 +832,7 @@ select.w-sm { width: 72px; }
                   <span class="sk-slot-name" x-show="g.skills[1].name" x-text="g.skills[1].name"></span>
                   <span class="sk-slot-empty" x-show="!g.skills[1].name">点击选择战法</span>
                   <span class="sk-remove" x-show="g.skills[1].name" @click.stop="g.skills[1].name='';skillPicker.open=false">✕</span>
+                  <div class="sk-tooltip" x-text="skillDesc(g.skills[1].name)"></div>
                 </div>
                 <!-- 战法3 -->
                 <div class="sk-slot" :class="g.skills[2].name ? 'selected' : ''"
@@ -839,6 +841,7 @@ select.w-sm { width: 72px; }
                   <span class="sk-slot-name" x-show="g.skills[2].name" x-text="g.skills[2].name"></span>
                   <span class="sk-slot-empty" x-show="!g.skills[2].name">点击选择战法</span>
                   <span class="sk-remove" x-show="g.skills[2].name" @click.stop="g.skills[2].name='';skillPicker.open=false">✕</span>
+                  <div class="sk-tooltip" x-text="skillDesc(g.skills[2].name)"></div>
                 </div>
               </div>
             </div>
@@ -1099,6 +1102,7 @@ select.w-sm { width: 72px; }
                   <span class="sk-slot-name" x-show="g.skills[1].name" x-text="g.skills[1].name"></span>
                   <span class="sk-slot-empty" x-show="!g.skills[1].name">点击选择战法</span>
                   <span class="sk-remove" x-show="g.skills[1].name" @click.stop="g.skills[1].name='';skillPicker.open=false">✕</span>
+                  <div class="sk-tooltip" x-text="skillDesc(g.skills[1].name)"></div>
                 </div>
                 <!-- 战法3 -->
                 <div class="sk-slot" :class="g.skills[2].name ? 'selected' : ''"
@@ -1107,6 +1111,7 @@ select.w-sm { width: 72px; }
                   <span class="sk-slot-name" x-show="g.skills[2].name" x-text="g.skills[2].name"></span>
                   <span class="sk-slot-empty" x-show="!g.skills[2].name">点击选择战法</span>
                   <span class="sk-remove" x-show="g.skills[2].name" @click.stop="g.skills[2].name='';skillPicker.open=false">✕</span>
+                  <div class="sk-tooltip" x-text="skillDesc(g.skills[2].name)"></div>
                 </div>
               </div>
             </div>
@@ -1469,6 +1474,11 @@ function simulator() {
         heal_rate: 0, heal_target: 'self', apply_status: '',
       };
       this.skillPicker.open = false;
+    },
+    skillDesc(name) {
+      if (!name) return '';
+      const sk = this.skillsData.find(s => s.name === name);
+      return sk ? (sk.description || sk.effect || '') : '';
     },
     filteredSkills() {
       const cat = this.skillPicker.category;
