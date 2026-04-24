@@ -1080,7 +1080,7 @@ select.w-sm { width: 72px; }
                     <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
                   </div>
                 </div>
-                <div class="save-row" x-show="g.db_id" style="margin-top:6px">
+                <div class="save-row" style="margin-top:6px">
                   <div style="display:flex;gap:8px">
                     <!-- [隐藏] <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button> -->
                     <button class="btn btn-reset" @click="resetGeneral('a',gi)">↺ 重置</button>
@@ -1427,7 +1427,7 @@ select.w-sm { width: 72px; }
                     <input class="stat-grow-inp" x-show="g.editing" type="number" x-model.number="g.charisma_growth" step="0.01" @change="syncGrowth(g,'charisma')">
                   </div>
                 </div>
-                <div class="save-row" x-show="g.db_id" style="margin-top:6px">
+                <div class="save-row" style="margin-top:6px">
                   <div style="display:flex;gap:8px">
                     <!-- [隐藏] <button class="btn btn-edit" :class="g.editing ? 'active' : ''" @click="g.editing=!g.editing">✏️ 编辑</button> -->
                     <button class="btn btn-reset" @click="resetGeneral('b',gi)">↺ 重置</button>
