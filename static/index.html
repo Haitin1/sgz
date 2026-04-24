@@ -644,12 +644,19 @@ select.w-sm { width: 72px; }
 .advisor-card .ac-desc { color: var(--text2); line-height: 1.6; }
 
 /* ── 保存阵容栏 ── */
+.lineup-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-bottom: 12px;
+}
+@media (max-width: 800px) { .lineup-row { grid-template-columns: 1fr; } }
 .lineup-bar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 8px 12px;
-  margin-bottom: 12px; box-shadow: var(--shadow);
+  box-shadow: var(--shadow);
 }
+.lineup-bar.team-a { border-color: var(--accent-a-border); background: var(--accent-a-light); }
+.lineup-bar.team-b { border-color: var(--accent-b-border); background: var(--accent-b-light); }
 .lineup-save-btn {
   font-size: 12px; font-weight: 700; padding: 5px 12px;
   border-radius: 6px; border: none; cursor: pointer;
@@ -810,28 +817,56 @@ select.w-sm { width: 72px; }
 
   <!-- Teams -->
   <!-- 保存阵容栏 -->
-  <div class="lineup-bar">
-    <button class="lineup-save-btn"
-      :disabled="!canSaveLineup() || lineupSlotsFull()"
-      @click="saveLineup()"
-      :title="lineupSlotsFull() ? '已存满5个阵容' : (!canSaveLineup() ? '请配置兵种、红度、典藏和至少一个战法' : '保存当前我方阵容')">
-      💾 保存阵容
-    </button>
-    <input class="lineup-name-input" type="text" x-model="lineupName" placeholder="阵容名称" maxlength="10">
-    <div class="lineup-slots">
-      <template x-for="(slot, idx) in savedLineups" :key="idx">
-        <div class="lineup-slot">
-          <template x-if="slot">
-            <button class="lineup-slot-btn" @click="loadLineup(idx)"
-              :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '')"
-              x-text="slot.name"></button>
-          </template>
-          <template x-if="!slot">
-            <span class="lineup-slot-empty" x-text="'阵容' + (idx+1)"></span>
-          </template>
-          <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineup(idx)" title="删除">×</button>
-        </div>
-      </template>
+  <div class="lineup-row">
+    <!-- 我方阵容 -->
+    <div class="lineup-bar team-a">
+      <button class="lineup-save-btn"
+        :disabled="!canSaveLineup() || lineupSlotsFull()"
+        @click="saveLineup()"
+        :title="lineupSlotsFull() ? '已存满5个阵容' : (!canSaveLineup() ? '请配置兵种、红度、典藏和至少一个战法' : '保存当前我方阵容')">
+        💾 保存阵容
+      </button>
+      <input class="lineup-name-input" type="text" x-model="lineupName" placeholder="阵容名称" maxlength="10">
+      <div class="lineup-slots">
+        <template x-for="(slot, idx) in savedLineups" :key="idx">
+          <div class="lineup-slot">
+            <template x-if="slot">
+              <button class="lineup-slot-btn" @click="loadLineup(idx)"
+                :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '')"
+                x-text="slot.name"></button>
+            </template>
+            <template x-if="!slot">
+              <span class="lineup-slot-empty" x-text="'阵容' + (idx+1)"></span>
+            </template>
+            <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineup(idx)" title="删除">×</button>
+          </div>
+        </template>
+      </div>
+    </div>
+    <!-- 敌方阵容 -->
+    <div class="lineup-bar team-b">
+      <button class="lineup-save-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 1px 3px rgba(220,38,38,.35)"
+        :disabled="!canSaveLineupB() || lineupSlotsBFull()"
+        @click="saveLineupB()"
+        :title="lineupSlotsBFull() ? '已存满5个阵容' : (!canSaveLineupB() ? '请配置兵种、红度、典藏和至少一个战法' : '保存当前敌方阵容')">
+        💾 保存阵容
+      </button>
+      <input class="lineup-name-input" type="text" x-model="lineupNameB" placeholder="阵容名称" maxlength="10">
+      <div class="lineup-slots">
+        <template x-for="(slot, idx) in savedLineupsB" :key="idx">
+          <div class="lineup-slot">
+            <template x-if="slot">
+              <button class="lineup-slot-btn" @click="loadLineupB(idx)"
+                :title="slot.name + (slot.savedAt ? ' · ' + slot.savedAt : '')"
+                x-text="slot.name"></button>
+            </template>
+            <template x-if="!slot">
+              <span class="lineup-slot-empty" x-text="'阵容' + (idx+1)"></span>
+            </template>
+            <button x-show="slot" class="lineup-slot-del" @click.stop="deleteLineupB(idx)" title="删除">×</button>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 
@@ -1781,6 +1816,8 @@ function simulator() {
     showLog: false,
     savedLineups: Array(5).fill(null),
     lineupName: '',
+    savedLineupsB: Array(5).fill(null),
+    lineupNameB: '',
 
     async init() {
       try {
@@ -1802,6 +1839,8 @@ function simulator() {
       // 载入本地保存的阵容
       const _saved = localStorage.getItem('sgz_lineups_v1');
       if (_saved) try { this.savedLineups = JSON.parse(_saved); } catch(e) {}
+      const _savedB = localStorage.getItem('sgz_lineups_b_v1');
+      if (_savedB) try { this.savedLineupsB = JSON.parse(_savedB); } catch(e) {}
 
       // 用数据库数据填充默认将领，并设满级默认值
       const defaults = {
@@ -2034,6 +2073,73 @@ function simulator() {
       this.savedLineups[slot] = null;
       localStorage.setItem('sgz_lineups_v1', JSON.stringify(this.savedLineups));
     },
+
+    // ── 敌方阵容 B ──
+    canSaveLineupB() {
+      const team = this.teams.b;
+      if (!this.teamTroop.b) return false;
+      if (!team.some(g => g.name)) return false;
+      if (!team.some(g => (g.red_dots || 0) > 0)) return false;
+      if (!team.some(g => g.is_collection)) return false;
+      if (!team.some(g => g.skills[1].name || g.skills[2].name)) return false;
+      return true;
+    },
+    lineupSlotsBFull() {
+      return this.savedLineupsB.every(s => s !== null);
+    },
+    saveLineupB() {
+      if (!this.canSaveLineupB()) return;
+      const slot = this.savedLineupsB.findIndex(s => s === null);
+      if (slot === -1) return;
+      const lineup = {
+        name: this.lineupNameB.trim() || ('阵容' + (slot + 1)),
+        teamTroop: this.teamTroop.b,
+        advisor: this.advisor.b ? JSON.parse(JSON.stringify(this.advisor.b)) : null,
+        generals: this.teams.b.map(g => ({
+          name: g.name, level: g.level,
+          troop_type: g.troop_type, troop_grade: g.troop_grade,
+          red_dots: g.red_dots || 0, is_collection: g.is_collection || false,
+          skills: g.skills.map(s => ({ name: s.name || '' })),
+          free_force: g.free_force||0, free_intel: g.free_intel||0,
+          free_command: g.free_command||0, free_speed: g.free_speed||0,
+          free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
+        })),
+        savedAt: new Date().toLocaleDateString('zh-CN'),
+      };
+      this.savedLineupsB = [...this.savedLineupsB];
+      this.savedLineupsB[slot] = lineup;
+      localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
+      this.lineupNameB = '';
+    },
+    loadLineupB(slot) {
+      const lineup = this.savedLineupsB[slot];
+      if (!lineup) return;
+      this.teamTroop.b = lineup.teamTroop || '';
+      this.advisor.b = lineup.advisor || null;
+      if (lineup.teamTroop) this.lockTeamTroop('b');
+      lineup.generals.forEach((saved, idx) => {
+        if (!saved.name) return;
+        const gen = this.generalsData.find(g => g.name === saved.name);
+        if (!gen) return;
+        this.pickGeneral('b', idx, gen);
+        const g = this.teams.b[idx];
+        g.level = saved.level || 1;
+        g.red_dots = saved.red_dots || 0;
+        g.is_collection = saved.is_collection || false;
+        if (saved.skills[1]) g.skills[1].name = saved.skills[1].name || '';
+        if (saved.skills[2]) g.skills[2].name = saved.skills[2].name || '';
+        g.free_force = saved.free_force||0; g.free_intel = saved.free_intel||0;
+        g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
+        g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
+        this.recalcStats('b', idx);
+      });
+    },
+    deleteLineupB(slot) {
+      this.savedLineupsB = [...this.savedLineupsB];
+      this.savedLineupsB[slot] = null;
+      localStorage.setItem('sgz_lineups_b_v1', JSON.stringify(this.savedLineupsB));
+    },
+
     pickGeneral(team, idx, gen) {
       const g = this.teams[team][idx];
       g.name           = gen.name;
