@@ -1711,14 +1711,14 @@ function simulator() {
     return {
       // 军事
       tech_attack: 10, tech_intel: 10, tech_defense: 10, jiugong: 0, bagua: 0,
-      // 兵战
-      bingzhan_wu: 0, bingzhan_mou: 0, bingzhan_fang: 0, bingzhan_su: 0,
-      // 协力
-      xieli_wei: 0, xieli_shu: 0, xieli_wu: 0, xieli_han: 0, xieli_qun: 0,
-      // 军营
-      jingying: 0,
-      // 兵营
-      camp_shield: 0, camp_cavalry: 0, camp_bow: 0, camp_spear: 0, camp_machine: 0,
+      // 兵战（满级）
+      bingzhan_wu: 10, bingzhan_mou: 10, bingzhan_fang: 10, bingzhan_su: 10,
+      // 协力（满级）
+      xieli_wei: 10, xieli_shu: 10, xieli_wu: 10, xieli_han: 10, xieli_qun: 10,
+      // 军营（满级）
+      jingying: 20,
+      // 兵营（满级）
+      camp_shield: 10, camp_cavalry: 10, camp_bow: 10, camp_spear: 10, camp_machine: 10,
     };
   }
 
@@ -1803,7 +1803,7 @@ function simulator() {
       const _saved = localStorage.getItem('sgz_lineups_v1');
       if (_saved) try { this.savedLineups = JSON.parse(_saved); } catch(e) {}
 
-      // 用数据库数据填充默认将领
+      // 用数据库数据填充默认将领，并设满级默认值
       const defaults = {
         a: ['关羽', '张飞', '诸葛亮'],
         b: ['吕布', '张辽', '貂蝉'],
@@ -1811,7 +1811,14 @@ function simulator() {
       for (const team of ['a', 'b']) {
         defaults[team].forEach((name, idx) => {
           const found = this.generalsData.find(g => g.name === name);
-          if (found) this.pickGeneral(team, idx, found);
+          if (found) {
+            this.pickGeneral(team, idx, found);
+            const g = this.teams[team][idx];
+            g.level = 50;
+            g.red_dots = 5;
+            g.is_collection = true;
+            this.recalcStats(team, idx);
+          }
         });
       }
     },
