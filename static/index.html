@@ -261,15 +261,22 @@ select.w-sm { width: 72px; }
 .sk-learn-btn:hover { background: #fde68a; }
 
 /* ── Tech Panel ── */
-.tech-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  margin-top: 6px;
+.tech-sections { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.tech-sec { display: flex; flex-direction: column; gap: 3px; }
+.tech-sec-label {
+  font-size: 10px; font-weight: 600; color: var(--text2);
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 3px; padding: 1px 5px;
+  display: inline-block;
 }
+.tech-grid { display: grid; gap: 4px; }
+.tech-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.tech-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.tech-grid-5 { grid-template-columns: repeat(5, 1fr); }
+.tech-grid-6 { grid-template-columns: repeat(6, 1fr); }
 .tech-cell { display: flex; flex-direction: column; gap: 2px; }
-.tech-cell label { font-size: 11px; color: var(--text3); text-align: center; }
-.tech-cell input { text-align: center; padding: 4px; font-size: 13px; }
+.tech-cell label { font-size: 10px; color: var(--text3); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tech-cell input { text-align: center; padding: 3px 2px; font-size: 12px; width: 100%; }
 
 /* ── Buttons ── */
 .btn {
@@ -874,12 +881,51 @@ select.w-sm { width: 72px; }
         <!-- Tech A -->
         <hr class="sep">
         <div class="section-label">科技配置</div>
-        <div class="tech-grid">
-          <div class="tech-cell"><label>攻击科技</label><input type="number" x-model.number="tech.a.tech_attack" min="0" max="20"></div>
-          <div class="tech-cell"><label>谋略科技</label><input type="number" x-model.number="tech.a.tech_intel" min="0" max="20"></div>
-          <div class="tech-cell"><label>防御科技</label><input type="number" x-model.number="tech.a.tech_defense" min="0" max="20"></div>
-          <div class="tech-cell"><label>九宫图(0-5)</label><input type="number" x-model.number="tech.a.jiugong" min="0" max="5"></div>
-          <div class="tech-cell"><label>八卦阵(0-5)</label><input type="number" x-model.number="tech.a.bagua" min="0" max="5"></div>
+        <div class="tech-sections">
+          <!-- 军事 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">军事</span>
+            <div class="tech-grid tech-grid-5">
+              <div class="tech-cell"><label>攻击</label><input type="number" x-model.number="tech.a.tech_attack" min="0" max="20"></div>
+              <div class="tech-cell"><label>谋略</label><input type="number" x-model.number="tech.a.tech_intel" min="0" max="20"></div>
+              <div class="tech-cell"><label>防御</label><input type="number" x-model.number="tech.a.tech_defense" min="0" max="20"></div>
+              <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.a.jiugong" min="0" max="5"></div>
+              <div class="tech-cell"><label>八卦阵</label><input type="number" x-model.number="tech.a.bagua" min="0" max="5"></div>
+            </div>
+          </div>
+          <!-- 兵战 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">兵战</span>
+            <div class="tech-grid tech-grid-4">
+              <div class="tech-cell"><label>兵战-武</label><input type="number" x-model.number="tech.a.bingzhan_wu" min="0" max="10"></div>
+              <div class="tech-cell"><label>兵战-谋</label><input type="number" x-model.number="tech.a.bingzhan_mou" min="0" max="10"></div>
+              <div class="tech-cell"><label>兵战-防</label><input type="number" x-model.number="tech.a.bingzhan_fang" min="0" max="10"></div>
+              <div class="tech-cell"><label>兵战-速</label><input type="number" x-model.number="tech.a.bingzhan_su" min="0" max="10"></div>
+            </div>
+          </div>
+          <!-- 协力 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">协力</span>
+            <div class="tech-grid tech-grid-5">
+              <div class="tech-cell"><label>协力-魏</label><input type="number" x-model.number="tech.a.xieli_wei" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-蜀</label><input type="number" x-model.number="tech.a.xieli_shu" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-吴</label><input type="number" x-model.number="tech.a.xieli_wu" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-汉</label><input type="number" x-model.number="tech.a.xieli_han" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-群</label><input type="number" x-model.number="tech.a.xieli_qun" min="0" max="10"></div>
+            </div>
+          </div>
+          <!-- 军营 + 兵营 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">军营 / 兵营</span>
+            <div class="tech-grid tech-grid-6">
+              <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.a.jingying" min="0" max="20"></div>
+              <div class="tech-cell"><label>盾兵营</label><input type="number" x-model.number="tech.a.camp_shield" min="0" max="10"></div>
+              <div class="tech-cell"><label>骑兵营</label><input type="number" x-model.number="tech.a.camp_cavalry" min="0" max="10"></div>
+              <div class="tech-cell"><label>弓兵营</label><input type="number" x-model.number="tech.a.camp_bow" min="0" max="10"></div>
+              <div class="tech-cell"><label>枪兵营</label><input type="number" x-model.number="tech.a.camp_spear" min="0" max="10"></div>
+              <div class="tech-cell"><label>器械营</label><input type="number" x-model.number="tech.a.camp_machine" min="0" max="10"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1144,12 +1190,51 @@ select.w-sm { width: 72px; }
         <!-- Tech B -->
         <hr class="sep">
         <div class="section-label">科技配置</div>
-        <div class="tech-grid">
-          <div class="tech-cell"><label>攻击科技</label><input type="number" x-model.number="tech.b.tech_attack" min="0" max="20"></div>
-          <div class="tech-cell"><label>谋略科技</label><input type="number" x-model.number="tech.b.tech_intel" min="0" max="20"></div>
-          <div class="tech-cell"><label>防御科技</label><input type="number" x-model.number="tech.b.tech_defense" min="0" max="20"></div>
-          <div class="tech-cell"><label>九宫图(0-5)</label><input type="number" x-model.number="tech.b.jiugong" min="0" max="5"></div>
-          <div class="tech-cell"><label>八卦阵(0-5)</label><input type="number" x-model.number="tech.b.bagua" min="0" max="5"></div>
+        <div class="tech-sections">
+          <!-- 军事 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">军事</span>
+            <div class="tech-grid tech-grid-5">
+              <div class="tech-cell"><label>攻击</label><input type="number" x-model.number="tech.b.tech_attack" min="0" max="20"></div>
+              <div class="tech-cell"><label>谋略</label><input type="number" x-model.number="tech.b.tech_intel" min="0" max="20"></div>
+              <div class="tech-cell"><label>防御</label><input type="number" x-model.number="tech.b.tech_defense" min="0" max="20"></div>
+              <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.b.jiugong" min="0" max="5"></div>
+              <div class="tech-cell"><label>八卦阵</label><input type="number" x-model.number="tech.b.bagua" min="0" max="5"></div>
+            </div>
+          </div>
+          <!-- 兵战 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">兵战</span>
+            <div class="tech-grid tech-grid-4">
+              <div class="tech-cell"><label>兵战-武</label><input type="number" x-model.number="tech.b.bingzhan_wu" min="0" max="10"></div>
+              <div class="tech-cell"><label>兵战-谋</label><input type="number" x-model.number="tech.b.bingzhan_mou" min="0" max="10"></div>
+              <div class="tech-cell"><label>兵战-防</label><input type="number" x-model.number="tech.b.bingzhan_fang" min="0" max="10"></div>
+              <div class="tech-cell"><label>兵战-速</label><input type="number" x-model.number="tech.b.bingzhan_su" min="0" max="10"></div>
+            </div>
+          </div>
+          <!-- 协力 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">协力</span>
+            <div class="tech-grid tech-grid-5">
+              <div class="tech-cell"><label>协力-魏</label><input type="number" x-model.number="tech.b.xieli_wei" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-蜀</label><input type="number" x-model.number="tech.b.xieli_shu" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-吴</label><input type="number" x-model.number="tech.b.xieli_wu" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-汉</label><input type="number" x-model.number="tech.b.xieli_han" min="0" max="10"></div>
+              <div class="tech-cell"><label>协力-群</label><input type="number" x-model.number="tech.b.xieli_qun" min="0" max="10"></div>
+            </div>
+          </div>
+          <!-- 军营 + 兵营 -->
+          <div class="tech-sec">
+            <span class="tech-sec-label">军营 / 兵营</span>
+            <div class="tech-grid tech-grid-6">
+              <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.b.jingying" min="0" max="20"></div>
+              <div class="tech-cell"><label>盾兵营</label><input type="number" x-model.number="tech.b.camp_shield" min="0" max="10"></div>
+              <div class="tech-cell"><label>骑兵营</label><input type="number" x-model.number="tech.b.camp_cavalry" min="0" max="10"></div>
+              <div class="tech-cell"><label>弓兵营</label><input type="number" x-model.number="tech.b.camp_bow" min="0" max="10"></div>
+              <div class="tech-cell"><label>枪兵营</label><input type="number" x-model.number="tech.b.camp_spear" min="0" max="10"></div>
+              <div class="tech-cell"><label>器械营</label><input type="number" x-model.number="tech.b.camp_machine" min="0" max="10"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1328,8 +1413,16 @@ function simulator() {
 
   function defaultTech() {
     return {
+      // 军事
       tech_attack: 10, tech_intel: 10, tech_defense: 10, jiugong: 0, bagua: 0,
-      troop_cavalry: 0, troop_bow: 0, troop_spear: 0, troop_shield: 0, troop_machine: 0,
+      // 兵战
+      bingzhan_wu: 0, bingzhan_mou: 0, bingzhan_fang: 0, bingzhan_su: 0,
+      // 协力
+      xieli_wei: 0, xieli_shu: 0, xieli_wu: 0, xieli_han: 0, xieli_qun: 0,
+      // 军营
+      jingying: 0,
+      // 兵营
+      camp_shield: 0, camp_cavalry: 0, camp_bow: 0, camp_spear: 0, camp_machine: 0,
     };
   }
 
