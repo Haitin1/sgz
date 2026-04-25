@@ -632,6 +632,19 @@ def list_military_books():
         raise HTTPException(500, f"数据库错误：{e}")
 
 
+@app.get("/api/equipment_skills")
+def list_equipment_skills():
+    """返回所有装备特技（name -> description 映射）"""
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT name, description FROM equipment_skills")
+        rows = cur.fetchall(); cur.close(); conn.close()
+        return {r["name"]: r["description"] for r in rows}
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
 @app.get("/api/affinities")
 def list_affinities():
     """返回所有缘分数据"""
