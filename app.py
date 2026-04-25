@@ -753,44 +753,83 @@ def delete_lineup(user_id: str, team: str, slot: int):
 # ─────────────────────────────────────────────────────────────
 
 OCR_TOKEN = os.environ.get("BAIDU_OCR_TOKEN", "")
-OCR_URL = "https://l0m5z4ydkcc415d0.aistudio-app.com/layout-parsing"
+OCR_JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
+OCR_MODEL = "PaddleOCR-VL-1.5"
 
 import re as _re
+import asyncio as _asyncio
+import json as _json_ocr
+import time as _time
 
-def _call_paddle_ocr(image_bytes: bytes) -> list[str]:
-    """调 PaddleOCR layout-parsing，返回识别出的文字行列表"""
-    b64 = base64.b64encode(image_bytes).decode("ascii")
-    resp = _requests.post(
-        OCR_URL,
-        json={"file": b64, "fileType": 1},
-        headers={"Authorization": f"token {OCR_TOKEN}", "Content-Type": "application/json"},
-        timeout=30,
-    )
-    if resp.status_code != 200:
-        raise HTTPException(500, f"PaddleOCR错误: {resp.status_code} {resp.text[:200]}")
-    data = resp.json()
-    # 取 markdown 文本
-    try:
-        md = data["result"]["layoutParsingResults"][0]["markdown"]["text"]
-    except (KeyError, IndexError):
-        raise HTTPException(500, f"PaddleOCR返回格式异常: {str(data)[:300]}")
-    # 去除 markdown 语法，提取纯文字行
+
+async def _call_paddle_vl(image_bytes: bytes) -> list[str]:
+    """用 PaddleOCR VL-1.5 异步模型识别，返回纯文字行列表"""
+    headers = {"Authorization": f"bearer {OCR_TOKEN}"}
+    loop = _asyncio.get_event_loop()
+
+    # 提交任务
+    def _submit():
+        return _requests.post(
+            OCR_JOB_URL,
+            headers=headers,
+            data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
+                "useDocOrientationClassify": False,
+                "useDocUnwarping": False,
+                "useChartRecognition": True,
+            })},
+            files={"file": ("image.jpg", image_bytes, "image/jpeg")},
+            timeout=20,
+        )
+    job_resp = await loop.run_in_executor(None, _submit)
+    if job_resp.status_code != 200:
+        raise HTTPException(500, f"提交OCR失败: {job_resp.text[:300]}")
+    job_id = job_resp.json()["data"]["jobId"]
+
+    # 轮询结果（最多 90 秒）
+    jsonl_url = None
+    deadline = _time.time() + 90
+    while _time.time() < deadline:
+        await _asyncio.sleep(3)
+        poll = await loop.run_in_executor(
+            None, lambda: _requests.get(f"{OCR_JOB_URL}/{job_id}", headers=headers, timeout=10)
+        )
+        state = poll.json()["data"]["state"]
+        if state == "done":
+            jsonl_url = poll.json()["data"]["resultUrl"]["jsonUrl"]
+            break
+        elif state == "failed":
+            raise HTTPException(500, f"OCR任务失败: {poll.json()['data'].get('errorMsg', '')}")
+
+    if not jsonl_url:
+        raise HTTPException(500, "OCR识别超时（90秒）")
+
+    # 下载结果，提取文字行
+    raw = await loop.run_in_executor(None, lambda: _requests.get(jsonl_url, timeout=15))
     lines = []
-    for line in md.splitlines():
-        line = _re.sub(r"[#*`>\-|]+", " ", line).strip()  # 去 markdown 符号
-        line = _re.sub(r"\s{2,}", " ", line)               # 合并空白
-        if line:
-            lines.append(line)
+    for raw_line in raw.text.strip().split("\n"):
+        if not raw_line.strip():
+            continue
+        try:
+            res_obj = _json_ocr.loads(raw_line)["result"]
+        except Exception:
+            continue
+        for res in res_obj.get("layoutParsingResults", []):
+            md = res.get("markdown", {}).get("text", "")
+            for md_line in md.splitlines():
+                if "<img" in md_line or "src=" in md_line:
+                    continue
+                cleaned = _re.sub(r"[#*`>\-|\\]+", " ", md_line).strip()
+                cleaned = _re.sub(r"\s{2,}", " ", cleaned)
+                if cleaned and not _re.match(r"^[\s\W]+$", cleaned):
+                    lines.append(cleaned)
     return lines
 
 
 def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str | None:
-    """简单模糊匹配：候选中包含 word 或 word 包含候选，或字符重叠率高"""
     word = word.strip()
     for c in candidates:
         if word == c or word in c or c in word:
             return c
-    # 字符集重叠
     ws = set(word)
     best, best_score = None, 0
     for c in candidates:
@@ -803,59 +842,71 @@ def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str |
     return best
 
 
+def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> list[dict]:
+    """从 OCR 文字行中解析出多个装备，每行可能含多个 token"""
+    skill_names = list(eq_skills.keys())
+    equip_names = list(eq_names.keys())
+    type_kw = {"武器", "防具", "坐骑", "宝物"}
+    stat_map = {"武": "force_bonus", "智": "intel_bonus", "统": "command_bonus",
+                "速": "speed_bonus", "政": "politics_bonus", "魅": "charisma_bonus"}
+
+    items: list[dict] = []
+    cur: dict | None = None
+
+    def flush():
+        if cur and cur.get("equip_name"):
+            items.append(cur)
+
+    for line in lines:
+        for token in line.split():
+            token = token.strip()
+            if not token:
+                continue
+            # 装备名命中 → 开新条目
+            matched_eq = _fuzzy_match(token, equip_names)
+            if matched_eq:
+                flush()
+                cur = {"equip_name": matched_eq,
+                       "equip_type": eq_names.get(matched_eq),
+                       "skills": [], "stats": {}}
+                continue
+            if cur is None:
+                cur = {"equip_name": None, "equip_type": None, "skills": [], "stats": {}}
+            # 类型
+            if token in type_kw:
+                cur["equip_type"] = token
+                continue
+            # 特技
+            ms = _fuzzy_match(token, skill_names)
+            if ms:
+                if ms not in [s["name"] for s in cur["skills"]]:
+                    cur["skills"].append({"name": ms, "desc": eq_skills[ms]})
+                continue
+            # 属性数值，如 统率+8.61 武力+8.55
+            for m in _re.finditer(r"([武智统速政魅])力?[+＋](\d+\.?\d*)", token):
+                field = stat_map.get(m.group(1))
+                if field:
+                    cur["stats"][field] = float(m.group(2))
+
+    flush()
+    return items
+
+
 @app.post("/api/ocr/equipment")
 async def ocr_equipment(file: UploadFile = File(...)):
-    """识别装备截图，返回解析后的装备信息"""
     image_bytes = await file.read()
-    words = _call_paddle_ocr(image_bytes)
+    lines = await _call_paddle_vl(image_bytes)
 
-    # 从DB取所有装备特技名
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT name, description FROM equipment_skills")
     eq_skills = {r["name"]: r["description"] for r in cur.fetchall()}
-    cur.execute("SELECT name, eq_type FROM user_equipment WHERE user_id=2 OR owner_general='无' LIMIT 200")
+    cur.execute("SELECT name, eq_type FROM user_equipment WHERE user_id='u2' LIMIT 500")
     eq_names = {r["name"]: r["eq_type"] for r in cur.fetchall()}
     cur.close(); conn.close()
 
-    skill_names = list(eq_skills.keys())
-    equip_names = list(eq_names.keys())
-    type_keywords = {"武器", "防具", "坐骑", "宝物"}
-
-    result = {
-        "raw": words,
-        "equip_type": None,
-        "equip_name": None,
-        "skills": [],
-        "unmatched": [],
-    }
-
-    for w in words:
-        w = w.strip()
-        if not w:
-            continue
-        # 类型
-        if w in type_keywords:
-            result["equip_type"] = w
-            continue
-        # 装备名
-        matched_eq = _fuzzy_match(w, equip_names)
-        if matched_eq:
-            result["equip_name"] = matched_eq
-            if not result["equip_type"]:
-                result["equip_type"] = eq_names.get(matched_eq)
-            continue
-        # 特技名（一行可能有多个，空格分隔）
-        found_skill = False
-        for token in w.split():
-            ms = _fuzzy_match(token, skill_names)
-            if ms:
-                result["skills"].append({"name": ms, "desc": eq_skills[ms]})
-                found_skill = True
-        if not found_skill:
-            result["unmatched"].append(w)
-
-    return result
+    items = _parse_equip_items(lines, eq_skills, eq_names)
+    return {"items": items, "raw": lines}
 
 
 # 前端静态文件

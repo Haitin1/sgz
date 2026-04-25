@@ -1211,39 +1211,42 @@ select.w-sm { width: 72px; }
         </div>
       </template>
 
-      <!-- 识别结果 -->
+      <!-- 识别结果：批量列表 -->
       <template x-if="ocrResult && !ocrLoading">
         <div>
-          <img x-show="ocrPreviewUrl" :src="ocrPreviewUrl" style="width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:12px">
-          <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:12px">✅ 识别完成，确认信息后点击导入</div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <div>
-                <div style="font-size:11px;color:#6b7280;margin-bottom:3px">类型</div>
-                <select class="form-input" style="width:90px" x-model="ocrResult.equip_type">
-                  <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
-                </select>
-              </div>
-              <div style="flex:1;min-width:140px">
-                <div style="font-size:11px;color:#6b7280;margin-bottom:3px">装备名</div>
-                <input class="form-input" style="width:100%" x-model="ocrResult.equip_name" placeholder="装备名称">
-              </div>
-            </div>
-            <div>
-              <div style="font-size:11px;color:#6b7280;margin-bottom:5px">识别到的特技</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">
-                <template x-for="(sk, i) in ocrResult.skills" :key="i">
-                  <span style="font-size:12px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:4px;font-weight:600" x-text="sk.name"></span>
-                </template>
-                <span x-show="!ocrResult.skills.length" style="font-size:12px;color:#9ca3af">未识别到特技</span>
-              </div>
-            </div>
-            <div x-show="ocrResult.unmatched && ocrResult.unmatched.length" style="font-size:11px;color:#9ca3af">
-              未匹配文字：<span x-text="ocrResult.unmatched?.join(' / ')"></span>
-            </div>
+          <img x-show="ocrPreviewUrl" :src="ocrPreviewUrl" style="width:100%;max-height:160px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">
+            ✅ 识别到 <span x-text="ocrResult.items.length"></span> 件装备，勾选后批量导入
           </div>
-          <div style="display:flex;gap:8px;margin-top:16px">
-            <button class="btn btn-primary" style="flex:1" @click="ocrConfirmImport()">确认导入</button>
+          <!-- 无结果 -->
+          <div x-show="!ocrResult.items.length" style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0">
+            未识别到装备，请重新截图或手动添加
+          </div>
+          <!-- 装备列表 -->
+          <div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;padding-right:4px">
+            <template x-for="(item, i) in ocrResult.items" :key="i">
+              <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"
+                :style="item._checked ? 'border-color:#6ee7b7;background:#f0fdf4' : ''">
+                <input type="checkbox" x-model="item._checked" style="margin-top:3px;flex-shrink:0">
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                    <select class="form-input" style="width:80px;font-size:12px;padding:2px 4px" x-model="item.equip_type">
+                      <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
+                    </select>
+                    <input class="form-input" style="flex:1;min-width:100px;font-size:12px;padding:2px 6px;font-weight:600" x-model="item.equip_name">
+                    <template x-for="sk in item.skills" :key="sk.name">
+                      <span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:4px" x-text="sk.name"></span>
+                    </template>
+                    <span x-show="!item.skills.length" style="font-size:11px;color:#d1d5db">无特技</span>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-primary" style="flex:2" @click="ocrBatchImport()">
+              导入选中（<span x-text="ocrResult.items.filter(i=>i._checked).length"></span>件）
+            </button>
             <button class="btn" style="flex:1" @click="ocrResult=null; ocrPreviewUrl=null">重新识别</button>
           </div>
         </div>
@@ -3343,7 +3346,10 @@ function simulator() {
         if (!res.ok) throw new Error(await res.text());
         this.ocrProgress = 100;
         await new Promise(r => setTimeout(r, 300));
-        this.ocrResult = await res.json();
+        const data = await res.json();
+        // 默认全部勾选
+        (data.items || []).forEach(item => item._checked = true);
+        this.ocrResult = data;
       } catch(e) {
         alert('识别失败：' + e.message);
         this.ocrPreviewUrl = null;
@@ -3361,47 +3367,47 @@ function simulator() {
         }
       }
     },
-    async ocrConfirmImport() {
-      const r = this.ocrResult;
-      if (!r.equip_name) { alert('请填写装备名称'); return; }
-      if (!r.equip_type) { alert('请选择装备类型'); return; }
-      const sk1 = r.skills[0]?.name || null;
-      const sk2 = r.skills[1]?.name || null;
-      // 重复检测：名称 + 类型 + 两个特技完全一致
-      const dup = this.equipList.find(e =>
-        e.name === r.equip_name &&
-        e.eq_type === r.equip_type &&
-        (e.skill1 || null) === sk1 &&
-        (e.skill2 || null) === sk2
-      );
-      if (dup) {
-        alert(`「${r.equip_name}」已在装备库中（持有：${dup.owner_general || '无'}），跳过导入`);
-        this.ocrResult = null;
-        return;
+    async ocrBatchImport() {
+      const checked = (this.ocrResult?.items || []).filter(i => i._checked);
+      if (!checked.length) { alert('请至少勾选一件装备'); return; }
+      let imported = 0, skipped = 0;
+      for (const item of checked) {
+        if (!item.equip_name) { skipped++; continue; }
+        const sk1 = item.skills[0]?.name || null;
+        const sk2 = item.skills[1]?.name || null;
+        // 重复检测
+        const dup = this.equipList.find(e =>
+          e.name === item.equip_name && e.eq_type === item.equip_type &&
+          (e.skill1||null) === sk1 && (e.skill2||null) === sk2
+        );
+        if (dup) { skipped++; continue; }
+        const stats = item.stats || {};
+        const payload = {
+          equip_type: item.equip_type || '武器',
+          name: item.equip_name,
+          owner_general: '无',
+          skill1: sk1, skill2: sk2,
+          force_bonus:   stats.force_bonus   || 0,
+          intel_bonus:   stats.intel_bonus   || 0,
+          command_bonus: stats.command_bonus || 0,
+          speed_bonus:   stats.speed_bonus   || 0,
+          politics_bonus: stats.politics_bonus || 0,
+          charisma_bonus: stats.charisma_bonus || 0,
+        };
+        try {
+          const res = await fetch('/api/user/equipment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) imported++;
+          else skipped++;
+        } catch { skipped++; }
       }
-      const payload = {
-        equip_type: r.equip_type,
-        name: r.equip_name,
-        owner_general: '无',
-        skill1: sk1,
-        skill2: sk2,
-        force_bonus: 0, intel_bonus: 0, command_bonus: 0,
-        speed_bonus: 0, politics_bonus: 0, charisma_bonus: 0,
-      };
-      try {
-        const res = await fetch('/api/user/equipment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error(await res.text());
-        await this.fetchEquip();
-        this.ocrResult = null;
-        this.ocrModal = false;
-        alert(`「${payload.name}」已导入装备库`);
-      } catch(e) {
-        alert('导入失败：' + e.message);
-      }
+      await this.fetchEquip();
+      this.ocrResult = null;
+      this.ocrModal = false;
+      alert(`导入完成：${imported} 件成功${skipped ? '，' + skipped + ' 件跳过（重复或无名）' : ''}`);
     },
     async openEquipPanel() {
       this.equipPanel.open = true;
