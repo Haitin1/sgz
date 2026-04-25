@@ -354,6 +354,30 @@ select.w-sm { width: 72px; }
 .btn:disabled { opacity: .5; pointer-events: none; }
 
 /* ── 武将装备槽 ── */
+.eq-picker {
+  border: 1px solid var(--border2); border-radius: 8px;
+  background: #fff; margin-top: 2px; overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,.1);
+}
+.eq-picker-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+  background: var(--surface); font-size: 12px; font-weight: 700; color: var(--text2);
+}
+.eq-picker-current { background: #eff6ff; border-bottom: 1px solid var(--border2); padding: 6px 12px; }
+.eq-picker-list { max-height: 280px; overflow-y: auto; }
+.eq-picker-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 12px;
+  transition: background .1s;
+}
+.eq-picker-row:hover { background: var(--surface2); }
+.eq-picker-row:last-child { border-bottom: none; }
+.eq-picker-info { flex: 1; min-width: 0; }
+.eq-picker-name { font-weight: 600; color: var(--accent-a); }
+.eq-picker-owner { font-size: 11px; color: #f59e0b; margin-left: 6px; }
+.eq-picker-stats { color: var(--text2); margin-top: 1px; }
+.eq-picker-empty { padding: 20px; text-align: center; color: var(--text3); font-size: 12px; }
 .equip-slots { display: flex; gap: 4px; flex-wrap: wrap; }
 .equip-slot {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1099,60 +1123,7 @@ select.w-sm { width: 72px; }
     </div>
   </div>
 
-  <!-- 装备选择弹窗 -->
-  <div class="modal-overlay" x-show="equipPicker.open" x-cloak @click.self="equipPicker.open=false">
-    <div class="modal-card" style="max-width:480px">
-      <button class="modal-close" @click="equipPicker.open=false">×</button>
-      <h2 class="modal-title" x-text="'选择' + (equipPicker.slot||'')"></h2>
 
-      <!-- 当前装备 -->
-      <template x-if="equipPicker.open && teams[equipPicker.team] && teams[equipPicker.team][equipPicker.idx] && teams[equipPicker.team][equipPicker.idx].equips && teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot]">
-        <div class="equip-picker-current">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600">当前装备</div>
-          <div class="equip-item-row" style="border:none;padding:0">
-            <div class="equip-item-info">
-              <span class="equip-item-name" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].name"></span>
-              <span class="equip-item-type" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].eq_type"></span>
-              <div class="equip-item-stats" x-text="equipStatStr(teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot])"></div>
-              <div style="margin-top:3px">
-                <template x-if="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill1">
-                  <span class="equip-skill-tag" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill1"></span>
-                </template>
-                <template x-if="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill2">
-                  <span class="equip-skill-tag" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill2"></span>
-                </template>
-              </div>
-            </div>
-            <button class="btn btn-danger" style="white-space:nowrap" @click="unequipGeneral()">卸下</button>
-          </div>
-        </div>
-      </template>
-
-      <!-- 可用装备列表 -->
-      <div style="max-height:360px;overflow-y:auto">
-        <template x-for="eq in equipList.filter(e => e.eq_type === equipPicker.slot)" :key="eq.id">
-          <div class="equip-item-row">
-            <div class="equip-item-info">
-              <span class="equip-item-name" x-text="eq.name"></span>
-              <template x-if="eq.owner_general && eq.owner_general !== '无' && eq.owner_general !== ''">
-                <span style="font-size:11px;color:#f59e0b;margin-left:6px" x-text="'持有：' + eq.owner_general"></span>
-              </template>
-              <div class="equip-item-stats" x-text="equipStatStr(eq)"></div>
-              <div style="margin-top:2px">
-                <template x-if="eq.skill1"><span class="equip-skill-tag" x-text="eq.skill1"></span></template>
-                <template x-if="eq.skill2"><span class="equip-skill-tag" x-text="eq.skill2"></span></template>
-              </div>
-            </div>
-            <button class="btn btn-primary btn-sm" style="white-space:nowrap" @click="equipGeneral(eq)">穿戴</button>
-          </div>
-        </template>
-        <div class="equip-picker-empty"
-             x-show="equipPicker.open && equipList.filter(e => e.eq_type === equipPicker.slot).length === 0">
-          暂无该类型装备，请先在「我的装备」中添加
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Teams -->
   <div class="teams-grid">
@@ -1551,6 +1522,47 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
               </template>
+            </div>
+            <!-- 装备选择面板 A -->
+            <div class="eq-picker" x-show="equipPicker.open && equipPicker.team===g._team && equipPicker.idx===gi">
+              <div class="eq-picker-head">
+                <span x-text="'选择' + (equipPicker.slot||'')"></span>
+                <span style="cursor:pointer;font-size:16px;line-height:1;color:var(--text3)" @click="equipPicker.open=false">×</span>
+              </div>
+              <template x-if="equipPicker.open && g.equips && g.equips[equipPicker.slot]">
+                <div class="eq-picker-current">
+                  <div class="eq-picker-row" style="background:transparent">
+                    <div class="eq-picker-info">
+                      <span class="eq-picker-name" x-text="g.equips[equipPicker.slot].name"></span>
+                      <div class="eq-picker-stats" x-text="equipStatStr(g.equips[equipPicker.slot])"></div>
+                      <div>
+                        <template x-if="g.equips[equipPicker.slot].skill1"><span class="equip-skill-tag" x-text="g.equips[equipPicker.slot].skill1"></span></template>
+                        <template x-if="g.equips[equipPicker.slot].skill2"><span class="equip-skill-tag" x-text="g.equips[equipPicker.slot].skill2"></span></template>
+                      </div>
+                    </div>
+                    <button class="btn btn-danger btn-sm" @click="unequipGeneral()">卸下</button>
+                  </div>
+                </div>
+              </template>
+              <div class="eq-picker-list">
+                <template x-for="eq in equipList.filter(e => e.eq_type === equipPicker.slot)" :key="eq.id">
+                  <div class="eq-picker-row">
+                    <div class="eq-picker-info">
+                      <span class="eq-picker-name" x-text="eq.name"></span>
+                      <span class="eq-picker-owner" x-show="eq.owner_general && eq.owner_general !== '无'" x-text="'持有：' + eq.owner_general"></span>
+                      <div class="eq-picker-stats" x-text="equipStatStr(eq)"></div>
+                      <div>
+                        <template x-if="eq.skill1"><span class="equip-skill-tag" x-text="eq.skill1"></span></template>
+                        <template x-if="eq.skill2"><span class="equip-skill-tag" x-text="eq.skill2"></span></template>
+                      </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" @click="equipGeneral(eq)">穿戴</button>
+                  </div>
+                </template>
+                <div class="eq-picker-empty" x-show="equipPicker.open && equipList.filter(e => e.eq_type === equipPicker.slot).length === 0">
+                  暂无该类型装备，请先在「我的装备」中添加
+                </div>
+              </div>
             </div>
           </div>
         </template>
@@ -2021,6 +2033,47 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
               </template>
+            </div>
+            <!-- 装备选择面板 B -->
+            <div class="eq-picker" x-show="equipPicker.open && equipPicker.team===g._team && equipPicker.idx===gi">
+              <div class="eq-picker-head">
+                <span x-text="'选择' + (equipPicker.slot||'')"></span>
+                <span style="cursor:pointer;font-size:16px;line-height:1;color:var(--text3)" @click="equipPicker.open=false">×</span>
+              </div>
+              <template x-if="equipPicker.open && g.equips && g.equips[equipPicker.slot]">
+                <div class="eq-picker-current">
+                  <div class="eq-picker-row" style="background:transparent">
+                    <div class="eq-picker-info">
+                      <span class="eq-picker-name" x-text="g.equips[equipPicker.slot].name"></span>
+                      <div class="eq-picker-stats" x-text="equipStatStr(g.equips[equipPicker.slot])"></div>
+                      <div>
+                        <template x-if="g.equips[equipPicker.slot].skill1"><span class="equip-skill-tag" x-text="g.equips[equipPicker.slot].skill1"></span></template>
+                        <template x-if="g.equips[equipPicker.slot].skill2"><span class="equip-skill-tag" x-text="g.equips[equipPicker.slot].skill2"></span></template>
+                      </div>
+                    </div>
+                    <button class="btn btn-danger btn-sm" @click="unequipGeneral()">卸下</button>
+                  </div>
+                </div>
+              </template>
+              <div class="eq-picker-list">
+                <template x-for="eq in equipList.filter(e => e.eq_type === equipPicker.slot)" :key="eq.id">
+                  <div class="eq-picker-row">
+                    <div class="eq-picker-info">
+                      <span class="eq-picker-name" x-text="eq.name"></span>
+                      <span class="eq-picker-owner" x-show="eq.owner_general && eq.owner_general !== '无'" x-text="'持有：' + eq.owner_general"></span>
+                      <div class="eq-picker-stats" x-text="equipStatStr(eq)"></div>
+                      <div>
+                        <template x-if="eq.skill1"><span class="equip-skill-tag" x-text="eq.skill1"></span></template>
+                        <template x-if="eq.skill2"><span class="equip-skill-tag" x-text="eq.skill2"></span></template>
+                      </div>
+                    </div>
+                    <button class="btn btn-primary btn-sm" @click="equipGeneral(eq)">穿戴</button>
+                  </div>
+                </template>
+                <div class="eq-picker-empty" x-show="equipPicker.open && equipList.filter(e => e.eq_type === equipPicker.slot).length === 0">
+                  暂无该类型装备，请先在「我的装备」中添加
+                </div>
+              </div>
             </div>
           </div>
         </template>
@@ -2558,7 +2611,11 @@ function simulator() {
     },
     // ── 装备选择器 ──
     openEquipPicker(team, idx, slot) {
-      this.equipPicker = { open: true, team, idx, slot };
+      if (this.equipPicker.open && this.equipPicker.team === team && this.equipPicker.idx === idx && this.equipPicker.slot === slot) {
+        this.equipPicker.open = false;
+      } else {
+        this.equipPicker = { open: true, team, idx, slot };
+      }
     },
     async equipGeneral(eq) {
       const { team, idx, slot } = this.equipPicker;
