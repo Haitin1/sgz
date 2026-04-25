@@ -3442,7 +3442,7 @@ function simulator() {
         try {
           const res = await fetch('/api/user/equipment', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.authToken },
             body: JSON.stringify(payload),
           });
           if (res.ok) imported++;
