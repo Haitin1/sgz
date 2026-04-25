@@ -378,19 +378,19 @@ select.w-sm { width: 72px; }
 .eq-picker-owner { font-size: 11px; color: #f59e0b; margin-left: 6px; }
 .eq-picker-stats { color: var(--text2); margin-top: 1px; }
 .eq-picker-empty { padding: 20px; text-align: center; color: var(--text3); font-size: 12px; }
-.equip-slots { display: flex; gap: 6px; flex-wrap: wrap; }
+.equip-slots { display: flex; gap: 8px; flex-wrap: wrap; }
 .equip-slot {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 5px 8px; border: 1px solid var(--border2); border-radius: 5px;
-  cursor: pointer; min-width: 56px; background: var(--surface);
-  transition: background .15s, border-color .15s; gap: 3px;
+  padding: 6px 10px; border: 1px solid var(--border2); border-radius: 5px;
+  cursor: pointer; min-width: 62px; background: var(--surface);
+  transition: background .15s, border-color .15s; gap: 1px;
 }
 .equip-slot:hover { background: var(--surface2); }
 .equip-slot.has-equip { border-color: #93c5fd; background: #eff6ff; }
 .equip-slot { position: relative; }
-.equip-slot-type { font-size: 10px; color: var(--text2); }
-.equip-slot-body { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
-.equip-slot-name { font-size: 10px; font-weight: 600; color: var(--text1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62px; }
+.equip-slot-type { font-size: 10px; color: var(--text2); line-height: 1.2; }
+.equip-slot-body { display: flex; flex-direction: column; align-items: flex-start; gap: 0px; }
+.equip-slot-name { font-size: 10px; font-weight: 600; color: var(--text1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 68px; line-height: 1.3; }
 .equip-slot-skill { font-size: 9px; color: #7c3aed; white-space: nowrap; cursor: default; }
 /* 属性 tooltip — 悬停装备名触发，显示在右侧 */
 .equip-name-area { position: relative; }
