@@ -707,6 +707,8 @@ select.w-sm { width: 72px; }
 }
 .gen-input-wrap .gen-clear { font-size: 11px; color: var(--text3); cursor: pointer; flex-shrink: 0; }
 .gen-input-wrap .gen-clear:hover { color: var(--accent-b); }
+.gen-name-label { font-size: 13px; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; font-weight: 600; }
+.sp-prefix { font-size: 9px; font-weight: 700; color: var(--text2); vertical-align: middle; margin-right: 1px; }
 .gen-dropdown {
   position: absolute; top: calc(100% + 3px); left: 0;
   width: 260px; max-height: 260px; overflow-y: auto;
@@ -1254,9 +1256,11 @@ select.w-sm { width: 72px; }
             <div class="general-header" @click.outside="genOpen.a[gi]=false">
               <span class="role-badge" :class="gi===0 ? 'main' : 'sub'" x-text="gi===0 ? '主将' : '副将'"></span>
               <div class="gen-selector">
-                <div class="gen-input-wrap">
+                <div class="gen-input-wrap" @click="$el.querySelector('input').focus()">
+                  <span class="gen-name-label" x-show="g.name && !genSearch.a[gi]" x-html="spNameHtml(g.name)"></span>
                   <input type="text" x-model="genSearch.a[gi]"
-                    :placeholder="g.name || '搜索武将'"
+                    :style="g.name && !genSearch.a[gi] ? 'width:0;min-width:0;opacity:0;position:absolute;pointer-events:none' : ''"
+                    placeholder="搜索武将"
                     @input="genOpen.a[gi]=true"
                     @focus="genOpen.a[gi]=true"
                     autocomplete="off">
@@ -1269,7 +1273,7 @@ select.w-sm { width: 72px; }
                   <template x-for="gen in filteredGenerals('a',gi)" :key="gen.id">
                     <div class="gen-dropdown-item" @click="pickGeneral('a',gi,gen)">
                       <span class="gen-faction" :class="'faction-'+(gen.faction||'')" x-text="gen.faction||'?'"></span>
-                      <span x-text="gen.name"></span>
+                      <span x-html="spNameHtml(gen.name)"></span>
                       <span class="gen-stats-preview" x-text="gen.strength+'/'+gen.intelligence+'/'+gen.leadership+'/'+gen.speed"></span>
                     </div>
                   </template>
@@ -1803,9 +1807,11 @@ select.w-sm { width: 72px; }
             <div class="general-header" @click.outside="genOpen.b[gi]=false">
               <span class="role-badge" :class="gi===0 ? 'main' : 'sub'" x-text="gi===0 ? '主将' : '副将'"></span>
               <div class="gen-selector">
-                <div class="gen-input-wrap">
+                <div class="gen-input-wrap" @click="$el.querySelector('input').focus()">
+                  <span class="gen-name-label" x-show="g.name && !genSearch.b[gi]" x-html="spNameHtml(g.name)"></span>
                   <input type="text" x-model="genSearch.b[gi]"
-                    :placeholder="g.name || '搜索武将'"
+                    :style="g.name && !genSearch.b[gi] ? 'width:0;min-width:0;opacity:0;position:absolute;pointer-events:none' : ''"
+                    placeholder="搜索武将"
                     @input="genOpen.b[gi]=true"
                     @focus="genOpen.b[gi]=true"
                     autocomplete="off">
@@ -1818,7 +1824,7 @@ select.w-sm { width: 72px; }
                   <template x-for="gen in filteredGenerals('b',gi)" :key="gen.id">
                     <div class="gen-dropdown-item" @click="pickGeneral('b',gi,gen)">
                       <span class="gen-faction" :class="'faction-'+(gen.faction||'')" x-text="gen.faction||'?'"></span>
-                      <span x-text="gen.name"></span>
+                      <span x-html="spNameHtml(gen.name)"></span>
                       <span class="gen-stats-preview" x-text="gen.strength+'/'+gen.intelligence+'/'+gen.leadership+'/'+gen.speed"></span>
                     </div>
                   </template>
@@ -2817,6 +2823,12 @@ function simulator() {
       }
       const keepSystem = this.bookPicker.team === team && this.bookPicker.idx === idx ? this.bookPicker.selectedSystem : null;
       this.bookPicker = { open: true, team, idx, stage: 'system', selectedSystem: keepSystem };
+    },
+    spNameHtml(name) {
+      if (!name) return '';
+      const m = name.match(/^SP (.+)/);
+      if (m) return '<span class="sp-prefix">SP</span>' + m[1];
+      return name;
     },
     bookTooltip(name) {
       if (!name) return '';
