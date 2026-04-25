@@ -2462,6 +2462,8 @@ function simulator() {
           if (r.ok) this.currentUser = await r.json();
           else { this.authToken = ''; localStorage.removeItem('sgz_token'); }
         } catch(e) {}
+        // 登录状态下预加载装备库，让武将卡装备选择器可直接使用
+        await this.fetchEquip();
       }
       // 初始化用户ID（持久化到 localStorage）
       let uid = localStorage.getItem('sgz_uid');
@@ -3015,6 +3017,7 @@ function simulator() {
           this.savedLineups  = (ld.a || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
           this.savedLineupsB = (ld.b || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
         }
+        await this.fetchEquip();
         this.authModal.open = false;
         this.authForm = { username:'', email:'', password:'', server_name:'', alliance_name:'' };
       } catch(e) { this.authError = '网络错误'; }
