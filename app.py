@@ -797,7 +797,7 @@ async def _poll_vl_job(job_id: str) -> dict:
 
 
 async def _download_vl_result(jsonl_url: str) -> list[str]:
-    """下载 JSONL 结果，返回原始 markdown 行（保留 | 以便表格解析）"""
+    """下载 JSONL 结果，返回所有 markdown/HTML 文本行"""
     loop = _asyncio.get_event_loop()
     raw = await loop.run_in_executor(None, lambda: _requests.get(jsonl_url, timeout=15))
     lines = []
@@ -810,10 +810,8 @@ async def _download_vl_result(jsonl_url: str) -> list[str]:
             continue
         for res in res_obj.get("layoutParsingResults", []):
             md = res.get("markdown", {}).get("text", "")
-            for md_line in md.splitlines():
-                if "<img" in md_line or "src=" in md_line:
-                    continue
-                lines.append(md_line)  # 保留原始行，包括 | 字符
+            if md.strip():
+                lines.append(md)   # 整块保留，含 HTML table
     return lines
 
 
@@ -854,69 +852,73 @@ def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str |
     return best
 
 
-def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> list[dict]:
-    """从 OCR markdown 行中解析装备列表，优先按表格列结构解析"""
-    skill_names = list(eq_skills.keys())
+_TR_PAT = _re.compile(r'<tr[^>]*>(.*?)</tr>', _re.DOTALL | _re.IGNORECASE)
+_TD_PAT = _re.compile(r'<td[^>]*>(.*?)</td>', _re.DOTALL | _re.IGNORECASE)
 
+
+def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> list[dict]:
+    """从 OCR 输出（HTML table 或 markdown）中解析装备列表"""
+    full_text = "\n".join(lines)
+    skill_names = list(eq_skills.keys())
     items: list[dict] = []
 
-    def parse_skills(text: str) -> list:
-        found = []
-        for tok in _re.split(r"[\s,，、]+", text):
-            tok = tok.strip()
-            if not tok:
+    # ── 优先：HTML <table> 解析 ──
+    if "<tr" in full_text.lower():
+        for tr_m in _TR_PAT.finditer(full_text):
+            tds = [m.group(1).strip() for m in _TD_PAT.finditer(tr_m.group(1))]
+            if len(tds) < 4:
                 continue
-            ms = _fuzzy_match(tok, skill_names)
-            if ms and ms not in [s["name"] for s in found]:
-                found.append({"name": ms, "desc": eq_skills[ms]})
-        return found
+            name     = tds[0]
+            eq_type  = tds[1]
+            # tds[2] = 持有者，跳过
+            stats_text = tds[3]
+            skill_text = tds[4].strip() if len(tds) > 4 else ""
 
-    # ── 优先：表格行解析（含 | 的行）──
-    table_rows = [l for l in lines if "|" in l]
-    if table_rows:
-        for line in table_rows:
-            cols = [c.strip() for c in line.split("|")]
-            cols = [c for c in cols if c]  # 去掉空列
-            if len(cols) < 2:
+            # 跳过无效行
+            if not name or _re.match(r'^[-—\s]+$', name):
                 continue
-            name = cols[0]
-            # 跳过表头 / 分隔行
-            if _SKIP_NAME.match(name) or _re.match(r"^[-=:]+$", name):
-                continue
-            # 跳过名字里有中文标点但不像装备名的行
-            if len(name) > 10:
+            if eq_type not in _TYPE_KW:
                 continue
 
-            eq_type = None
-            stats: dict = {}
-            skills: list = []
-
-            for col in cols[1:]:
-                if col in _TYPE_KW:
-                    eq_type = col
-                    continue
-                # 忽略持有者（纯汉字，无数字无+）
-                s = _parse_stats(col)
-                if s:
-                    stats.update(s)
-                sk = parse_skills(col)
-                skills.extend(sk)
-
-            # 去掉无意义名字（全破折号等）
-            clean_name = _re.sub(r"[\-—\s]+", "", name)
-            if not clean_name:
-                continue
+            stats = _parse_stats(stats_text)
+            skills = []
+            if skill_text:
+                ms = _fuzzy_match(skill_text, skill_names)
+                if ms:
+                    skills.append({"name": ms, "desc": eq_skills[ms]})
 
             items.append({
                 "equip_name": name,
-                "equip_type": eq_type or "武器",
+                "equip_type": eq_type,
                 "skills": skills,
                 "stats": stats,
             })
         if items:
             return items
 
-    # ── 降级：逐 token 解析（无表格时）──
+    # ── 降级：markdown | 表格解析 ──
+    for line in lines:
+        if "|" not in line:
+            continue
+        cols = [c.strip() for c in line.split("|") if c.strip()]
+        if len(cols) < 4:
+            continue
+        name, eq_type = cols[0], cols[1]
+        if not name or eq_type not in _TYPE_KW:
+            continue
+        stats = _parse_stats(cols[3])
+        skill_text = cols[4].strip() if len(cols) > 4 else ""
+        skills = []
+        if skill_text:
+            ms = _fuzzy_match(skill_text, skill_names)
+            if ms:
+                skills.append({"name": ms, "desc": eq_skills[ms]})
+        items.append({"equip_name": name, "equip_type": eq_type,
+                      "skills": skills, "stats": stats})
+    if items:
+        return items
+
+    # ── 降级：逐 token 解析 ──
     equip_names = list(eq_names.keys())
     cur: dict | None = None
 
@@ -925,7 +927,7 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             items.append(cur)
 
     for line in lines:
-        cleaned = _re.sub(r"[#*`>\-|\\]+", " ", line)
+        cleaned = _re.sub(r"[#*`<>|\\]+", " ", line)
         for token in cleaned.split():
             token = token.strip()
             if not token:
@@ -946,8 +948,7 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             if ms and ms not in [s["name"] for s in cur["skills"]]:
                 cur["skills"].append({"name": ms, "desc": eq_skills[ms]})
                 continue
-            s = _parse_stats(token)
-            cur["stats"].update(s)
+            cur["stats"].update(_parse_stats(token))
 
     flush()
     return items

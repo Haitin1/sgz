@@ -1247,28 +1247,27 @@ select.w-sm { width: 72px; }
                 :style="item._checked ? 'border-color:#6ee7b7;background:#f0fdf4' : ''">
                 <input type="checkbox" x-model="item._checked" style="margin-top:3px;flex-shrink:0">
                 <div style="flex:1;min-width:0">
-                  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-                    <select class="form-input" style="width:80px;font-size:12px;padding:2px 4px" x-model="item.equip_type">
+                  <!-- 行1: 类型 + 名称 + 特技 -->
+                  <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+                    <select class="form-input" style="width:72px;font-size:12px;padding:2px 4px;flex-shrink:0" x-model="item.equip_type">
                       <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
                     </select>
-                    <input class="form-input" style="flex:1;min-width:100px;font-size:12px;padding:2px 6px;font-weight:600" x-model="item.equip_name">
+                    <input class="form-input" style="flex:1;min-width:90px;font-size:12px;padding:2px 6px;font-weight:600" x-model="item.equip_name">
                     <template x-for="sk in item.skills" :key="sk.name">
-                      <span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:4px" x-text="sk.name"></span>
+                      <span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:4px;flex-shrink:0" x-text="sk.name"></span>
                     </template>
-                    <span x-show="!item.skills.length" style="font-size:11px;color:#d1d5db">无特技</span>
+                    <span x-show="!item.skills.length" style="font-size:11px;color:#d1d5db;flex-shrink:0">无特技</span>
                   </div>
-                  <!-- 属性数值 -->
-                  <div style="margin-top:4px;font-size:11px;color:#64748b;display:flex;flex-wrap:wrap;gap:6px"
-                    x-show="item.stats && Object.keys(item.stats).length">
-                    <template x-if="item.stats.force_bonus">   <span x-text="'武力+' + item.stats.force_bonus"></span></template>
-                    <template x-if="item.stats.intel_bonus">   <span x-text="'智力+' + item.stats.intel_bonus"></span></template>
-                    <template x-if="item.stats.command_bonus"> <span x-text="'统率+' + item.stats.command_bonus"></span></template>
-                    <template x-if="item.stats.speed_bonus">   <span x-text="'速度+' + item.stats.speed_bonus"></span></template>
-                    <template x-if="item.stats.politics_bonus"><span x-text="'政治+' + item.stats.politics_bonus"></span></template>
-                    <template x-if="item.stats.charisma_bonus"><span x-text="'魅力+' + item.stats.charisma_bonus"></span></template>
+                  <!-- 行2: 属性输入框 -->
+                  <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
+                    <template x-for="[label, key] in [['武力','force_bonus'],['智力','intel_bonus'],['统率','command_bonus'],['速度','speed_bonus'],['政治','politics_bonus'],['魅力','charisma_bonus']]" :key="key">
+                      <label style="display:flex;align-items:center;gap:2px;font-size:11px;color:#64748b;flex-shrink:0">
+                        <span x-text="label"></span>
+                        <input type="number" step="0.01" x-model.number="item.stats[key]"
+                          style="width:52px;font-size:11px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);text-align:right">
+                      </label>
+                    </template>
                   </div>
-                  <div x-show="!item.stats || !Object.keys(item.stats).length"
-                    style="margin-top:3px;font-size:11px;color:#f59e0b">⚠ 未识别到属性</div>
                 </div>
               </div>
             </template>
