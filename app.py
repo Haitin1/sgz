@@ -752,23 +752,36 @@ def delete_lineup(user_id: str, team: str, slot: int):
 # OCR 识别
 # ─────────────────────────────────────────────────────────────
 
-BAIDU_OCR_TOKEN = os.environ.get("BAIDU_OCR_TOKEN", "")
-BAIDU_OCR_URL = "https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic"
+OCR_TOKEN = os.environ.get("BAIDU_OCR_TOKEN", "")
+OCR_URL = "https://l0m5z4ydkcc415d0.aistudio-app.com/layout-parsing"
 
-def _call_baidu_ocr(image_bytes: bytes) -> list[str]:
-    """调百度通用OCR，返回识别出的文字列表"""
-    b64 = base64.b64encode(image_bytes).decode()
+import re as _re
+
+def _call_paddle_ocr(image_bytes: bytes) -> list[str]:
+    """调 PaddleOCR layout-parsing，返回识别出的文字行列表"""
+    b64 = base64.b64encode(image_bytes).decode("ascii")
     resp = _requests.post(
-        BAIDU_OCR_URL,
-        params={"access_token": BAIDU_OCR_TOKEN},
-        data={"image": b64},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        timeout=15,
+        OCR_URL,
+        json={"file": b64, "fileType": 1},
+        headers={"Authorization": f"token {OCR_TOKEN}", "Content-Type": "application/json"},
+        timeout=30,
     )
+    if resp.status_code != 200:
+        raise HTTPException(500, f"PaddleOCR错误: {resp.status_code} {resp.text[:200]}")
     data = resp.json()
-    if "error_code" in data:
-        raise HTTPException(500, f"百度OCR错误: {data.get('error_msg')}")
-    return [w["words"] for w in data.get("words_result", [])]
+    # 取 markdown 文本
+    try:
+        md = data["result"]["layoutParsingResults"][0]["markdown"]["text"]
+    except (KeyError, IndexError):
+        raise HTTPException(500, f"PaddleOCR返回格式异常: {str(data)[:300]}")
+    # 去除 markdown 语法，提取纯文字行
+    lines = []
+    for line in md.splitlines():
+        line = _re.sub(r"[#*`>\-|]+", " ", line).strip()  # 去 markdown 符号
+        line = _re.sub(r"\s{2,}", " ", line)               # 合并空白
+        if line:
+            lines.append(line)
+    return lines
 
 
 def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str | None:
@@ -794,7 +807,7 @@ def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str |
 async def ocr_equipment(file: UploadFile = File(...)):
     """识别装备截图，返回解析后的装备信息"""
     image_bytes = await file.read()
-    words = _call_baidu_ocr(image_bytes)
+    words = _call_paddle_ocr(image_bytes)
 
     # 从DB取所有装备特技名
     conn = get_db()
