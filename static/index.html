@@ -2588,23 +2588,15 @@ function simulator() {
         }
       } catch(e) {}
 
-      // 用数据库数据填充默认将领，并设满级默认值
-      const defaults = {
-        a: ['关羽', '张飞', '诸葛亮'],
-        b: ['吕布', '张辽', '貂蝉'],
-      };
+      // 默认载入阵容1（slot 0），没有则保持空将领
       for (const team of ['a', 'b']) {
-        defaults[team].forEach((name, idx) => {
-          const found = this.generalsData.find(g => g.name === name);
-          if (found) {
-            this.pickGeneral(team, idx, found);
-            const g = this.teams[team][idx];
-            g.level = 50;
-            g.red_dots = 5;
-            g.is_collection = true;
-            this.recalcStats(team, idx);
-          }
-        });
+        const lineups = team === 'a' ? this.savedLineups : this.savedLineupsB;
+        const slot0 = lineups[0];
+        if (slot0 && slot0.generals) {
+          this._applyLineupToTeam(team, slot0);
+          this.activeLineupSlot[team] = 0;
+          this.loadedSnapshot[team] = this.snapshotLineup(team);
+        }
       }
     },
 
