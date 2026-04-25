@@ -2718,6 +2718,8 @@ function simulator() {
           this.loadedSnapshot[team] = this.snapshotLineup(team);
         }
       }
+      // 对账：根据当前阵容实际穿戴修正装备库持有人
+      await this.syncEquipOwners();
     },
 
     filteredGenerals(team, idx) {
@@ -2890,6 +2892,28 @@ function simulator() {
       // 同步本地 equipList
       const entry = this.equipList.find(e => e.id === equipId);
       if (entry) entry.owner_general = ownerName;
+    },
+    // 每次刷新后对账：根据当前阵容实际穿戴，修正装备库持有人
+    async syncEquipOwners() {
+      if (!this.authToken || !this.equipList.length) return;
+      // 统计当前阵容里每件装备的实际持有者
+      const wornBy = {}; // equipId → generalName
+      for (const team of ['a', 'b']) {
+        for (const gen of this.teams[team]) {
+          if (!gen.equips) continue;
+          for (const eq of Object.values(gen.equips)) {
+            if (eq && eq.id) wornBy[eq.id] = gen.name || '无';
+          }
+        }
+      }
+      // 对比装备库，修正不一致的持有人
+      for (const eq of this.equipList) {
+        const correct = wornBy[eq.id] || '无';
+        const current = eq.owner_general || '无';
+        if (current !== correct) {
+          await this._updateEquipOwner(eq.id, correct);
+        }
+      }
     },
     equipSkillTipText(eq) {
       if (!eq) return '';
