@@ -814,8 +814,8 @@ async def ocr_equipment(file: UploadFile = File(...)):
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT name, description FROM equipment_skills")
     eq_skills = {r["name"]: r["description"] for r in cur.fetchall()}
-    cur.execute("SELECT name, equip_type FROM user_equipment WHERE user_id=2 OR owner_general='无' LIMIT 200")
-    eq_names = {r["name"]: r["equip_type"] for r in cur.fetchall()}
+    cur.execute("SELECT name, eq_type FROM user_equipment WHERE user_id=2 OR owner_general='无' LIMIT 200")
+    eq_names = {r["name"]: r["eq_type"] for r in cur.fetchall()}
     cur.close(); conn.close()
 
     skill_names = list(eq_skills.keys())
