@@ -1261,8 +1261,9 @@ select.w-sm { width: 72px; }
                           style="width:42px;font-size:11px;padding:1px 3px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);text-align:right">
                       </label>
                     </template>
-                    <template x-for="sk in item.skills" :key="sk.name">
-                      <span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 7px;border-radius:4px;flex-shrink:0" x-text="sk.name"></span>
+                    <template x-for="(sk, si) in item.skills" :key="si">
+                      <input class="form-input" x-model="sk.name"
+                        style="width:64px;font-size:11px;padding:1px 5px;flex-shrink:0;color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600">
                     </template>
                     <span x-show="!item.skills.length" style="font-size:11px;color:#d1d5db;flex-shrink:0">无特技</span>
                   </div>
