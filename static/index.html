@@ -1098,7 +1098,7 @@ select.w-sm { width: 72px; }
         </select>
         <button class="btn btn-primary btn-sm" @click="openEquipForm(null)">＋ 添加装备</button>
         <button class="btn btn-sm" style="background:#f0f9ff;border-color:#7dd3fc;color:#0369a1;font-weight:600"
-          @click="ocrModal=true; ocrResult=null">🤖 智能识别导入</button>
+          @click="ocrModal=true; ocrResult=null; ocrFile=null; ocrPreviewUrl=null">🤖 智能识别导入</button>
       </div>
       <!-- 列表 -->
       <div style="overflow-y:auto;flex:1">
@@ -1172,14 +1172,14 @@ select.w-sm { width: 72px; }
   </div>
 
   <!-- OCR 识别导入弹窗 -->
-  <div class="modal-overlay" x-show="ocrModal" x-cloak @click.self="ocrModal=false; ocrResult=null"
+  <div class="modal-overlay" x-show="ocrModal" x-cloak @click.self="ocrModal=false; ocrResult=null; ocrFile=null; ocrPreviewUrl=null"
     @paste.window="ocrHandlePaste($event)">
     <div class="modal-box" style="width:min(520px,96vw)">
-      <button class="modal-close" @click="ocrModal=false; ocrResult=null">×</button>
+      <button class="modal-close" @click="ocrModal=false; ocrResult=null; ocrFile=null; ocrPreviewUrl=null">×</button>
       <h2 class="modal-title">🤖 智能识别导入</h2>
 
-      <!-- 上传区（未识别时显示） -->
-      <template x-if="!ocrResult && !ocrLoading">
+      <!-- 上传区（无文件时显示） -->
+      <template x-if="!ocrFile && !ocrResult && !ocrLoading">
         <div>
           <div class="ocr-drop-zone"
             :class="ocrDragging ? 'dragging' : ''"
@@ -1196,16 +1196,29 @@ select.w-sm { width: 72px; }
         </div>
       </template>
 
+      <!-- 预览中：图片 + 开始识别按钮 -->
+      <template x-if="ocrFile && !ocrLoading && !ocrResult">
+        <div>
+          <img :src="ocrPreviewUrl" style="width:100%;max-height:300px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
+          <div style="display:flex;gap:8px">
+            <button class="btn" style="flex:0 0 auto;padding:0 14px;height:38px;font-size:13px;color:#64748b;border:1px solid var(--border);background:var(--card);border-radius:8px"
+              @click="ocrFile=null; ocrPreviewUrl=null">重新选图</button>
+            <button class="btn btn-primary" style="flex:1;height:38px;font-size:14px;font-weight:600"
+              @click="ocrStartRecognition()">🔍 开始识别</button>
+          </div>
+        </div>
+      </template>
+
       <!-- 识别中：图片预览 + 进度条 -->
       <template x-if="ocrLoading">
         <div>
-          <img :src="ocrPreviewUrl" style="width:100%;max-height:260px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
+          <img :src="ocrPreviewUrl" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
           <div style="font-size:12px;color:#64748b;margin-bottom:6px;display:flex;justify-content:space-between">
             <span x-text="ocrProgressMsg || '识别中…'"></span>
             <span x-text="Math.round(ocrProgress) + '%'"></span>
           </div>
           <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
-            <div style="height:100%;background:#38bdf8;border-radius:3px;transition:width .2s"
+            <div style="height:100%;background:#38bdf8;border-radius:3px;transition:width .3s"
               :style="'width:' + ocrProgress + '%'"></div>
           </div>
         </div>
@@ -1247,7 +1260,7 @@ select.w-sm { width: 72px; }
             <button class="btn btn-primary" style="flex:2" @click="ocrBatchImport()">
               导入选中（<span x-text="ocrResult.items.filter(i=>i._checked).length"></span>件）
             </button>
-            <button class="btn" style="flex:1" @click="ocrResult=null; ocrPreviewUrl=null">重新识别</button>
+            <button class="btn" style="flex:1" @click="ocrResult=null; ocrFile=null; ocrPreviewUrl=null">重新识别</button>
           </div>
         </div>
       </template>
@@ -2604,6 +2617,7 @@ function simulator() {
     ocrDragging: false,
     ocrPreviewUrl: null,
     ocrProgress: 0,
+    ocrFile: null,
     equipPicker: { open: false, team: null, idx: null, slot: null },
     equipSkillDescs: {},
     equipForm: { open:false, id:null, data:{name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''}, error:'' },
@@ -3321,17 +3335,20 @@ function simulator() {
         img.src = url;
       });
     },
-    async ocrHandleFile(file) {
+    ocrHandleFile(file) {
       if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
-      // 显示预览图
       if (this.ocrPreviewUrl) URL.revokeObjectURL(this.ocrPreviewUrl);
+      this.ocrFile = file;
       this.ocrPreviewUrl = URL.createObjectURL(file);
-      this.ocrLoading = true;
       this.ocrResult = null;
+    },
+    async ocrStartRecognition() {
+      if (!this.ocrFile) return;
+      this.ocrLoading = true;
       this.ocrProgress = 0;
       this.ocrProgressMsg = '';
       // 压缩到 1500px 以内再上传
-      const compressed = await this._compressImage(file);
+      const compressed = await this._compressImage(this.ocrFile);
       const fd = new FormData();
       fd.append('file', compressed, 'image.jpg');
       try {
@@ -3364,6 +3381,7 @@ function simulator() {
         }
       } catch(e) {
         alert('识别失败：' + e.message);
+        this.ocrFile = null;
         this.ocrPreviewUrl = null;
       } finally {
         this.ocrLoading = false;
