@@ -797,6 +797,7 @@ async def _poll_vl_job(job_id: str) -> dict:
 
 
 async def _download_vl_result(jsonl_url: str) -> list[str]:
+    """下载 JSONL 结果，返回原始 markdown 行（保留 | 以便表格解析）"""
     loop = _asyncio.get_event_loop()
     raw = await loop.run_in_executor(None, lambda: _requests.get(jsonl_url, timeout=15))
     lines = []
@@ -812,15 +813,32 @@ async def _download_vl_result(jsonl_url: str) -> list[str]:
             for md_line in md.splitlines():
                 if "<img" in md_line or "src=" in md_line:
                     continue
-                cleaned = _re.sub(r"[#*`>\-|\\]+", " ", md_line).strip()
-                cleaned = _re.sub(r"\s{2,}", " ", cleaned)
-                if cleaned and not _re.match(r"^[\s\W]+$", cleaned):
-                    lines.append(cleaned)
+                lines.append(md_line)  # 保留原始行，包括 | 字符
     return lines
+
+
+_STAT_MAP = {
+    "武力": "force_bonus", "智力": "intel_bonus", "统率": "command_bonus",
+    "速度": "speed_bonus", "政治": "politics_bonus", "魅力": "charisma_bonus",
+}
+_STAT_RE = _re.compile(r"(武力|智力|统率|速度|政治|魅力)[+＋](\d+\.?\d*)")
+_TYPE_KW = {"武器", "防具", "坐骑", "宝物"}
+_SKIP_NAME = _re.compile(r"^[-—\s\|装备名称类型持有者武将属性技能特技]+$")
+
+
+def _parse_stats(text: str) -> dict:
+    stats = {}
+    for m in _STAT_RE.finditer(text):
+        field = _STAT_MAP.get(m.group(1))
+        if field:
+            stats[field] = float(m.group(2))
+    return stats
 
 
 def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str | None:
     word = word.strip()
+    if not word:
+        return None
     for c in candidates:
         if word == c or word in c or c in word:
             return c
@@ -837,14 +855,69 @@ def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str |
 
 
 def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> list[dict]:
-    """从 OCR 文字行中解析出多个装备，每行可能含多个 token"""
+    """从 OCR markdown 行中解析装备列表，优先按表格列结构解析"""
     skill_names = list(eq_skills.keys())
-    equip_names = list(eq_names.keys())
-    type_kw = {"武器", "防具", "坐骑", "宝物"}
-    stat_map = {"武": "force_bonus", "智": "intel_bonus", "统": "command_bonus",
-                "速": "speed_bonus", "政": "politics_bonus", "魅": "charisma_bonus"}
 
     items: list[dict] = []
+
+    def parse_skills(text: str) -> list:
+        found = []
+        for tok in _re.split(r"[\s,，、]+", text):
+            tok = tok.strip()
+            if not tok:
+                continue
+            ms = _fuzzy_match(tok, skill_names)
+            if ms and ms not in [s["name"] for s in found]:
+                found.append({"name": ms, "desc": eq_skills[ms]})
+        return found
+
+    # ── 优先：表格行解析（含 | 的行）──
+    table_rows = [l for l in lines if "|" in l]
+    if table_rows:
+        for line in table_rows:
+            cols = [c.strip() for c in line.split("|")]
+            cols = [c for c in cols if c]  # 去掉空列
+            if len(cols) < 2:
+                continue
+            name = cols[0]
+            # 跳过表头 / 分隔行
+            if _SKIP_NAME.match(name) or _re.match(r"^[-=:]+$", name):
+                continue
+            # 跳过名字里有中文标点但不像装备名的行
+            if len(name) > 10:
+                continue
+
+            eq_type = None
+            stats: dict = {}
+            skills: list = []
+
+            for col in cols[1:]:
+                if col in _TYPE_KW:
+                    eq_type = col
+                    continue
+                # 忽略持有者（纯汉字，无数字无+）
+                s = _parse_stats(col)
+                if s:
+                    stats.update(s)
+                sk = parse_skills(col)
+                skills.extend(sk)
+
+            # 去掉无意义名字（全破折号等）
+            clean_name = _re.sub(r"[\-—\s]+", "", name)
+            if not clean_name:
+                continue
+
+            items.append({
+                "equip_name": name,
+                "equip_type": eq_type or "武器",
+                "skills": skills,
+                "stats": stats,
+            })
+        if items:
+            return items
+
+    # ── 降级：逐 token 解析（无表格时）──
+    equip_names = list(eq_names.keys())
     cur: dict | None = None
 
     def flush():
@@ -852,11 +925,11 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             items.append(cur)
 
     for line in lines:
-        for token in line.split():
+        cleaned = _re.sub(r"[#*`>\-|\\]+", " ", line)
+        for token in cleaned.split():
             token = token.strip()
             if not token:
                 continue
-            # 装备名命中 → 开新条目
             matched_eq = _fuzzy_match(token, equip_names)
             if matched_eq:
                 flush()
@@ -866,21 +939,15 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
                 continue
             if cur is None:
                 cur = {"equip_name": None, "equip_type": None, "skills": [], "stats": {}}
-            # 类型
-            if token in type_kw:
+            if token in _TYPE_KW:
                 cur["equip_type"] = token
                 continue
-            # 特技
             ms = _fuzzy_match(token, skill_names)
-            if ms:
-                if ms not in [s["name"] for s in cur["skills"]]:
-                    cur["skills"].append({"name": ms, "desc": eq_skills[ms]})
+            if ms and ms not in [s["name"] for s in cur["skills"]]:
+                cur["skills"].append({"name": ms, "desc": eq_skills[ms]})
                 continue
-            # 属性数值，如 统率+8.61 武力+8.55
-            for m in _re.finditer(r"([武智统速政魅])力?[+＋](\d+\.?\d*)", token):
-                field = stat_map.get(m.group(1))
-                if field:
-                    cur["stats"][field] = float(m.group(2))
+            s = _parse_stats(token)
+            cur["stats"].update(s)
 
     flush()
     return items

@@ -1252,6 +1252,18 @@ select.w-sm { width: 72px; }
                     </template>
                     <span x-show="!item.skills.length" style="font-size:11px;color:#d1d5db">无特技</span>
                   </div>
+                  <!-- 属性数值 -->
+                  <div style="margin-top:4px;font-size:11px;color:#64748b;display:flex;flex-wrap:wrap;gap:6px"
+                    x-show="item.stats && Object.keys(item.stats).length">
+                    <template x-if="item.stats.force_bonus">   <span x-text="'武力+' + item.stats.force_bonus"></span></template>
+                    <template x-if="item.stats.intel_bonus">   <span x-text="'智力+' + item.stats.intel_bonus"></span></template>
+                    <template x-if="item.stats.command_bonus"> <span x-text="'统率+' + item.stats.command_bonus"></span></template>
+                    <template x-if="item.stats.speed_bonus">   <span x-text="'速度+' + item.stats.speed_bonus"></span></template>
+                    <template x-if="item.stats.politics_bonus"><span x-text="'政治+' + item.stats.politics_bonus"></span></template>
+                    <template x-if="item.stats.charisma_bonus"><span x-text="'魅力+' + item.stats.charisma_bonus"></span></template>
+                  </div>
+                  <div x-show="!item.stats || !Object.keys(item.stats).length"
+                    style="margin-top:3px;font-size:11px;color:#f59e0b">⚠ 未识别到属性</div>
                 </div>
               </div>
             </template>
