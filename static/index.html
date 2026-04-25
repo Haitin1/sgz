@@ -387,19 +387,32 @@ select.w-sm { width: 72px; }
 }
 .equip-slot:hover { background: var(--surface2); }
 .equip-slot.has-equip { border-color: #93c5fd; background: #eff6ff; }
-.equip-slot-type { font-size: 10px; color: var(--text2); }
-.equip-slot-name { font-size: 11px; font-weight: 600; color: var(--text1); max-width: 58px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.equip-slot-skill { font-size: 10px; color: #7c3aed; white-space: nowrap; }
 .equip-slot { position: relative; }
-.equip-slot-tooltip {
+.equip-slot-type { font-size: 10px; color: var(--text2); }
+.equip-slot-body { display: flex; align-items: center; gap: 4px; max-width: 140px; }
+.equip-slot-name { font-size: 11px; font-weight: 600; color: var(--text1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70px; }
+.equip-slot-skill { font-size: 10px; color: #7c3aed; white-space: nowrap; cursor: default; }
+/* 属性 tooltip — 悬停装备名触发 */
+.equip-name-area { position: relative; }
+.equip-stats-tip {
   display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 300;
   background: #1e293b; color: #e2e8f0; font-size: 11px;
-  padding: 8px 10px; border-radius: 6px; min-width: 180px; max-width: 240px;
-  line-height: 1.7; white-space: normal; pointer-events: none;
+  padding: 7px 10px; border-radius: 6px; white-space: nowrap;
+  pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.35);
+}
+.equip-name-area:hover .equip-stats-tip { display: block; }
+.equip-stats-tip:empty { display: none !important; }
+/* 特技 tooltip — 悬停特技标签触发 */
+.equip-skill-area { position: relative; }
+.equip-skill-tip {
+  display: none; position: absolute; top: calc(100% + 4px); right: 0; z-index: 300;
+  background: #1e293b; color: #e2e8f0; font-size: 11px;
+  padding: 7px 10px; border-radius: 6px; min-width: 180px; max-width: 260px;
+  white-space: normal; line-height: 1.6; pointer-events: none;
   box-shadow: 0 4px 12px rgba(0,0,0,.35);
 }
-.equip-slot:hover .equip-slot-tooltip { display: block; }
-.equip-slot-tooltip:empty { display: none !important; }
+.equip-skill-area:hover .equip-skill-tip { display: block; }
+.equip-skill-tip:empty { display: none !important; }
 /* ── 装备选择弹窗 ── */
 .equip-picker-current {
   background: var(--surface2); border: 1px solid var(--border2);
@@ -1378,11 +1391,23 @@ select.w-sm { width: 72px; }
                       <div class="equip-slot" :class="g.equips && g.equips[slot] ? 'has-equip' : ''"
                            @click.stop="openEquipPicker(g._team, gi, slot)">
                         <span class="equip-slot-type" x-text="slot"></span>
-                        <span class="equip-slot-name" x-text="g.equips && g.equips[slot] ? g.equips[slot].name : '—'"></span>
-                        <template x-if="g.equips && g.equips[slot] && g.equips[slot].skill1">
-                          <span class="equip-slot-skill" x-text="g.equips[slot].skill1 + (g.equips[slot].skill2 ? ' · ' + g.equips[slot].skill2 : '')"></span>
+                        <template x-if="g.equips && g.equips[slot]">
+                          <div class="equip-slot-body">
+                            <div class="equip-name-area">
+                              <span class="equip-slot-name" x-text="g.equips[slot].name"></span>
+                              <div class="equip-stats-tip" x-text="equipStatStr(g.equips[slot])"></div>
+                            </div>
+                            <template x-if="g.equips[slot].skill1">
+                              <div class="equip-skill-area">
+                                <span class="equip-slot-skill" x-text="g.equips[slot].skill1 + (g.equips[slot].skill2 ? ' · ' + g.equips[slot].skill2 : '')"></span>
+                                <div class="equip-skill-tip" x-text="equipSkillTipText(g.equips[slot])"></div>
+                              </div>
+                            </template>
+                          </div>
                         </template>
-                        <div class="equip-slot-tooltip" x-text="equipSlotTooltip(g.equips && g.equips[slot])"></div>
+                        <template x-if="!g.equips || !g.equips[slot]">
+                          <span class="equip-slot-name">—</span>
+                        </template>
                       </div>
                     </template>
                   </div>
@@ -1893,11 +1918,23 @@ select.w-sm { width: 72px; }
                       <div class="equip-slot" :class="g.equips && g.equips[slot] ? 'has-equip' : ''"
                            @click.stop="openEquipPicker(g._team, gi, slot)">
                         <span class="equip-slot-type" x-text="slot"></span>
-                        <span class="equip-slot-name" x-text="g.equips && g.equips[slot] ? g.equips[slot].name : '—'"></span>
-                        <template x-if="g.equips && g.equips[slot] && g.equips[slot].skill1">
-                          <span class="equip-slot-skill" x-text="g.equips[slot].skill1 + (g.equips[slot].skill2 ? ' · ' + g.equips[slot].skill2 : '')"></span>
+                        <template x-if="g.equips && g.equips[slot]">
+                          <div class="equip-slot-body">
+                            <div class="equip-name-area">
+                              <span class="equip-slot-name" x-text="g.equips[slot].name"></span>
+                              <div class="equip-stats-tip" x-text="equipStatStr(g.equips[slot])"></div>
+                            </div>
+                            <template x-if="g.equips[slot].skill1">
+                              <div class="equip-skill-area">
+                                <span class="equip-slot-skill" x-text="g.equips[slot].skill1 + (g.equips[slot].skill2 ? ' · ' + g.equips[slot].skill2 : '')"></span>
+                                <div class="equip-skill-tip" x-text="equipSkillTipText(g.equips[slot])"></div>
+                              </div>
+                            </template>
+                          </div>
                         </template>
-                        <div class="equip-slot-tooltip" x-text="equipSlotTooltip(g.equips && g.equips[slot])"></div>
+                        <template x-if="!g.equips || !g.equips[slot]">
+                          <span class="equip-slot-name">—</span>
+                        </template>
                       </div>
                     </template>
                   </div>
@@ -2690,16 +2727,14 @@ function simulator() {
       const entry = this.equipList.find(e => e.id === equipId);
       if (entry) entry.owner_general = ownerName;
     },
-    equipSlotTooltip(eq) {
+    equipSkillTipText(eq) {
       if (!eq) return '';
-      const stats = this.equipStatStr(eq);
-      let lines = [eq.name];
-      if (stats) lines.push(stats);
+      const lines = [];
       for (const sk of [eq.skill1, eq.skill2].filter(Boolean)) {
         const desc = this.equipSkillDescs[sk];
-        lines.push(desc ? `【${sk}】${desc}` : `【${sk}】`);
+        lines.push(desc ? `【${sk}】\n${desc}` : `【${sk}】`);
       }
-      return lines.join('\n');
+      return lines.join('\n\n');
     },
     equipStatStr(eq) {
       if (!eq) return '';
