@@ -780,8 +780,11 @@ async def _submit_vl_job(image_bytes: bytes) -> str:
         timeout=20,
     ))
     if resp.status_code != 200:
-        raise RuntimeError(f"提交失败: {resp.text[:200]}")
-    return resp.json()["data"]["jobId"]
+        raise RuntimeError(f"提交失败(HTTP {resp.status_code}): {resp.text[:300]}")
+    rj = resp.json()
+    if rj.get("code", 0) != 0:
+        raise RuntimeError(f"OCR API错误(code={rj['code']}): {rj.get('msg', '')} | {resp.text[:200]}")
+    return rj["data"]["jobId"]
 
 
 async def _poll_vl_job(job_id: str) -> dict:
