@@ -472,6 +472,26 @@ def update_equipment(eq_id: int, body: EquipmentInput, uid: int = Depends(get_cu
         raise HTTPException(500, f"错误：{e}")
 
 
+class OwnerUpdate(BaseModel):
+    owner_general: str = "无"
+
+@app.patch("/api/user/equipment/{eq_id}/owner")
+def update_equipment_owner(eq_id: int, body: OwnerUpdate, uid: int = Depends(get_current_user_id)):
+    try:
+        owner = body.owner_general
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE user_equipment SET owner_general=%s WHERE id=%s AND user_id=%s",
+                    (owner, eq_id, uid))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "装备不存在")
+        conn.commit(); cur.close(); conn.close()
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"错误：{e}")
+
+
 @app.delete("/api/user/equipment/{eq_id}")
 def delete_equipment(eq_id: int, uid: int = Depends(get_current_user_id)):
     try:

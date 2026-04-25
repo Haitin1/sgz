@@ -1134,6 +1134,9 @@ select.w-sm { width: 72px; }
           <div class="equip-item-row">
             <div class="equip-item-info">
               <span class="equip-item-name" x-text="eq.name"></span>
+              <template x-if="eq.owner_general && eq.owner_general !== '无' && eq.owner_general !== ''">
+                <span style="font-size:11px;color:#f59e0b;margin-left:6px" x-text="'持有：' + eq.owner_general"></span>
+              </template>
               <div class="equip-item-stats" x-text="equipStatStr(eq)"></div>
               <div style="margin-top:2px">
                 <template x-if="eq.skill1"><span class="equip-skill-tag" x-text="eq.skill1"></span></template>
@@ -2557,18 +2560,42 @@ function simulator() {
     openEquipPicker(team, idx, slot) {
       this.equipPicker = { open: true, team, idx, slot };
     },
-    equipGeneral(eq) {
+    async equipGeneral(eq) {
       const { team, idx, slot } = this.equipPicker;
       const g = this.teams[team][idx];
+      // 冲突检查：装备已被其他武将持有
+      const owner = eq.owner_general;
+      if (owner && owner !== '无' && owner !== '' && owner !== g.name) {
+        if (!confirm(`此装备当前由「${owner}」持有，是否转移给「${g.name || '当前武将'}」？`)) return;
+      }
       if (!g.equips) g.equips = { '武器':null,'防具':null,'坐骑':null,'宝物':null };
-      g.equips = { ...g.equips, [slot]: { ...eq } };
+      const updated = { ...eq, owner_general: g.name || '无' };
+      g.equips = { ...g.equips, [slot]: updated };
+      // 更新装备库中的持有人
+      await this._updateEquipOwner(eq.id, g.name || '无');
       this.equipPicker.open = false;
     },
-    unequipGeneral() {
+    async unequipGeneral() {
       const { team, idx, slot } = this.equipPicker;
       const g = this.teams[team][idx];
+      const eq = g.equips && g.equips[slot];
       if (g.equips) g.equips = { ...g.equips, [slot]: null };
+      // 重置持有人为"无"
+      if (eq && eq.id) await this._updateEquipOwner(eq.id, '无');
       this.equipPicker.open = false;
+    },
+    async _updateEquipOwner(equipId, ownerName) {
+      if (!equipId) return;
+      const headers = { 'Content-Type': 'application/json' };
+      if (this.authToken) headers['Authorization'] = 'Bearer ' + this.authToken;
+      await fetch(`/api/user/equipment/${equipId}/owner`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ owner_general: ownerName }),
+      }).catch(() => {});
+      // 同步本地 equipList
+      const entry = this.equipList.find(e => e.id === equipId);
+      if (entry) entry.owner_general = ownerName;
     },
     equipStatStr(eq) {
       if (!eq) return '';
