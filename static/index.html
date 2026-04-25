@@ -750,6 +750,10 @@ select.w-sm { width: 72px; }
 .bk-sub-name { font-size:10px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
 .bk-sub-name.empty { color:var(--text3); }
 .bk-sub-sep { color:var(--border2); font-size:10px; flex-shrink:0; }
+.bk-tip-wrap { position:relative; display:inline-flex; align-items:center; max-width:100%; min-width:0; }
+.bk-book-tip { display:none; position:absolute; top:0; left:calc(100% + 6px); z-index:300; background:#1e293b; color:#e2e8f0; font-size:11px; padding:7px 10px; border-radius:6px; min-width:180px; max-width:260px; white-space:normal; line-height:1.6; pointer-events:none; box-shadow:0 4px 12px rgba(0,0,0,.35); }
+.bk-tip-wrap:hover .bk-book-tip { display:block; }
+.bk-book-tip:empty { display:none !important; }
 .bk-clear-btn { font-size:9px; color:var(--text3); background:none; border:none; cursor:pointer; padding:0 1px; line-height:1; flex-shrink:0; opacity:0; transition:opacity .15s; }
 .books-table:hover .bk-clear-btn { opacity:1; }
 .bk-clear-btn:hover { color:#ef4444; }
@@ -1456,15 +1460,24 @@ select.w-sm { width: 72px; }
                     <div class="bk-sys-row" x-text="getBookSystem(g) || '兵书配置'"></div>
                     <div class="bk-books-row">
                       <div class="bk-main-cell" :class="g.main_book ? '' : 'empty'">
-                        <span x-text="g.main_book || '主兵书'"></span>
+                        <div class="bk-tip-wrap" style="flex:1;min-width:0;">
+                          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="g.main_book || '主兵书'"></span>
+                          <div class="bk-book-tip" x-text="bookTooltip(g.main_book)"></div>
+                        </div>
                         <button class="bk-clear-btn" x-show="g.main_book" @click.stop="g.main_book=null;g.sub_book1=null;g.sub_book2=null">×</button>
                       </div>
                       <div class="bk-divider"></div>
                       <div class="bk-subs-cell">
-                        <span class="bk-sub-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></span>
+                        <div class="bk-tip-wrap" style="flex:1;min-width:0;">
+                          <span class="bk-sub-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></span>
+                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book1)"></div>
+                        </div>
                         <button class="bk-clear-btn" x-show="g.sub_book1" @click.stop="g.sub_book1=null">×</button>
                         <span class="bk-sub-sep">|</span>
-                        <span class="bk-sub-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></span>
+                        <div class="bk-tip-wrap" style="flex:1;min-width:0;">
+                          <span class="bk-sub-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></span>
+                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book2)"></div>
+                        </div>
                         <button class="bk-clear-btn" x-show="g.sub_book2" @click.stop="g.sub_book2=null">×</button>
                       </div>
                     </div>
@@ -1991,15 +2004,24 @@ select.w-sm { width: 72px; }
                     <div class="bk-sys-row" x-text="getBookSystem(g) || '兵书配置'"></div>
                     <div class="bk-books-row">
                       <div class="bk-main-cell" :class="g.main_book ? '' : 'empty'">
-                        <span x-text="g.main_book || '主兵书'"></span>
+                        <div class="bk-tip-wrap" style="flex:1;min-width:0;">
+                          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="g.main_book || '主兵书'"></span>
+                          <div class="bk-book-tip" x-text="bookTooltip(g.main_book)"></div>
+                        </div>
                         <button class="bk-clear-btn" x-show="g.main_book" @click.stop="g.main_book=null;g.sub_book1=null;g.sub_book2=null">×</button>
                       </div>
                       <div class="bk-divider"></div>
                       <div class="bk-subs-cell">
-                        <span class="bk-sub-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></span>
+                        <div class="bk-tip-wrap" style="flex:1;min-width:0;">
+                          <span class="bk-sub-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></span>
+                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book1)"></div>
+                        </div>
                         <button class="bk-clear-btn" x-show="g.sub_book1" @click.stop="g.sub_book1=null">×</button>
                         <span class="bk-sub-sep">|</span>
-                        <span class="bk-sub-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></span>
+                        <div class="bk-tip-wrap" style="flex:1;min-width:0;">
+                          <span class="bk-sub-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></span>
+                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book2)"></div>
+                        </div>
                         <button class="bk-clear-btn" x-show="g.sub_book2" @click.stop="g.sub_book2=null">×</button>
                       </div>
                     </div>
@@ -2792,6 +2814,12 @@ function simulator() {
       }
       const keepSystem = this.bookPicker.team === team && this.bookPicker.idx === idx ? this.bookPicker.selectedSystem : null;
       this.bookPicker = { open: true, team, idx, stage: 'system', selectedSystem: keepSystem };
+    },
+    bookTooltip(name) {
+      if (!name) return '';
+      const b = this.booksData.find(b => b.name === name);
+      if (!b) return '';
+      return `【${b.book_system} · ${b.book_type}】\n${b.description || ''}`;
     },
     selectMainBook(team, idx, bk) {
       this.teams[team][idx].main_book = bk.name;
