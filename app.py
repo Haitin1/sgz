@@ -1026,6 +1026,102 @@ async def ocr_equipment(file: UploadFile = File(...)):
     )
 
 
+def _parse_lineup_from_html(full_text: str, generals_db: list[dict], skills_db: list[dict]) -> dict:
+    """从 VL-1.5 返回的 HTML/markdown 中解析阵容（3 名武将 + 技能）"""
+    gen_names = [g["name"] for g in generals_db]
+    skill_names = [s["name"] for s in skills_db]
+
+    generals_out = []
+
+    # ── HTML table 解析 ──
+    if "<tr" in full_text.lower():
+        for tr_m in _TR_PAT.finditer(full_text):
+            tds = [m.group(1).strip() for m in _TD_PAT.finditer(tr_m.group(1))]
+            if not tds or not tds[0]:
+                continue
+            name_raw = tds[0]
+            # 尝试匹配武将名
+            gen_match = _fuzzy_match(name_raw, gen_names, threshold=60)
+            if not gen_match:
+                continue
+            skills = []
+            for td in tds[1:]:
+                sk = _fuzzy_match(td.strip(), skill_names, threshold=65)
+                if sk and sk not in [s["name"] for s in skills]:
+                    skills.append({"name": sk})
+            generals_out.append({"name": gen_match, "skills": skills})
+            if len(generals_out) == 3:
+                break
+
+    # ── 纯文本降级 ──
+    if not generals_out:
+        for line in full_text.splitlines():
+            cleaned = _re.sub(r"<[^>]+>|[#*`|\\]", " ", line).strip()
+            if not cleaned:
+                continue
+            for tok in cleaned.split():
+                gm = _fuzzy_match(tok, gen_names, threshold=60)
+                if gm and gm not in [g["name"] for g in generals_out]:
+                    generals_out.append({"name": gm, "skills": []})
+                    if len(generals_out) == 3:
+                        break
+            if len(generals_out) == 3:
+                break
+
+    return {"generals": generals_out}
+
+
+@app.post("/api/ocr/lineup")
+async def ocr_lineup(file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT name FROM generals")
+    generals_db = [dict(r) for r in cur.fetchall()]
+    cur.execute("SELECT name FROM skills")
+    skills_db = [dict(r) for r in cur.fetchall()]
+    cur.close(); conn.close()
+
+    async def stream():
+        try:
+            yield _sse({"progress": 5, "msg": "提交识别任务…"})
+            job_id = await _submit_vl_job(image_bytes)
+            yield _sse({"progress": 12, "msg": "任务已提交，等待队列…"})
+            deadline = _time.time() + 90
+            jsonl_url = None
+            while _time.time() < deadline:
+                await _asyncio.sleep(3)
+                data = await _poll_vl_job(job_id)
+                state = data["state"]
+                if state == "pending":
+                    p = min(30, 12 + (_time.time() - (deadline - 90)) * 1.5)
+                    yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
+                elif state == "running":
+                    try:
+                        total = data["extractProgress"]["totalPages"]
+                        done_pages = data["extractProgress"]["extractedPages"]
+                        p = 30 + (done_pages / max(total, 1)) * 55
+                    except Exception:
+                        p = min(80, 30 + (_time.time() - (deadline - 90)) * 1.5)
+                    yield _sse({"progress": round(p, 1), "msg": "识别中…"})
+                elif state == "done":
+                    jsonl_url = data["resultUrl"]["jsonUrl"]
+                    yield _sse({"progress": 90, "msg": "下载结果…"})
+                    break
+                elif state == "failed":
+                    yield _sse({"error": data.get("errorMsg", "识别失败")}); return
+            if not jsonl_url:
+                yield _sse({"error": "识别超时（90秒）"}); return
+            lines = await _download_vl_result(jsonl_url)
+            result = _parse_lineup_from_html("\n".join(lines), generals_db, skills_db)
+            yield _sse({"progress": 100, "msg": "完成", "result": result})
+        except Exception as e:
+            yield _sse({"error": str(e)})
+
+    return StreamingResponse(stream(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 # 前端静态文件
 # ─────────────────────────────────────────────────────────────
 

@@ -1282,7 +1282,102 @@ select.w-sm { width: 72px; }
     </div>
   </div>
 
+  <!-- 阵容 OCR 识别导入弹窗 -->
+  <div class="modal-overlay" x-show="lineupOcr.open" x-cloak
+    @click.self="lineupOcr.open=false; lineupOcr.result=null; lineupOcr.file=null; lineupOcr.previewUrl=null"
+    @paste.window="lineupOcrHandlePaste($event)">
+    <div class="modal-box" style="width:min(520px,96vw)">
+      <button class="modal-close" @click="lineupOcr.open=false; lineupOcr.result=null; lineupOcr.file=null; lineupOcr.previewUrl=null">×</button>
+      <h2 class="modal-title">🤖 识别导入阵容（<span x-text="lineupOcr.team==='a'?'我方':'敌方'"></span>）</h2>
 
+      <!-- 上传区 -->
+      <template x-if="!lineupOcr.file && !lineupOcr.result && !lineupOcr.loading">
+        <div>
+          <div class="ocr-drop-zone" :class="lineupOcr.dragging?'dragging':''"
+            @click="$refs.lineupOcrInput.click()"
+            @dragover.prevent="lineupOcr.dragging=true"
+            @dragleave="lineupOcr.dragging=false"
+            @drop.prevent="lineupOcr.dragging=false; lineupOcrHandleFile($event.dataTransfer.files[0])">
+            <div style="font-size:32px;margin-bottom:8px">📷</div>
+            <div style="font-weight:600;margin-bottom:4px">拖入阵容截图 或 点击选图</div>
+            <div style="font-size:12px;color:#64748b">也可以直接 Ctrl+V 粘贴截图</div>
+          </div>
+          <input type="file" x-ref="lineupOcrInput" accept="image/*" style="display:none"
+            @change="lineupOcrHandleFile($event.target.files[0]); $event.target.value=''">
+        </div>
+      </template>
+
+      <!-- 预览 + 开始识别 -->
+      <template x-if="lineupOcr.file && !lineupOcr.loading && !lineupOcr.result">
+        <div>
+          <img :src="lineupOcr.previewUrl" style="width:100%;max-height:300px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
+          <div style="display:flex;gap:8px">
+            <button class="btn" style="flex:0 0 auto;padding:0 14px;height:38px;font-size:13px;color:#64748b;border:1px solid var(--border);background:var(--surface);border-radius:8px"
+              @click="lineupOcr.file=null; lineupOcr.previewUrl=null">重新选图</button>
+            <button class="btn btn-primary" style="flex:1;height:38px;font-size:14px;font-weight:600"
+              @click="lineupOcrStart()">🔍 开始识别</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 识别中 -->
+      <template x-if="lineupOcr.loading">
+        <div>
+          <img :src="lineupOcr.previewUrl" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
+          <div style="font-size:12px;color:#64748b;margin-bottom:6px;display:flex;justify-content:space-between">
+            <span x-text="lineupOcr.progressMsg || '识别中…'"></span>
+            <span x-text="Math.round(lineupOcr.progress) + '%'"></span>
+          </div>
+          <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
+            <div style="height:100%;background:#38bdf8;border-radius:3px;transition:width .3s"
+              :style="'width:' + lineupOcr.progress + '%'"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 识别结果 -->
+      <template x-if="lineupOcr.result && !lineupOcr.loading">
+        <div>
+          <img :src="lineupOcr.previewUrl" style="width:100%;max-height:160px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">
+            ✅ 识别到 <span x-text="lineupOcr.result.generals.length"></span> 名武将
+          </div>
+          <!-- 武将列表 -->
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
+            <template x-for="(gen, gi) in lineupOcr.result.generals" :key="gi">
+              <div style="padding:8px 10px;border:1px solid var(--border);border-radius:7px;background:var(--surface)">
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px">
+                  <input class="form-input" x-model="gen.name"
+                    style="width:100px;font-size:12px;padding:2px 6px;font-weight:600">
+                  <span style="font-size:11px;color:#64748b" x-text="gen.troop || ''"></span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                  <template x-for="(sk, si) in gen.skills" :key="si">
+                    <input class="form-input" x-model="sk.name"
+                      style="width:80px;font-size:11px;padding:1px 5px;background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8">
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+          <!-- 存入阵容槽 -->
+          <div style="font-size:12px;color:#64748b;margin-bottom:6px">存入阵容槽：</div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+            <template x-for="(slot, idx) in (lineupOcr.team==='a' ? savedLineups : savedLineupsB)" :key="idx">
+              <button style="padding:4px 12px;border-radius:6px;font-size:12px;border:1px solid var(--border);cursor:pointer"
+                :style="lineupOcr.targetSlot===idx ? 'background:#a7f3d0;border-color:#10b981;font-weight:700' : 'background:var(--surface)'"
+                @click="lineupOcr.targetSlot=idx"
+                x-text="slot ? slot.name : '阵容'+(idx+1)"></button>
+            </template>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" style="flex:2" @click="lineupOcrImport()">导入到选中阵容</button>
+            <button class="btn" style="flex:1" @click="lineupOcr.result=null; lineupOcr.file=null; lineupOcr.previewUrl=null">重新识别</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
 
 
   <!-- Teams -->
@@ -1294,7 +1389,7 @@ select.w-sm { width: 72px; }
       <button class="lineup-save-btn"
         :disabled="!canSaveLineup() || lineupSlotsFull()"
         @click="saveLineup()"
-        :title="lineupSlotsFull() ? '已存满5个阵容' : '保存当前我方阵容'">
+        :title="lineupSlotsFull() ? '已存满3个阵容' : '保存当前我方阵容'">
         💾 保存阵容
       </button>
       <input class="lineup-name-input" type="text" x-model="lineupName" placeholder="阵容名称" maxlength="10">
@@ -1316,6 +1411,7 @@ select.w-sm { width: 72px; }
           </template>
         </div>
         <button class="lineup-action-btn" :class="lineupDeleteMode.a ? 'del-active' : ''" @click="lineupDeleteMode.a = !lineupDeleteMode.a">删除</button>
+        <button class="lineup-action-btn" style="color:#2563eb;border-color:#bfdbfe;background:#eff6ff" @click="lineupOcrOpen('a')">🤖 识别导入</button>
       </div>
     </div>
     <div class="card">
@@ -1848,7 +1944,7 @@ select.w-sm { width: 72px; }
       <button class="lineup-save-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 1px 3px rgba(220,38,38,.35)"
         :disabled="!canSaveLineupB() || lineupSlotsBFull()"
         @click="saveLineupB()"
-        :title="lineupSlotsBFull() ? '已存满5个阵容' : '保存当前敌方阵容'">
+        :title="lineupSlotsBFull() ? '已存满3个阵容' : '保存当前敌方阵容'">
         💾 保存阵容
       </button>
       <input class="lineup-name-input" type="text" x-model="lineupNameB" placeholder="阵容名称" maxlength="10">
@@ -1871,6 +1967,7 @@ select.w-sm { width: 72px; }
         </div>
 
         <button class="lineup-action-btn" :class="lineupDeleteMode.b ? 'del-active' : ''" @click="lineupDeleteMode.b = !lineupDeleteMode.b">删除</button>
+        <button class="lineup-action-btn" style="color:#dc2626;border-color:#fecaca;background:#fef2f2" @click="lineupOcrOpen('b')">🤖 识别导入</button>
       </div>
     </div>
     <div class="card">
@@ -2633,6 +2730,11 @@ function simulator() {
     ocrPreviewUrl: null,
     ocrProgress: 0,
     ocrFile: null,
+    lineupOcr: {
+      open: false, team: 'a', loading: false, dragging: false,
+      file: null, previewUrl: null, progress: 0, progressMsg: '',
+      result: null, targetSlot: 0,
+    },
     equipPicker: { open: false, team: null, idx: null, slot: null },
     equipSkillDescs: {},
     equipForm: { open:false, id:null, data:{name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''}, error:'' },
@@ -2642,9 +2744,9 @@ function simulator() {
     equipSort: '',
 
     userId: '',
-    savedLineups: Array(5).fill(null),
+    savedLineups: Array(3).fill(null),
     lineupName: '',
-    savedLineupsB: Array(5).fill(null),
+    savedLineupsB: Array(3).fill(null),
     lineupNameB: '',
     activeLineupSlot: { a: null, b: null },
     loadedSnapshot: { a: null, b: null },
@@ -2703,8 +2805,8 @@ function simulator() {
         const lRes = await fetch(`/api/lineups/${this.userId}`);
         if (lRes.ok) {
           const ld = await lRes.json();
-          this.savedLineups  = (ld.a || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
-          this.savedLineupsB = (ld.b || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineups  = (ld.a || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineupsB = (ld.b || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
         }
       } catch(e) {}
 
@@ -3099,6 +3201,33 @@ function simulator() {
       await fetch(`/api/lineups/${this.userId}/${team}/${slot}`, { method: 'DELETE' });
     },
 
+    _emptyGeneral(team) {
+      const s = (n,t) => ({ name:n, type:t, damage:0, heal:0, buff:0, debuff:0, desc:'' });
+      return { name:'', strength:0,intelligence:0,leadership:0,speed:0,politics:0,charisma:0,
+        troop_type:'步兵', _team:team,
+        equips:{'武器':null,'防具':null,'坐骑':null,'宝物':null},
+        books:{main:null,sub1:null,sub2:null},
+        skills:[s('','主动'),s('','主动'),s('','主动')] };
+    },
+    async saveLineupToSlot(slotIdx) {
+      const name = this.savedLineups[slotIdx]?.name || ('阵容' + (slotIdx + 1));
+      const payload = this._buildLineupPayload('a', name);
+      await this._apiSave('a', slotIdx, payload);
+      this.savedLineups = [...this.savedLineups];
+      this.savedLineups[slotIdx] = payload;
+      this.activeLineupSlot.a = slotIdx;
+      this.loadedSnapshot.a = this.snapshotLineup('a');
+    },
+    async saveLineupBToSlot(slotIdx) {
+      const name = this.savedLineupsB[slotIdx]?.name || ('阵容' + (slotIdx + 1));
+      const payload = this._buildLineupPayload('b', name);
+      await this._apiSave('b', slotIdx, payload);
+      this.savedLineupsB = [...this.savedLineupsB];
+      this.savedLineupsB[slotIdx] = payload;
+      this.activeLineupSlot.b = slotIdx;
+      this.loadedSnapshot.b = this.snapshotLineup('b');
+    },
+
     // ── 我方阵容 A ──
     canSaveLineup() { return true; },
     lineupSlotsFull() {
@@ -3291,8 +3420,8 @@ function simulator() {
         const lr = await fetch(`/api/lineups/${this.userId}`);
         if (lr.ok) {
           const ld = await lr.json();
-          this.savedLineups  = (ld.a || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
-          this.savedLineupsB = (ld.b || Array(5).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineups  = (ld.a || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineupsB = (ld.b || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
         }
         await this.fetchEquip();
         this.authModal.open = false;
@@ -3353,8 +3482,8 @@ function simulator() {
     logout() {
       this.authToken = ''; this.currentUser = null;
       localStorage.removeItem('sgz_token');
-      this.savedLineups = Array(5).fill(null);
-      this.savedLineupsB = Array(5).fill(null);
+      this.savedLineups = Array(3).fill(null);
+      this.savedLineupsB = Array(3).fill(null);
       const uid = localStorage.getItem('sgz_uid') || '';
       this.userId = uid;
     },
@@ -3440,6 +3569,100 @@ function simulator() {
           break;
         }
       }
+    },
+    // ── 阵容 OCR ──
+    lineupOcrOpen(team) {
+      this.lineupOcr = { open: true, team, loading: false, dragging: false,
+        file: null, previewUrl: null, progress: 0, progressMsg: '', result: null, targetSlot: 0 };
+    },
+    lineupOcrHandleFile(file) {
+      if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+      if (this.lineupOcr.previewUrl) URL.revokeObjectURL(this.lineupOcr.previewUrl);
+      this.lineupOcr.file = file;
+      this.lineupOcr.previewUrl = URL.createObjectURL(file);
+      this.lineupOcr.result = null;
+    },
+    lineupOcrHandlePaste(event) {
+      if (!this.lineupOcr.open) return;
+      const items = event.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) { this.lineupOcrHandleFile(item.getAsFile()); break; }
+      }
+    },
+    async lineupOcrStart() {
+      if (!this.lineupOcr.file) return;
+      this.lineupOcr.loading = true;
+      this.lineupOcr.progress = 0;
+      this.lineupOcr.progressMsg = '';
+      const compressed = await this._compressImage(this.lineupOcr.file);
+      const fd = new FormData();
+      fd.append('file', compressed, 'image.jpg');
+      try {
+        const res = await fetch('/api/ocr/lineup', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(await res.text());
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const parts = buf.split('\n\n');
+          buf = parts.pop();
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith('data:')) continue;
+            const evt = JSON.parse(line.slice(5).trim());
+            if (evt.error) throw new Error(evt.error);
+            if (evt.progress !== undefined) {
+              this.lineupOcr.progress = evt.progress;
+              this.lineupOcr.progressMsg = evt.msg || '';
+            }
+            if (evt.result) {
+              await new Promise(r => setTimeout(r, 300));
+              this.lineupOcr.result = evt.result;
+            }
+          }
+        }
+      } catch(e) {
+        alert('识别失败：' + e.message);
+        this.lineupOcr.file = null;
+        this.lineupOcr.previewUrl = null;
+      } finally {
+        this.lineupOcr.loading = false;
+      }
+    },
+    async lineupOcrImport() {
+      const { result, team, targetSlot } = this.lineupOcr;
+      if (!result || !result.generals.length) { alert('没有可导入的武将'); return; }
+      // 把识别到的武将映射到现有武将库，查找对应武将对象
+      const gens = result.generals.map(g => {
+        const found = this.generals.find(x => x.name === g.name || x.name.includes(g.name) || g.name.includes(x.name));
+        const base = found ? { ...found } : { name: g.name, strength:0,intelligence:0,leadership:0,speed:0,politics:0,charisma:0,troop_type:'步兵' };
+        // 技能映射
+        const skills = g.skills.map(s => {
+          const sk = this.skills.find(x => x.name === s.name);
+          return sk ? { name:sk.name, type:sk.type||'主动', damage:sk.damage||0, heal:sk.heal||0, buff:sk.buff||0, debuff:sk.debuff||0, desc:sk.description||'' }
+                    : { name:s.name, type:'主动', damage:0, heal:0, buff:0, debuff:0, desc:'' };
+        });
+        while (skills.length < 3) skills.push({ name:'', type:'主动', damage:0, heal:0, buff:0, debuff:0, desc:'' });
+        return { ...base, _team: team, equips:{'武器':null,'防具':null,'坐骑':null,'宝物':null},
+          books:{ main:null, sub1:null, sub2:null }, skills: skills.slice(0, 3) };
+      });
+      while (gens.length < 3) gens.push(this._emptyGeneral(team));
+      // 存入阵容槽（走现有 newLineup/保存流程）
+      const lineups = team === 'a' ? this.savedLineups : this.savedLineupsB;
+      const slotName = lineups[targetSlot]?.name || ('阵容' + (targetSlot + 1));
+      if (lineups[targetSlot]) {
+        if (!confirm(`是否覆盖「${slotName}」？`)) return;
+      }
+      // 应用到阵容
+      for (let i = 0; i < 3; i++) this.teams[team][i] = gens[i];
+      // 保存到服务器
+      if (team === 'a') await this.saveLineupToSlot(targetSlot);
+      else await this.saveLineupBToSlot(targetSlot);
+      this.lineupOcr.open = false;
+      alert('导入成功！');
     },
     async ocrBatchImport() {
       const checked = (this.ocrResult?.items || []).filter(i => i._checked);
