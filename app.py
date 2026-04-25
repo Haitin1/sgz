@@ -884,8 +884,9 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             skills = []
             if skill_text:
                 ms = _fuzzy_match(skill_text, skill_names)
-                if ms:
-                    skills.append({"name": ms, "desc": eq_skills[ms]})
+                # 匹配到已知技能用标准名，否则直接用 OCR 原文
+                skill_name = ms if ms else skill_text
+                skills.append({"name": skill_name, "desc": eq_skills.get(skill_name, "")})
 
             items.append({
                 "equip_name": name,
@@ -911,8 +912,8 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
         skills = []
         if skill_text:
             ms = _fuzzy_match(skill_text, skill_names)
-            if ms:
-                skills.append({"name": ms, "desc": eq_skills[ms]})
+            skill_name = ms if ms else skill_text
+            skills.append({"name": skill_name, "desc": eq_skills.get(skill_name, "")})
         items.append({"equip_name": name, "equip_type": eq_type,
                       "skills": skills, "stats": stats})
     if items:
