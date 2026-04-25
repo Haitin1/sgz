@@ -1201,7 +1201,7 @@ select.w-sm { width: 72px; }
         <div>
           <img :src="ocrPreviewUrl" style="width:100%;max-height:260px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
           <div style="font-size:12px;color:#64748b;margin-bottom:6px;display:flex;justify-content:space-between">
-            <span>识别中…</span>
+            <span x-text="ocrProgressMsg || '识别中…'"></span>
             <span x-text="Math.round(ocrProgress) + '%'"></span>
           </div>
           <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden">
@@ -3329,14 +3329,7 @@ function simulator() {
       this.ocrLoading = true;
       this.ocrResult = null;
       this.ocrProgress = 0;
-      // 模拟进度：匀速爬到 85%，剩下等真实结果
-      const step = () => {
-        if (this.ocrProgress < 85) {
-          this.ocrProgress = Math.min(85, this.ocrProgress + (85 - this.ocrProgress) * 0.06 + 0.5);
-          if (this.ocrLoading) requestAnimationFrame(step);
-        }
-      };
-      requestAnimationFrame(step);
+      this.ocrProgressMsg = '';
       // 压缩到 1500px 以内再上传
       const compressed = await this._compressImage(file);
       const fd = new FormData();
@@ -3344,12 +3337,31 @@ function simulator() {
       try {
         const res = await fetch('/api/ocr/equipment', { method: 'POST', body: fd });
         if (!res.ok) throw new Error(await res.text());
-        this.ocrProgress = 100;
-        await new Promise(r => setTimeout(r, 300));
-        const data = await res.json();
-        // 默认全部勾选
-        (data.items || []).forEach(item => item._checked = true);
-        this.ocrResult = data;
+        // 读 SSE 流
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const parts = buf.split('\n\n');
+          buf = parts.pop();
+          for (const part of parts) {
+            const line = part.trim();
+            if (!line.startsWith('data:')) continue;
+            const evt = JSON.parse(line.slice(5).trim());
+            if (evt.error) throw new Error(evt.error);
+            if (evt.progress !== undefined) {
+              this.ocrProgress = evt.progress;
+              this.ocrProgressMsg = evt.msg || '';
+            }
+            if (evt.result) {
+              await new Promise(r => setTimeout(r, 300));
+              this.ocrResult = evt.result;
+            }
+          }
+        }
       } catch(e) {
         alert('识别失败：' + e.message);
         this.ocrPreviewUrl = null;

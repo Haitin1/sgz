@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File
 import base64
 import requests as _requests
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
 import os
@@ -762,48 +762,39 @@ import json as _json_ocr
 import time as _time
 
 
-async def _call_paddle_vl(image_bytes: bytes) -> list[str]:
-    """用 PaddleOCR VL-1.5 异步模型识别，返回纯文字行列表"""
+def _sse(data: dict) -> str:
+    return f"data: {_json_ocr.dumps(data, ensure_ascii=False)}\n\n"
+
+
+async def _submit_vl_job(image_bytes: bytes) -> str:
     headers = {"Authorization": f"bearer {OCR_TOKEN}"}
     loop = _asyncio.get_event_loop()
+    resp = await loop.run_in_executor(None, lambda: _requests.post(
+        OCR_JOB_URL, headers=headers,
+        data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
+            "useDocOrientationClassify": False,
+            "useDocUnwarping": False,
+            "useChartRecognition": True,
+        })},
+        files={"file": ("image.jpg", image_bytes, "image/jpeg")},
+        timeout=20,
+    ))
+    if resp.status_code != 200:
+        raise RuntimeError(f"提交失败: {resp.text[:200]}")
+    return resp.json()["data"]["jobId"]
 
-    # 提交任务
-    def _submit():
-        return _requests.post(
-            OCR_JOB_URL,
-            headers=headers,
-            data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
-                "useDocOrientationClassify": False,
-                "useDocUnwarping": False,
-                "useChartRecognition": True,
-            })},
-            files={"file": ("image.jpg", image_bytes, "image/jpeg")},
-            timeout=20,
-        )
-    job_resp = await loop.run_in_executor(None, _submit)
-    if job_resp.status_code != 200:
-        raise HTTPException(500, f"提交OCR失败: {job_resp.text[:300]}")
-    job_id = job_resp.json()["data"]["jobId"]
 
-    # 轮询结果（最多 90 秒）
-    jsonl_url = None
-    deadline = _time.time() + 90
-    while _time.time() < deadline:
-        await _asyncio.sleep(3)
-        poll = await loop.run_in_executor(
-            None, lambda: _requests.get(f"{OCR_JOB_URL}/{job_id}", headers=headers, timeout=10)
-        )
-        state = poll.json()["data"]["state"]
-        if state == "done":
-            jsonl_url = poll.json()["data"]["resultUrl"]["jsonUrl"]
-            break
-        elif state == "failed":
-            raise HTTPException(500, f"OCR任务失败: {poll.json()['data'].get('errorMsg', '')}")
+async def _poll_vl_job(job_id: str) -> dict:
+    headers = {"Authorization": f"bearer {OCR_TOKEN}"}
+    loop = _asyncio.get_event_loop()
+    resp = await loop.run_in_executor(
+        None, lambda: _requests.get(f"{OCR_JOB_URL}/{job_id}", headers=headers, timeout=10)
+    )
+    return resp.json()["data"]
 
-    if not jsonl_url:
-        raise HTTPException(500, "OCR识别超时（90秒）")
 
-    # 下载结果，提取文字行
+async def _download_vl_result(jsonl_url: str) -> list[str]:
+    loop = _asyncio.get_event_loop()
     raw = await loop.run_in_executor(None, lambda: _requests.get(jsonl_url, timeout=15))
     lines = []
     for raw_line in raw.text.strip().split("\n"):
@@ -895,8 +886,8 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
 @app.post("/api/ocr/equipment")
 async def ocr_equipment(file: UploadFile = File(...)):
     image_bytes = await file.read()
-    lines = await _call_paddle_vl(image_bytes)
 
+    # 预加载 DB 数据
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute("SELECT name, description FROM equipment_skills")
@@ -905,8 +896,62 @@ async def ocr_equipment(file: UploadFile = File(...)):
     eq_names = {r["name"]: r["eq_type"] for r in cur.fetchall()}
     cur.close(); conn.close()
 
-    items = _parse_equip_items(lines, eq_skills, eq_names)
-    return {"items": items, "raw": lines}
+    async def stream():
+        try:
+            yield _sse({"progress": 5, "msg": "提交识别任务…"})
+            job_id = await _submit_vl_job(image_bytes)
+            yield _sse({"progress": 12, "msg": "任务已提交，等待队列…"})
+
+            deadline = _time.time() + 90
+            jsonl_url = None
+            while _time.time() < deadline:
+                await _asyncio.sleep(3)
+                data = await _poll_vl_job(job_id)
+                state = data["state"]
+
+                if state == "pending":
+                    elapsed = _time.time() - (deadline - 90)
+                    p = min(30, 12 + elapsed * 1.5)
+                    yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
+
+                elif state == "running":
+                    try:
+                        total = data["extractProgress"]["totalPages"]
+                        done_pages = data["extractProgress"]["extractedPages"]
+                        p = 30 + (done_pages / max(total, 1)) * 55
+                    except Exception:
+                        elapsed = _time.time() - (deadline - 90)
+                        p = min(80, 30 + elapsed * 1.5)
+                    yield _sse({"progress": round(p, 1), "msg": "识别中…"})
+
+                elif state == "done":
+                    jsonl_url = data["resultUrl"]["jsonUrl"]
+                    yield _sse({"progress": 90, "msg": "下载结果…"})
+                    break
+
+                elif state == "failed":
+                    yield _sse({"error": data.get("errorMsg", "识别失败")})
+                    return
+
+            if not jsonl_url:
+                yield _sse({"error": "识别超时（90秒）"})
+                return
+
+            lines = await _download_vl_result(jsonl_url)
+            items = _parse_equip_items(lines, eq_skills, eq_names)
+            for item in items:
+                item["_checked"] = True
+
+            yield _sse({"progress": 100, "msg": "完成", "result": {"items": items, "raw": lines}})
+
+        except Exception as e:
+            yield _sse({"error": str(e)})
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 # 前端静态文件
