@@ -354,7 +354,7 @@ select.w-sm { width: 72px; }
 .btn:disabled { opacity: .5; pointer-events: none; }
 
 .run-bar {
-  display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;
+  display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; justify-content: center;
   padding: 12px 0;
 }
 .run-bar .runs-field {
@@ -2024,7 +2024,7 @@ select.w-sm { width: 72px; }
   </div>
 
   <!-- Error -->
-  <div class="error-box" x-show="error" x-text="error"></div>
+  <div class="error-box" x-cloak x-show="error" x-text="error"></div>
 
   <!-- ── Single Run Result ── -->
   <div class="result-panel" x-show="result && !result.runs">
