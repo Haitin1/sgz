@@ -1252,18 +1252,18 @@ select.w-sm { width: 72px; }
                     <select class="form-input" style="width:52px;font-size:12px;padding:2px 2px;flex-shrink:0" x-model="item.equip_type">
                       <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
                     </select>
-                    <input class="form-input" style="width:90px;font-size:12px;padding:2px 5px;font-weight:600;flex-shrink:0" x-model="item.equip_name">
+                    <input class="form-input" style="width:76px;font-size:12px;padding:2px 5px;font-weight:600;flex-shrink:0" x-model="item.equip_name">
                     <template x-for="[label, key] in [['武力','force_bonus'],['智力','intel_bonus'],['统率','command_bonus'],['速度','speed_bonus'],['政治','politics_bonus'],['魅力','charisma_bonus']]" :key="key">
                       <label x-show="item.stats && item.stats[key]"
                         style="display:inline-flex;align-items:center;gap:2px;font-size:11px;color:#64748b;flex-shrink:0;white-space:nowrap">
                         <span x-text="label" style="font-size:10px"></span>
                         <input type="number" step="0.01" x-model.number="item.stats[key]"
-                          style="width:54px;font-size:11px;padding:1px 3px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);text-align:right">
+                          style="width:46px;font-size:11px;padding:1px 3px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);text-align:right">
                       </label>
                     </template>
                     <template x-for="(sk, si) in item.skills" :key="si">
                       <input class="form-input" x-model="sk.name"
-                        style="width:64px;font-size:11px;padding:1px 5px;flex-shrink:0;color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600">
+                        style="width:36px;font-size:11px;padding:1px 4px;flex-shrink:0;color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600;text-align:center">
                     </template>
                     <span x-show="!item.skills.length" style="font-size:11px;color:#d1d5db;flex-shrink:0">无特技</span>
                   </div>
