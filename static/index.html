@@ -65,6 +65,15 @@ body {
 .user-card-row span:last-child { color:var(--text); }
 
 /* ── Equip Table ── */
+.ocr-drop-zone {
+  border: 2px dashed #7dd3fc; border-radius: 8px; padding: 14px;
+  text-align: center; color: #0369a1; font-size: 13px; cursor: pointer;
+  background: #f0f9ff; margin-bottom: 12px; transition: all .15s;
+  user-select: none;
+}
+.ocr-drop-zone:hover, .ocr-drop-zone.dragging {
+  background: #e0f2fe; border-color: #38bdf8;
+}
 .equip-table { width:100%;border-collapse:collapse;font-size:13px; }
 .equip-table th { text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);color:var(--text2);font-weight:600;white-space:nowrap; }
 .equip-table td { padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:middle; }
@@ -1088,10 +1097,19 @@ select.w-sm { width: 72px; }
           <option value="charisma_bonus">魅力</option>
         </select>
         <button class="btn btn-primary btn-sm" @click="openEquipForm(null)">＋ 添加装备</button>
-        <button class="btn btn-sm" style="background:#f0f9ff;border-color:#7dd3fc;color:#0369a1"
-          @click="$refs.ocrFileInput.click()">📷 识别导入</button>
+      </div>
+      <!-- OCR 拖拽/粘贴区 -->
+      <div class="ocr-drop-zone"
+        :class="ocrDragging ? 'dragging' : ''"
+        @click="$refs.ocrFileInput.click()"
+        @dragover.prevent="ocrDragging=true"
+        @dragleave="ocrDragging=false"
+        @drop.prevent="ocrDragging=false; ocrHandleFile($event.dataTransfer.files[0])"
+        @paste.window="ocrHandlePaste($event)"
+        x-show="!ocrResult">
+        <span>📷 拖入截图 / 点击选图 / Ctrl+V 粘贴</span>
         <input type="file" x-ref="ocrFileInput" accept="image/*" style="display:none"
-          @change="ocrImportEquip($event)">
+          @change="ocrHandleFile($event.target.files[0]); $event.target.value=''">
       </div>
       <!-- OCR 识别结果预览 -->
       <div x-show="ocrResult" x-cloak style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px">
@@ -2540,6 +2558,7 @@ function simulator() {
     // ── 装备 ──
     equipPanel: { open: false },
     ocrResult: null,
+    ocrDragging: false,
     equipPicker: { open: false, team: null, idx: null, slot: null },
     equipSkillDescs: {},
     equipForm: { open:false, id:null, data:{name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''}, error:'' },
@@ -3238,10 +3257,8 @@ function simulator() {
     },
 
     // ── 装备方法 ──
-    async ocrImportEquip(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      event.target.value = '';
+    async ocrHandleFile(file) {
+      if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
       const fd = new FormData();
       fd.append('file', file);
       try {
@@ -3250,6 +3267,16 @@ function simulator() {
         this.ocrResult = await res.json();
       } catch(e) {
         alert('识别失败：' + e.message);
+      }
+    },
+    ocrHandlePaste(event) {
+      if (!this.equipPanel.open) return;
+      const items = event.clipboardData?.items || [];
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          this.ocrHandleFile(item.getAsFile());
+          break;
+        }
       }
     },
     async ocrConfirmImport() {
