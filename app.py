@@ -2,7 +2,9 @@
 三国志战略版战斗模拟器 - FastAPI 后端
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File
+import base64
+import requests as _requests
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, EmailStr
@@ -746,6 +748,103 @@ def delete_lineup(user_id: str, team: str, slot: int):
 
 
 # ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# OCR 识别
+# ─────────────────────────────────────────────────────────────
+
+BAIDU_OCR_TOKEN = os.environ.get("BAIDU_OCR_TOKEN", "")
+BAIDU_OCR_URL = "https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic"
+
+def _call_baidu_ocr(image_bytes: bytes) -> list[str]:
+    """调百度通用OCR，返回识别出的文字列表"""
+    b64 = base64.b64encode(image_bytes).decode()
+    resp = _requests.post(
+        BAIDU_OCR_URL,
+        params={"access_token": BAIDU_OCR_TOKEN},
+        data={"image": b64},
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=15,
+    )
+    data = resp.json()
+    if "error_code" in data:
+        raise HTTPException(500, f"百度OCR错误: {data.get('error_msg')}")
+    return [w["words"] for w in data.get("words_result", [])]
+
+
+def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str | None:
+    """简单模糊匹配：候选中包含 word 或 word 包含候选，或字符重叠率高"""
+    word = word.strip()
+    for c in candidates:
+        if word == c or word in c or c in word:
+            return c
+    # 字符集重叠
+    ws = set(word)
+    best, best_score = None, 0
+    for c in candidates:
+        cs = set(c)
+        if not ws or not cs:
+            continue
+        score = len(ws & cs) / max(len(ws), len(cs)) * 100
+        if score >= threshold and score > best_score:
+            best, best_score = c, score
+    return best
+
+
+@app.post("/api/ocr/equipment")
+async def ocr_equipment(file: UploadFile = File(...)):
+    """识别装备截图，返回解析后的装备信息"""
+    image_bytes = await file.read()
+    words = _call_baidu_ocr(image_bytes)
+
+    # 从DB取所有装备特技名
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT name, description FROM equipment_skills")
+    eq_skills = {r["name"]: r["description"] for r in cur.fetchall()}
+    cur.execute("SELECT name, equip_type FROM user_equipment WHERE user_id=2 OR owner_general='无' LIMIT 200")
+    eq_names = {r["name"]: r["equip_type"] for r in cur.fetchall()}
+    cur.close(); conn.close()
+
+    skill_names = list(eq_skills.keys())
+    equip_names = list(eq_names.keys())
+    type_keywords = {"武器", "防具", "坐骑", "宝物"}
+
+    result = {
+        "raw": words,
+        "equip_type": None,
+        "equip_name": None,
+        "skills": [],
+        "unmatched": [],
+    }
+
+    for w in words:
+        w = w.strip()
+        if not w:
+            continue
+        # 类型
+        if w in type_keywords:
+            result["equip_type"] = w
+            continue
+        # 装备名
+        matched_eq = _fuzzy_match(w, equip_names)
+        if matched_eq:
+            result["equip_name"] = matched_eq
+            if not result["equip_type"]:
+                result["equip_type"] = eq_names.get(matched_eq)
+            continue
+        # 特技名（一行可能有多个，空格分隔）
+        found_skill = False
+        for token in w.split():
+            ms = _fuzzy_match(token, skill_names)
+            if ms:
+                result["skills"].append({"name": ms, "desc": eq_skills[ms]})
+                found_skill = True
+        if not found_skill:
+            result["unmatched"].append(w)
+
+    return result
+
+
 # 前端静态文件
 # ─────────────────────────────────────────────────────────────
 
