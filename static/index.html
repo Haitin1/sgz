@@ -3283,12 +3283,26 @@ function simulator() {
       const r = this.ocrResult;
       if (!r.equip_name) { alert('请填写装备名称'); return; }
       if (!r.equip_type) { alert('请选择装备类型'); return; }
+      const sk1 = r.skills[0]?.name || null;
+      const sk2 = r.skills[1]?.name || null;
+      // 重复检测：名称 + 类型 + 两个特技完全一致
+      const dup = this.equipList.find(e =>
+        e.name === r.equip_name &&
+        e.eq_type === r.equip_type &&
+        (e.skill1 || null) === sk1 &&
+        (e.skill2 || null) === sk2
+      );
+      if (dup) {
+        alert(`「${r.equip_name}」已在装备库中（持有：${dup.owner_general || '无'}），跳过导入`);
+        this.ocrResult = null;
+        return;
+      }
       const payload = {
         equip_type: r.equip_type,
         name: r.equip_name,
         owner_general: '无',
-        skill1: r.skills[0]?.name || null,
-        skill2: r.skills[1]?.name || null,
+        skill1: sk1,
+        skill2: sk2,
         force_bonus: 0, intel_bonus: 0, command_bonus: 0,
         speed_bonus: 0, politics_bonus: 0, charisma_bonus: 0,
       };
