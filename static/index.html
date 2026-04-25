@@ -1235,6 +1235,11 @@ select.w-sm { width: 72px; }
           <div x-show="!ocrResult.items.length" style="color:#9ca3af;font-size:13px;text-align:center;padding:16px 0">
             未识别到装备，请重新截图或手动添加
           </div>
+          <!-- DEBUG: 原始OCR文本 -->
+          <details style="margin-bottom:10px">
+            <summary style="font-size:11px;color:#94a3b8;cursor:pointer">查看原始OCR文本（调试用）</summary>
+            <pre style="font-size:10px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all" x-text="(ocrResult.raw||[]).join('\n')"></pre>
+          </details>
           <!-- 装备列表 -->
           <div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto;padding-right:4px">
             <template x-for="(item, i) in ocrResult.items" :key="i">
