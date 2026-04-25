@@ -1097,51 +1097,8 @@ select.w-sm { width: 72px; }
           <option value="charisma_bonus">魅力</option>
         </select>
         <button class="btn btn-primary btn-sm" @click="openEquipForm(null)">＋ 添加装备</button>
-      </div>
-      <!-- OCR 拖拽/粘贴区 -->
-      <div class="ocr-drop-zone"
-        :class="ocrDragging ? 'dragging' : ''"
-        @click="$refs.ocrFileInput.click()"
-        @dragover.prevent="ocrDragging=true"
-        @dragleave="ocrDragging=false"
-        @drop.prevent="ocrDragging=false; ocrHandleFile($event.dataTransfer.files[0])"
-        @paste.window="ocrHandlePaste($event)"
-        x-show="!ocrResult">
-        <span>📷 拖入截图 / 点击选图 / Ctrl+V 粘贴</span>
-        <input type="file" x-ref="ocrFileInput" accept="image/*" style="display:none"
-          @change="ocrHandleFile($event.target.files[0]); $event.target.value=''">
-      </div>
-      <!-- OCR 识别结果预览 -->
-      <div x-show="ocrResult" x-cloak style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px">
-        <div style="font-weight:600;font-size:13px;margin-bottom:6px;color:#166534">📷 识别结果（确认后点击导入）</div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
-          <div>
-            <span style="font-size:11px;color:#6b7280">类型</span><br>
-            <select class="form-input" style="width:90px;margin-top:2px" x-model="ocrResult.equip_type">
-              <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
-            </select>
-          </div>
-          <div style="flex:1;min-width:120px">
-            <span style="font-size:11px;color:#6b7280">装备名</span><br>
-            <input class="form-input" style="margin-top:2px;width:100%" x-model="ocrResult.equip_name" placeholder="装备名称">
-          </div>
-          <div style="flex:2;min-width:160px">
-            <span style="font-size:11px;color:#6b7280">识别特技</span><br>
-            <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
-              <template x-for="(sk, i) in ocrResult.skills" :key="i">
-                <span style="font-size:12px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px" x-text="sk.name"></span>
-              </template>
-              <span x-show="!ocrResult.skills.length" style="font-size:12px;color:#9ca3af">未识别到特技</span>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;align-items:flex-end;padding-bottom:2px">
-            <button class="btn btn-primary btn-sm" @click="ocrConfirmImport()">导入</button>
-            <button class="btn btn-sm" @click="ocrResult=null">取消</button>
-          </div>
-        </div>
-        <div x-show="ocrResult.unmatched.length" style="margin-top:6px;font-size:11px;color:#9ca3af">
-          未匹配文字：<span x-text="ocrResult.unmatched.join(' / ')"></span>
-        </div>
+        <button class="btn btn-sm" style="background:#f0f9ff;border-color:#7dd3fc;color:#0369a1;font-weight:600"
+          @click="ocrModal=true; ocrResult=null">🤖 智能识别导入</button>
       </div>
       <!-- 列表 -->
       <div style="overflow-y:auto;flex:1">
@@ -1213,6 +1170,79 @@ select.w-sm { width: 72px; }
       <button class="btn btn-primary" style="width:100%;margin-top:12px" @click="saveEquip()">保存</button>
     </div>
   </div>
+
+  <!-- OCR 识别导入弹窗 -->
+  <div class="modal-overlay" x-show="ocrModal" x-cloak @click.self="ocrModal=false; ocrResult=null"
+    @paste.window="ocrHandlePaste($event)">
+    <div class="modal-box" style="width:min(520px,96vw)">
+      <button class="modal-close" @click="ocrModal=false; ocrResult=null">×</button>
+      <h2 class="modal-title">🤖 智能识别导入</h2>
+
+      <!-- 上传区（未识别时显示） -->
+      <template x-if="!ocrResult && !ocrLoading">
+        <div>
+          <div class="ocr-drop-zone"
+            :class="ocrDragging ? 'dragging' : ''"
+            @click="$refs.ocrFileInput.click()"
+            @dragover.prevent="ocrDragging=true"
+            @dragleave="ocrDragging=false"
+            @drop.prevent="ocrDragging=false; ocrHandleFile($event.dataTransfer.files[0])">
+            <div style="font-size:32px;margin-bottom:8px">📷</div>
+            <div style="font-weight:600;margin-bottom:4px">拖入截图 或 点击选图</div>
+            <div style="font-size:12px;color:#64748b">也可以直接 Ctrl+V 粘贴截图</div>
+          </div>
+          <input type="file" x-ref="ocrFileInput" accept="image/*" style="display:none"
+            @change="ocrHandleFile($event.target.files[0]); $event.target.value=''">
+        </div>
+      </template>
+
+      <!-- 识别中 -->
+      <template x-if="ocrLoading">
+        <div style="text-align:center;padding:40px 0;color:#64748b">
+          <div style="font-size:28px;margin-bottom:10px">⏳</div>
+          <div>识别中，请稍候…</div>
+        </div>
+      </template>
+
+      <!-- 识别结果 -->
+      <template x-if="ocrResult && !ocrLoading">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:12px">识别完成，确认后点击导入</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <div>
+                <div style="font-size:11px;color:#6b7280;margin-bottom:3px">类型</div>
+                <select class="form-input" style="width:90px" x-model="ocrResult.equip_type">
+                  <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
+                </select>
+              </div>
+              <div style="flex:1;min-width:140px">
+                <div style="font-size:11px;color:#6b7280;margin-bottom:3px">装备名</div>
+                <input class="form-input" style="width:100%" x-model="ocrResult.equip_name" placeholder="装备名称">
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#6b7280;margin-bottom:5px">识别到的特技</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <template x-for="(sk, i) in ocrResult.skills" :key="i">
+                  <span style="font-size:12px;background:#dcfce7;color:#166534;padding:3px 10px;border-radius:4px;font-weight:600" x-text="sk.name"></span>
+                </template>
+                <span x-show="!ocrResult.skills.length" style="font-size:12px;color:#9ca3af">未识别到特技</span>
+              </div>
+            </div>
+            <div x-show="ocrResult.unmatched && ocrResult.unmatched.length" style="font-size:11px;color:#9ca3af">
+              未匹配文字：<span x-text="ocrResult.unmatched?.join(' / ')"></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px">
+            <button class="btn btn-primary" style="flex:1" @click="ocrConfirmImport()">确认导入</button>
+            <button class="btn" style="flex:1" @click="ocrResult=null">重新识别</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
 
 
 
@@ -2558,6 +2588,8 @@ function simulator() {
     // ── 装备 ──
     equipPanel: { open: false },
     ocrResult: null,
+    ocrModal: false,
+    ocrLoading: false,
     ocrDragging: false,
     equipPicker: { open: false, team: null, idx: null, slot: null },
     equipSkillDescs: {},
@@ -3259,6 +3291,8 @@ function simulator() {
     // ── 装备方法 ──
     async ocrHandleFile(file) {
       if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+      this.ocrLoading = true;
+      this.ocrResult = null;
       const fd = new FormData();
       fd.append('file', file);
       try {
@@ -3267,10 +3301,12 @@ function simulator() {
         this.ocrResult = await res.json();
       } catch(e) {
         alert('识别失败：' + e.message);
+      } finally {
+        this.ocrLoading = false;
       }
     },
     ocrHandlePaste(event) {
-      if (!this.equipPanel.open) return;
+      if (!this.ocrModal) return;
       const items = event.clipboardData?.items || [];
       for (const item of items) {
         if (item.type.startsWith('image/')) {
@@ -3315,6 +3351,7 @@ function simulator() {
         if (!res.ok) throw new Error(await res.text());
         await this.fetchEquip();
         this.ocrResult = null;
+        this.ocrModal = false;
         alert(`「${payload.name}」已导入装备库`);
       } catch(e) {
         alert('导入失败：' + e.message);
