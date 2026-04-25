@@ -1397,12 +1397,20 @@ select.w-sm { width: 72px; }
                               <span class="equip-slot-name" x-text="g.equips[slot].name"></span>
                               <div class="equip-stats-tip" x-text="equipStatStr(g.equips[slot])"></div>
                             </div>
-                            <template x-if="g.equips[slot].skill1">
-                              <div class="equip-skill-area">
-                                <span class="equip-slot-skill" x-text="g.equips[slot].skill1 + (g.equips[slot].skill2 ? ' · ' + g.equips[slot].skill2 : '')"></span>
-                                <div class="equip-skill-tip" x-text="equipSkillTipText(g.equips[slot])"></div>
-                              </div>
-                            </template>
+                            <div style="display:flex;gap:3px;flex-wrap:wrap">
+                              <template x-if="g.equips[slot].skill1">
+                                <div class="equip-skill-area">
+                                  <span class="equip-slot-skill" x-text="g.equips[slot].skill1"></span>
+                                  <div class="equip-skill-tip" x-text="equipSkillDescs[g.equips[slot].skill1] ? '【' + g.equips[slot].skill1 + '】\n' + equipSkillDescs[g.equips[slot].skill1] : '【' + g.equips[slot].skill1 + '】'"></div>
+                                </div>
+                              </template>
+                              <template x-if="g.equips[slot].skill2">
+                                <div class="equip-skill-area">
+                                  <span class="equip-slot-skill" x-text="g.equips[slot].skill2"></span>
+                                  <div class="equip-skill-tip" x-text="equipSkillDescs[g.equips[slot].skill2] ? '【' + g.equips[slot].skill2 + '】\n' + equipSkillDescs[g.equips[slot].skill2] : '【' + g.equips[slot].skill2 + '】'"></div>
+                                </div>
+                              </template>
+                            </div>
                           </div>
                         </template>
                         <template x-if="!g.equips || !g.equips[slot]">
@@ -1924,12 +1932,20 @@ select.w-sm { width: 72px; }
                               <span class="equip-slot-name" x-text="g.equips[slot].name"></span>
                               <div class="equip-stats-tip" x-text="equipStatStr(g.equips[slot])"></div>
                             </div>
-                            <template x-if="g.equips[slot].skill1">
-                              <div class="equip-skill-area">
-                                <span class="equip-slot-skill" x-text="g.equips[slot].skill1 + (g.equips[slot].skill2 ? ' · ' + g.equips[slot].skill2 : '')"></span>
-                                <div class="equip-skill-tip" x-text="equipSkillTipText(g.equips[slot])"></div>
-                              </div>
-                            </template>
+                            <div style="display:flex;gap:3px;flex-wrap:wrap">
+                              <template x-if="g.equips[slot].skill1">
+                                <div class="equip-skill-area">
+                                  <span class="equip-slot-skill" x-text="g.equips[slot].skill1"></span>
+                                  <div class="equip-skill-tip" x-text="equipSkillDescs[g.equips[slot].skill1] ? '【' + g.equips[slot].skill1 + '】\n' + equipSkillDescs[g.equips[slot].skill1] : '【' + g.equips[slot].skill1 + '】'"></div>
+                                </div>
+                              </template>
+                              <template x-if="g.equips[slot].skill2">
+                                <div class="equip-skill-area">
+                                  <span class="equip-slot-skill" x-text="g.equips[slot].skill2"></span>
+                                  <div class="equip-skill-tip" x-text="equipSkillDescs[g.equips[slot].skill2] ? '【' + g.equips[slot].skill2 + '】\n' + equipSkillDescs[g.equips[slot].skill2] : '【' + g.equips[slot].skill2 + '】'"></div>
+                                </div>
+                              </template>
+                            </div>
                           </div>
                         </template>
                         <template x-if="!g.equips || !g.equips[slot]">
