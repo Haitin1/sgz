@@ -1342,6 +1342,10 @@ select.w-sm { width: 72px; }
           <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">
             ✅ 识别到 <span x-text="lineupOcr.result.generals.length"></span> 名武将
           </div>
+          <details style="margin-bottom:8px">
+            <summary style="font-size:11px;color:#94a3b8;cursor:pointer">查看原始OCR文本（调试）</summary>
+            <pre style="font-size:10px;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;max-height:160px;overflow-y:auto;white-space:pre-wrap;word-break:break-all" x-text="lineupOcr.result.raw||''"></pre>
+          </details>
           <!-- 武将列表 -->
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
             <template x-for="(gen, gi) in lineupOcr.result.generals" :key="gi">
@@ -2805,8 +2809,10 @@ function simulator() {
         const lRes = await fetch(`/api/lineups/${this.userId}`);
         if (lRes.ok) {
           const ld = await lRes.json();
-          this.savedLineups  = (ld.a || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
-          this.savedLineupsB = (ld.b || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineups  = (ld.a || Array(3).fill(null)).slice(0,3).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineupsB = (ld.b || Array(3).fill(null)).slice(0,3).map(s => s ? {...s, ...s.data} : null);
+          while (this.savedLineups.length  < 3) this.savedLineups.push(null);
+          while (this.savedLineupsB.length < 3) this.savedLineupsB.push(null);
         }
       } catch(e) {}
 
@@ -3420,8 +3426,10 @@ function simulator() {
         const lr = await fetch(`/api/lineups/${this.userId}`);
         if (lr.ok) {
           const ld = await lr.json();
-          this.savedLineups  = (ld.a || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
-          this.savedLineupsB = (ld.b || Array(3).fill(null)).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineups  = (ld.a || Array(3).fill(null)).slice(0,3).map(s => s ? {...s, ...s.data} : null);
+          this.savedLineupsB = (ld.b || Array(3).fill(null)).slice(0,3).map(s => s ? {...s, ...s.data} : null);
+          while (this.savedLineups.length  < 3) this.savedLineups.push(null);
+          while (this.savedLineupsB.length < 3) this.savedLineupsB.push(null);
         }
         await this.fetchEquip();
         this.authModal.open = false;
@@ -3637,11 +3645,11 @@ function simulator() {
       if (!result || !result.generals.length) { alert('没有可导入的武将'); return; }
       // 把识别到的武将映射到现有武将库，查找对应武将对象
       const gens = result.generals.map(g => {
-        const found = this.generals.find(x => x.name === g.name || x.name.includes(g.name) || g.name.includes(x.name));
+        const found = this.generalsData.find(x => x.name === g.name || x.name.includes(g.name) || g.name.includes(x.name));
         const base = found ? { ...found } : { name: g.name, strength:0,intelligence:0,leadership:0,speed:0,politics:0,charisma:0,troop_type:'步兵' };
         // 技能映射
-        const skills = g.skills.map(s => {
-          const sk = this.skills.find(x => x.name === s.name);
+        const skills = (g.skills || []).map(s => {
+          const sk = this.skillsData.find(x => x.name === s.name);
           return sk ? { name:sk.name, type:sk.type||'主动', damage:sk.damage||0, heal:sk.heal||0, buff:sk.buff||0, debuff:sk.debuff||0, desc:sk.description||'' }
                     : { name:s.name, type:'主动', damage:0, heal:0, buff:0, debuff:0, desc:'' };
         });

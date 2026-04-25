@@ -1026,47 +1026,50 @@ async def ocr_equipment(file: UploadFile = File(...)):
     )
 
 
+def _extract_text_tokens(html: str) -> list[str]:
+    """从 HTML/markdown 中提取所有可见文字 token"""
+    # 取出所有 td/th 内容优先，再 fallback 到去标签纯文本
+    tokens = []
+    for m in _TD_PAT.finditer(html):
+        txt = m.group(1).strip()
+        if txt:
+            tokens.extend(txt.split())
+    if not tokens:
+        clean = _re.sub(r"<[^>]+>", " ", html)
+        clean = _re.sub(r"[#*`|\\]", " ", clean)
+        tokens = clean.split()
+    return tokens
+
+
 def _parse_lineup_from_html(full_text: str, generals_db: list[dict], skills_db: list[dict]) -> dict:
-    """从 VL-1.5 返回的 HTML/markdown 中解析阵容（3 名武将 + 技能）"""
-    gen_names = [g["name"] for g in generals_db]
+    """从 VL-1.5 返回的文本中解析阵容（武将 + 技能）"""
+    gen_names  = [g["name"] for g in generals_db]
     skill_names = [s["name"] for s in skills_db]
 
-    generals_out = []
+    tokens = _extract_text_tokens(full_text)
 
-    # ── HTML table 解析 ──
-    if "<tr" in full_text.lower():
-        for tr_m in _TR_PAT.finditer(full_text):
-            tds = [m.group(1).strip() for m in _TD_PAT.finditer(tr_m.group(1))]
-            if not tds or not tds[0]:
-                continue
-            name_raw = tds[0]
-            # 尝试匹配武将名
-            gen_match = _fuzzy_match(name_raw, gen_names, threshold=60)
-            if not gen_match:
-                continue
-            skills = []
-            for td in tds[1:]:
-                sk = _fuzzy_match(td.strip(), skill_names, threshold=65)
-                if sk and sk not in [s["name"] for s in skills]:
-                    skills.append({"name": sk})
-            generals_out.append({"name": gen_match, "skills": skills})
-            if len(generals_out) == 3:
-                break
+    # ── 按顺序扫描 token，遇到武将名就开新将领，遇到技能就附加到当前将领 ──
+    generals_out: list[dict] = []
+    cur_gen: dict | None = None
 
-    # ── 纯文本降级 ──
-    if not generals_out:
-        for line in full_text.splitlines():
-            cleaned = _re.sub(r"<[^>]+>|[#*`|\\]", " ", line).strip()
-            if not cleaned:
-                continue
-            for tok in cleaned.split():
-                gm = _fuzzy_match(tok, gen_names, threshold=60)
-                if gm and gm not in [g["name"] for g in generals_out]:
-                    generals_out.append({"name": gm, "skills": []})
-                    if len(generals_out) == 3:
-                        break
-            if len(generals_out) == 3:
-                break
+    for tok in tokens:
+        tok = tok.strip("，。、·：:「」【】()（）")
+        if not tok or len(tok) < 2:
+            continue
+        # 武将名匹配（较严格）
+        gm = _fuzzy_match(tok, gen_names, threshold=75)
+        if gm and gm not in [g["name"] for g in generals_out]:
+            cur_gen = {"name": gm, "skills": []}
+            generals_out.append(cur_gen)
+            if len(generals_out) > 3:
+                generals_out = generals_out[:3]
+            continue
+        # 技能名匹配
+        if cur_gen is not None:
+            sk = _fuzzy_match(tok, skill_names, threshold=70)
+            if sk and sk not in [s["name"] for s in cur_gen["skills"]]:
+                if len(cur_gen["skills"]) < 3:
+                    cur_gen["skills"].append({"name": sk})
 
     return {"generals": generals_out}
 
@@ -1113,7 +1116,9 @@ async def ocr_lineup(file: UploadFile = File(...)):
             if not jsonl_url:
                 yield _sse({"error": "识别超时（90秒）"}); return
             lines = await _download_vl_result(jsonl_url)
-            result = _parse_lineup_from_html("\n".join(lines), generals_db, skills_db)
+            joined = "\n".join(lines)
+            result = _parse_lineup_from_html(joined, generals_db, skills_db)
+            result["raw"] = joined[:2000]  # 调试用，截断避免过大
             yield _sse({"progress": 100, "msg": "完成", "result": result})
         except Exception as e:
             yield _sse({"error": str(e)})
