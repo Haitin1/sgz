@@ -353,6 +353,11 @@ select.w-sm { width: 72px; }
 .btn-sm { font-size: 12px; padding: 4px 10px; }
 .btn:disabled { opacity: .5; pointer-events: none; }
 
+.equip-select {
+  font-size: 12px; padding: 3px 6px; border: 1px solid var(--border2);
+  border-radius: 5px; background: var(--surface); color: var(--text1);
+  max-width: 180px; cursor: pointer;
+}
 .run-bar {
   display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; justify-content: center;
   padding: 12px 0;
@@ -1309,7 +1314,13 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
                 <div class="save-row" style="margin-top:6px">
-                  <button class="btn btn-reset" @click="resetGeneral('a',gi)">↺ 重置</button>
+                  <label style="font-size:11px;color:var(--text2);margin-right:4px">装备</label>
+                  <select class="equip-select" x-model="g.equip_id">
+                    <option :value="null">— 无装备 —</option>
+                    <template x-for="eq in equipList" :key="eq.id">
+                      <option :value="eq.id" x-text="eq.name + (eq.eq_type ? ' · ' + eq.eq_type : '')"></option>
+                    </template>
+                  </select>
                 </div>
               </div>
               <!-- 右：战法槽 -->
@@ -1474,7 +1485,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">兵战</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('a','bingzhan')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('a','bingzhan')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>兵战-武</label><input type="number" x-model.number="tech.a.bingzhan_wu" min="0" max="10"></div>
@@ -1488,7 +1499,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">协力</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('a','xieli')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('a','xieli')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>协力-魏</label><input type="number" x-model.number="tech.a.xieli_wei" min="0" max="10"></div>
@@ -1503,7 +1514,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">兵种</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('a','camp')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('a','camp')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>盾兵营</label><input type="number" x-model.number="tech.a.camp_shield" min="0" max="10"></div>
@@ -1518,7 +1529,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">军营</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('a','jingying')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('a','jingying')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.a.jingying" min="0" max="20"></div>
@@ -1529,7 +1540,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">守备</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('a','guard')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('a','guard')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.a.jiugong" min="0" max="5"></div>
@@ -1771,7 +1782,13 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
                 <div class="save-row" style="margin-top:6px">
-                  <button class="btn btn-reset" @click="resetGeneral('b',gi)">↺ 重置</button>
+                  <label style="font-size:11px;color:var(--text2);margin-right:4px">装备</label>
+                  <select class="equip-select" x-model="g.equip_id">
+                    <option :value="null">— 无装备 —</option>
+                    <template x-for="eq in equipList" :key="eq.id">
+                      <option :value="eq.id" x-text="eq.name + (eq.eq_type ? ' · ' + eq.eq_type : '')"></option>
+                    </template>
+                  </select>
                 </div>
               </div>
               <!-- 右：战法槽 -->
@@ -1936,7 +1953,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">兵战</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('b','bingzhan')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('b','bingzhan')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>兵战-武</label><input type="number" x-model.number="tech.b.bingzhan_wu" min="0" max="10"></div>
@@ -1950,7 +1967,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">协力</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('b','xieli')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('b','xieli')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>协力-魏</label><input type="number" x-model.number="tech.b.xieli_wei" min="0" max="10"></div>
@@ -1965,7 +1982,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">兵种</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('b','camp')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('b','camp')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-5">
               <div class="tech-cell"><label>盾兵营</label><input type="number" x-model.number="tech.b.camp_shield" min="0" max="10"></div>
@@ -1980,7 +1997,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">军营</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('b','jingying')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('b','jingying')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>军营</label><input type="number" x-model.number="tech.b.jingying" min="0" max="20"></div>
@@ -1991,7 +2008,7 @@ select.w-sm { width: 72px; }
             <div class="tech-sec-hd">
               <span class="tech-sec-label">守备</span>
               <div class="tech-sec-btns"><button class="tech-sec-btn max" @click="techMax('b','guard')">一键满级</button>
-              <button class="tech-sec-btn rst" @click="techReset('b','guard')">重置</button></div>
+</div>
             </div>
             <div class="tech-grid tech-grid-4">
               <div class="tech-cell"><label>九宫图</label><input type="number" x-model.number="tech.b.jiugong" min="0" max="5"></div>
@@ -2571,6 +2588,7 @@ function simulator() {
           free_command: g.free_command||0, free_speed: g.free_speed||0,
           free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
           main_book: g.main_book||null, sub_book1: g.sub_book1||null, sub_book2: g.sub_book2||null,
+          equip_id: g.equip_id||null,
         })),
         savedAt: new Date().toLocaleDateString('zh-CN'),
       };
@@ -2594,6 +2612,7 @@ function simulator() {
         g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
         g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
         g.main_book = saved.main_book||null; g.sub_book1 = saved.sub_book1||null; g.sub_book2 = saved.sub_book2||null;
+        g.equip_id = saved.equip_id||null;
         this.recalcStats(team, idx);
       });
     },
@@ -2936,6 +2955,7 @@ function simulator() {
       g.skills[1] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
       g.skills[2] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
       g.main_book = null; g.sub_book1 = null; g.sub_book2 = null;
+      g.equip_id = null;
       g.force_base     = +parseFloat(gen.strength    ?? 0).toFixed(2);
       g.intel_base     = +parseFloat(gen.intelligence?? 0).toFixed(2);
       g.command_base   = +parseFloat(gen.leadership  ?? 0).toFixed(2);
