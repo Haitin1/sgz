@@ -739,18 +739,18 @@ select.w-sm { width: 72px; }
 
 /* ── 兵书区 ── */
 .books-section { border-top:1px solid var(--border); padding:4px 0 0; }
-.books-table { width:100%; border:1px solid var(--border); border-radius:5px; overflow:hidden; cursor:pointer; transition:border-color .15s; }
+.books-table { width:100%; border:1px solid var(--border); border-radius:5px; overflow:visible; cursor:pointer; transition:border-color .15s; }
 .books-table:hover { border-color:var(--border2); }
 .bk-sys-row { text-align:center; padding:2px 6px; font-size:11px; font-weight:600; color:var(--text2); background:var(--surface2); border-bottom:1px solid var(--border); letter-spacing:2px; }
 .bk-books-row { display:flex; align-items:stretch; min-height:22px; }
-.bk-main-cell { flex:1; padding:2px 6px; font-size:11px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:3px; }
+.bk-main-cell { flex:1; padding:2px 6px; font-size:11px; font-weight:600; color:var(--text); display:flex; align-items:center; gap:3px; overflow:visible; }
 .bk-main-cell.empty { color:var(--text3); font-weight:400; }
 .bk-divider { width:1px; background:var(--border); flex-shrink:0; }
-.bk-subs-cell { flex:1; padding:2px 5px; display:flex; gap:3px; align-items:center; }
-.bk-sub-name { font-size:10px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; min-width:0; }
+.bk-subs-cell { flex:1; padding:2px 5px; display:flex; gap:3px; align-items:center; overflow:visible; }
+.bk-sub-name { font-size:10px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
 .bk-sub-name.empty { color:var(--text3); }
 .bk-sub-sep { color:var(--border2); font-size:10px; flex-shrink:0; }
-.bk-tip-wrap { position:relative; display:inline-flex; align-items:center; max-width:100%; min-width:0; }
+.bk-tip-wrap { position:relative; display:inline-flex; align-items:center; overflow:visible; min-width:0; flex:1; }
 .bk-book-tip { display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:300; background:#1e293b; color:#e2e8f0; font-size:11px; padding:7px 10px; border-radius:6px; min-width:180px; max-width:260px; white-space:normal; line-height:1.6; pointer-events:none; box-shadow:0 4px 12px rgba(0,0,0,.35); }
 .bk-tip-wrap:hover .bk-book-tip { display:block; }
 .bk-book-tip:empty { display:none !important; }
