@@ -391,7 +391,7 @@ select.w-sm { width: 72px; }
 .equip-slot-type { font-size: 10px; color: var(--text2); line-height: 1.2; }
 .equip-slot-body { display: flex; flex-direction: column; align-items: flex-start; gap: 0px; }
 .equip-slot-name { font-size: 10px; font-weight: 600; color: var(--text1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 68px; line-height: 1.3; }
-.equip-slot-skill { font-size: 9px; color: #7c3aed; white-space: nowrap; cursor: default; }
+.equip-slot-skill { font-size: 9px; color: #7c3aed; white-space: nowrap; cursor: default; line-height: 1.1; }
 /* 属性 tooltip — 悬停装备名触发，显示在右侧 */
 .equip-name-area { position: relative; }
 .equip-stats-tip {
@@ -1406,7 +1406,7 @@ select.w-sm { width: 72px; }
                               <span class="equip-slot-name" x-text="g.equips[slot].name"></span>
                               <div class="equip-stats-tip" x-text="equipStatStr(g.equips[slot])"></div>
                             </div>
-                            <div style="display:flex;gap:3px;flex-wrap:wrap">
+                            <div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:-1px">
                               <template x-if="g.equips[slot].skill1">
                                 <div class="equip-skill-area">
                                   <span class="equip-slot-skill" x-text="g.equips[slot].skill1"></span>
@@ -1953,7 +1953,7 @@ select.w-sm { width: 72px; }
                               <span class="equip-slot-name" x-text="g.equips[slot].name"></span>
                               <div class="equip-stats-tip" x-text="equipStatStr(g.equips[slot])"></div>
                             </div>
-                            <div style="display:flex;gap:3px;flex-wrap:wrap">
+                            <div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:-1px">
                               <template x-if="g.equips[slot].skill1">
                                 <div class="equip-skill-area">
                                   <span class="equip-slot-skill" x-text="g.equips[slot].skill1"></span>
