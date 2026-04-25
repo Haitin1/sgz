@@ -754,6 +754,7 @@ select.w-sm { width: 72px; }
 .bk-book-tip { display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:300; background:#1e293b; color:#e2e8f0; font-size:11px; padding:7px 10px; border-radius:6px; min-width:180px; max-width:260px; white-space:normal; line-height:1.6; pointer-events:none; box-shadow:0 4px 12px rgba(0,0,0,.35); }
 .bk-tip-wrap:hover .bk-book-tip { display:block; }
 .bk-book-tip:empty { display:none !important; }
+.bk-book-tip.left { right:0; left:auto; }
 .bk-clear-btn { font-size:9px; color:var(--text3); background:none; border:none; cursor:pointer; padding:0 1px; line-height:1; flex-shrink:0; opacity:0; transition:opacity .15s; }
 .books-table:hover .bk-clear-btn { opacity:1; }
 .bk-clear-btn:hover { color:#ef4444; }
@@ -1470,13 +1471,13 @@ select.w-sm { width: 72px; }
                       <div class="bk-subs-cell">
                         <div class="bk-tip-wrap" style="flex:1;min-width:0;">
                           <span class="bk-sub-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></span>
-                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book1)"></div>
+                          <div class="bk-book-tip left" x-text="bookTooltip(g.sub_book1)"></div>
                         </div>
                         <button class="bk-clear-btn" x-show="g.sub_book1" @click.stop="g.sub_book1=null">×</button>
                         <span class="bk-sub-sep">|</span>
                         <div class="bk-tip-wrap" style="flex:1;min-width:0;">
                           <span class="bk-sub-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></span>
-                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book2)"></div>
+                          <div class="bk-book-tip left" x-text="bookTooltip(g.sub_book2)"></div>
                         </div>
                         <button class="bk-clear-btn" x-show="g.sub_book2" @click.stop="g.sub_book2=null">×</button>
                       </div>
@@ -2014,13 +2015,13 @@ select.w-sm { width: 72px; }
                       <div class="bk-subs-cell">
                         <div class="bk-tip-wrap" style="flex:1;min-width:0;">
                           <span class="bk-sub-name" :class="g.sub_book1 ? '' : 'empty'" x-text="g.sub_book1 || '副1'"></span>
-                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book1)"></div>
+                          <div class="bk-book-tip left" x-text="bookTooltip(g.sub_book1)"></div>
                         </div>
                         <button class="bk-clear-btn" x-show="g.sub_book1" @click.stop="g.sub_book1=null">×</button>
                         <span class="bk-sub-sep">|</span>
                         <div class="bk-tip-wrap" style="flex:1;min-width:0;">
                           <span class="bk-sub-name" :class="g.sub_book2 ? '' : 'empty'" x-text="g.sub_book2 || '副2'"></span>
-                          <div class="bk-book-tip" x-text="bookTooltip(g.sub_book2)"></div>
+                          <div class="bk-book-tip left" x-text="bookTooltip(g.sub_book2)"></div>
                         </div>
                         <button class="bk-clear-btn" x-show="g.sub_book2" @click.stop="g.sub_book2=null">×</button>
                       </div>
