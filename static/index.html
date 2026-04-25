@@ -353,11 +353,33 @@ select.w-sm { width: 72px; }
 .btn-sm { font-size: 12px; padding: 4px 10px; }
 .btn:disabled { opacity: .5; pointer-events: none; }
 
-.equip-select {
-  font-size: 12px; padding: 3px 6px; border: 1px solid var(--border2);
-  border-radius: 5px; background: var(--surface); color: var(--text1);
-  max-width: 180px; cursor: pointer;
+/* ── 武将装备槽 ── */
+.equip-slots { display: flex; gap: 4px; flex-wrap: wrap; }
+.equip-slot {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 3px 6px; border: 1px solid var(--border2); border-radius: 5px;
+  cursor: pointer; min-width: 50px; background: var(--surface);
+  transition: background .15s, border-color .15s; gap: 1px;
 }
+.equip-slot:hover { background: var(--surface2); }
+.equip-slot.has-equip { border-color: #93c5fd; background: #eff6ff; }
+.equip-slot-type { font-size: 10px; color: var(--text2); }
+.equip-slot-name { font-size: 11px; font-weight: 600; color: var(--text1); max-width: 58px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ── 装备选择弹窗 ── */
+.equip-picker-current {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 6px; padding: 8px 10px; margin-bottom: 10px;
+}
+.equip-item-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border);
+}
+.equip-item-row:last-child { border-bottom: none; }
+.equip-item-info { flex: 1; min-width: 0; }
+.equip-item-name { font-weight: 600; font-size: 13px; color: var(--accent-a); }
+.equip-item-type { font-size: 11px; color: var(--text2); margin-left: 6px; }
+.equip-item-stats { font-size: 12px; color: var(--text1); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px; }
+.equip-picker-empty { color: var(--text2); font-size: 13px; text-align: center; padding: 24px 0; }
 .run-bar {
   display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; justify-content: center;
   padding: 12px 0;
@@ -1077,6 +1099,58 @@ select.w-sm { width: 72px; }
     </div>
   </div>
 
+  <!-- 装备选择弹窗 -->
+  <div class="modal-overlay" x-show="equipPicker.open" x-cloak @click.self="equipPicker.open=false">
+    <div class="modal-card" style="max-width:480px">
+      <button class="modal-close" @click="equipPicker.open=false">×</button>
+      <h2 class="modal-title" x-text="'选择' + (equipPicker.slot||'')"></h2>
+
+      <!-- 当前装备 -->
+      <template x-if="equipPicker.open && teams[equipPicker.team] && teams[equipPicker.team][equipPicker.idx] && teams[equipPicker.team][equipPicker.idx].equips && teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot]">
+        <div class="equip-picker-current">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600">当前装备</div>
+          <div class="equip-item-row" style="border:none;padding:0">
+            <div class="equip-item-info">
+              <span class="equip-item-name" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].name"></span>
+              <span class="equip-item-type" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].eq_type"></span>
+              <div class="equip-item-stats" x-text="equipStatStr(teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot])"></div>
+              <div style="margin-top:3px">
+                <template x-if="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill1">
+                  <span class="equip-skill-tag" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill1"></span>
+                </template>
+                <template x-if="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill2">
+                  <span class="equip-skill-tag" x-text="teams[equipPicker.team][equipPicker.idx].equips[equipPicker.slot].skill2"></span>
+                </template>
+              </div>
+            </div>
+            <button class="btn btn-danger" style="white-space:nowrap" @click="unequipGeneral()">卸下</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 可用装备列表 -->
+      <div style="max-height:360px;overflow-y:auto">
+        <template x-for="eq in equipList.filter(e => e.eq_type === equipPicker.slot)" :key="eq.id">
+          <div class="equip-item-row">
+            <div class="equip-item-info">
+              <span class="equip-item-name" x-text="eq.name"></span>
+              <div class="equip-item-stats" x-text="equipStatStr(eq)"></div>
+              <div style="margin-top:2px">
+                <template x-if="eq.skill1"><span class="equip-skill-tag" x-text="eq.skill1"></span></template>
+                <template x-if="eq.skill2"><span class="equip-skill-tag" x-text="eq.skill2"></span></template>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" style="white-space:nowrap" @click="equipGeneral(eq)">穿戴</button>
+          </div>
+        </template>
+        <div class="equip-picker-empty"
+             x-show="equipPicker.open && equipList.filter(e => e.eq_type === equipPicker.slot).length === 0">
+          暂无该类型装备，请先在「我的装备」中添加
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Teams -->
   <div class="teams-grid">
 
@@ -1314,13 +1388,15 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
                 <div class="save-row" style="margin-top:6px">
-                  <label style="font-size:11px;color:var(--text2);margin-right:4px">装备</label>
-                  <select class="equip-select" x-model="g.equip_id">
-                    <option :value="null">— 无装备 —</option>
-                    <template x-for="eq in equipList" :key="eq.id">
-                      <option :value="eq.id" x-text="eq.name + (eq.eq_type ? ' · ' + eq.eq_type : '')"></option>
+                  <div class="equip-slots">
+                    <template x-for="slot in ['武器','防具','坐骑','宝物']" :key="slot">
+                      <div class="equip-slot" :class="g.equips && g.equips[slot] ? 'has-equip' : ''"
+                           @click.stop="openEquipPicker(g._team, gi, slot)">
+                        <span class="equip-slot-type" x-text="slot"></span>
+                        <span class="equip-slot-name" x-text="g.equips && g.equips[slot] ? g.equips[slot].name : '—'"></span>
+                      </div>
                     </template>
-                  </select>
+                  </div>
                 </div>
               </div>
               <!-- 右：战法槽 -->
@@ -1782,13 +1858,15 @@ select.w-sm { width: 72px; }
                   </div>
                 </div>
                 <div class="save-row" style="margin-top:6px">
-                  <label style="font-size:11px;color:var(--text2);margin-right:4px">装备</label>
-                  <select class="equip-select" x-model="g.equip_id">
-                    <option :value="null">— 无装备 —</option>
-                    <template x-for="eq in equipList" :key="eq.id">
-                      <option :value="eq.id" x-text="eq.name + (eq.eq_type ? ' · ' + eq.eq_type : '')"></option>
+                  <div class="equip-slots">
+                    <template x-for="slot in ['武器','防具','坐骑','宝物']" :key="slot">
+                      <div class="equip-slot" :class="g.equips && g.equips[slot] ? 'has-equip' : ''"
+                           @click.stop="openEquipPicker(g._team, gi, slot)">
+                        <span class="equip-slot-type" x-text="slot"></span>
+                        <span class="equip-slot-name" x-text="g.equips && g.equips[slot] ? g.equips[slot].name : '—'"></span>
+                      </div>
                     </template>
-                  </select>
+                  </div>
                 </div>
               </div>
               <!-- 右：战法槽 -->
@@ -2277,6 +2355,7 @@ function simulator() {
     authError: '',
     // ── 装备 ──
     equipPanel: { open: false },
+    equipPicker: { open: false, team: null, idx: null, slot: null },
     equipForm: { open:false, id:null, data:{name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''}, error:'' },
     equipList: [],
     equipSearch: '',
@@ -2474,6 +2553,31 @@ function simulator() {
       };
       keys[sec].forEach(k => t[k] = 0);
     },
+    // ── 装备选择器 ──
+    openEquipPicker(team, idx, slot) {
+      this.equipPicker = { open: true, team, idx, slot };
+    },
+    equipGeneral(eq) {
+      const { team, idx, slot } = this.equipPicker;
+      const g = this.teams[team][idx];
+      if (!g.equips) g.equips = { '武器':null,'防具':null,'坐骑':null,'宝物':null };
+      g.equips = { ...g.equips, [slot]: { ...eq } };
+      this.equipPicker.open = false;
+    },
+    unequipGeneral() {
+      const { team, idx, slot } = this.equipPicker;
+      const g = this.teams[team][idx];
+      if (g.equips) g.equips = { ...g.equips, [slot]: null };
+      this.equipPicker.open = false;
+    },
+    equipStatStr(eq) {
+      if (!eq) return '';
+      const labels = { force_bonus:'武力', intel_bonus:'智力', command_bonus:'统率', speed_bonus:'速度', politics_bonus:'政治', charisma_bonus:'魅力' };
+      return Object.entries(labels)
+        .filter(([k]) => eq[k] && +eq[k] !== 0)
+        .map(([k,v]) => v + '+' + eq[k])
+        .join('  ');
+    },
     filteredSkills() {
       const cat = this.skillPicker.category;
       const q = (this.skillPicker.search || '').trim();
@@ -2588,7 +2692,7 @@ function simulator() {
           free_command: g.free_command||0, free_speed: g.free_speed||0,
           free_politics: g.free_politics||0, free_charisma: g.free_charisma||0,
           main_book: g.main_book||null, sub_book1: g.sub_book1||null, sub_book2: g.sub_book2||null,
-          equip_id: g.equip_id||null,
+          equips: g.equips ? JSON.parse(JSON.stringify(g.equips)) : {},
         })),
         savedAt: new Date().toLocaleDateString('zh-CN'),
       };
@@ -2612,7 +2716,7 @@ function simulator() {
         g.free_command = saved.free_command||0; g.free_speed = saved.free_speed||0;
         g.free_politics = saved.free_politics||0; g.free_charisma = saved.free_charisma||0;
         g.main_book = saved.main_book||null; g.sub_book1 = saved.sub_book1||null; g.sub_book2 = saved.sub_book2||null;
-        g.equip_id = saved.equip_id||null;
+        g.equips = saved.equips || { '武器':null, '防具':null, '坐骑':null, '宝物':null };
         this.recalcStats(team, idx);
       });
     },
@@ -2955,7 +3059,8 @@ function simulator() {
       g.skills[1] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
       g.skills[2] = { name: '', skill_type: '主动', activation_rate: 0.35, damage_rate: 0, damage_type: '兵刃', target_mode: 'single_enemy', heal_rate: 0, heal_target: 'self', apply_status: '' };
       g.main_book = null; g.sub_book1 = null; g.sub_book2 = null;
-      g.equip_id = null;
+      g._team = team;
+      g.equips = { '武器': null, '防具': null, '坐骑': null, '宝物': null };
       g.force_base     = +parseFloat(gen.strength    ?? 0).toFixed(2);
       g.intel_base     = +parseFloat(gen.intelligence?? 0).toFixed(2);
       g.command_base   = +parseFloat(gen.leadership  ?? 0).toFixed(2);
