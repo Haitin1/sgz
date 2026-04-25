@@ -2625,6 +2625,18 @@ function simulator() {
       if (owner && owner !== '无' && owner !== '' && owner !== g.name) {
         if (!confirm(`此装备当前由「${owner}」持有，是否转移给「${g.name || '当前武将'}」？`)) return;
       }
+      // 从所有武将的装备槽里清除这件装备（防止同一装备出现在两个武将身上）
+      for (const t of ['a', 'b']) {
+        for (const gen of this.teams[t]) {
+          if (gen.equips) {
+            for (const s of ['武器','防具','坐骑','宝物']) {
+              if (gen.equips[s] && gen.equips[s].id === eq.id) {
+                gen.equips = { ...gen.equips, [s]: null };
+              }
+            }
+          }
+        }
+      }
       if (!g.equips) g.equips = { '武器':null,'防具':null,'坐骑':null,'宝物':null };
       const updated = { ...eq, owner_general: g.name || '无' };
       g.equips = { ...g.equips, [slot]: updated };
