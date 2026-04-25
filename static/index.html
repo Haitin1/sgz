@@ -2858,9 +2858,14 @@ function simulator() {
         }
       }
       if (!g.equips) g.equips = { '武器':null,'防具':null,'坐骑':null,'宝物':null };
+      // 若该槽已有旧装备，先把旧装备的持有人清空
+      const oldEq = g.equips[slot];
+      if (oldEq && oldEq.id && oldEq.id !== eq.id) {
+        await this._updateEquipOwner(oldEq.id, '无');
+      }
       const updated = { ...eq, owner_general: g.name || '无' };
       g.equips = { ...g.equips, [slot]: updated };
-      // 更新装备库中的持有人
+      // 更新新装备的持有人
       await this._updateEquipOwner(eq.id, g.name || '无');
       this.equipPicker.open = false;
     },
