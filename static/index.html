@@ -1088,6 +1088,42 @@ select.w-sm { width: 72px; }
           <option value="charisma_bonus">魅力</option>
         </select>
         <button class="btn btn-primary btn-sm" @click="openEquipForm(null)">＋ 添加装备</button>
+        <button class="btn btn-sm" style="background:#f0f9ff;border-color:#7dd3fc;color:#0369a1"
+          @click="$refs.ocrFileInput.click()">📷 识别导入</button>
+        <input type="file" x-ref="ocrFileInput" accept="image/*" style="display:none"
+          @change="ocrImportEquip($event)">
+      </div>
+      <!-- OCR 识别结果预览 -->
+      <div x-show="ocrResult" x-cloak style="margin-bottom:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;color:#166534">📷 识别结果（确认后点击导入）</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+          <div>
+            <span style="font-size:11px;color:#6b7280">类型</span><br>
+            <select class="form-input" style="width:90px;margin-top:2px" x-model="ocrResult.equip_type">
+              <option>武器</option><option>防具</option><option>坐骑</option><option>宝物</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:120px">
+            <span style="font-size:11px;color:#6b7280">装备名</span><br>
+            <input class="form-input" style="margin-top:2px;width:100%" x-model="ocrResult.equip_name" placeholder="装备名称">
+          </div>
+          <div style="flex:2;min-width:160px">
+            <span style="font-size:11px;color:#6b7280">识别特技</span><br>
+            <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">
+              <template x-for="(sk, i) in ocrResult.skills" :key="i">
+                <span style="font-size:12px;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:4px" x-text="sk.name"></span>
+              </template>
+              <span x-show="!ocrResult.skills.length" style="font-size:12px;color:#9ca3af">未识别到特技</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:flex-end;padding-bottom:2px">
+            <button class="btn btn-primary btn-sm" @click="ocrConfirmImport()">导入</button>
+            <button class="btn btn-sm" @click="ocrResult=null">取消</button>
+          </div>
+        </div>
+        <div x-show="ocrResult.unmatched.length" style="margin-top:6px;font-size:11px;color:#9ca3af">
+          未匹配文字：<span x-text="ocrResult.unmatched.join(' / ')"></span>
+        </div>
       </div>
       <!-- 列表 -->
       <div style="overflow-y:auto;flex:1">
@@ -2503,6 +2539,7 @@ function simulator() {
     authError: '',
     // ── 装备 ──
     equipPanel: { open: false },
+    ocrResult: null,
     equipPicker: { open: false, team: null, idx: null, slot: null },
     equipSkillDescs: {},
     equipForm: { open:false, id:null, data:{name:'',eq_type:'武器',owner_general:'',force_bonus:0,intel_bonus:0,command_bonus:0,speed_bonus:0,politics_bonus:0,charisma_bonus:0,skill1:'',skill2:''}, error:'' },
@@ -3201,6 +3238,47 @@ function simulator() {
     },
 
     // ── 装备方法 ──
+    async ocrImportEquip(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      event.target.value = '';
+      const fd = new FormData();
+      fd.append('file', file);
+      try {
+        const res = await fetch('/api/ocr/equipment', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(await res.text());
+        this.ocrResult = await res.json();
+      } catch(e) {
+        alert('识别失败：' + e.message);
+      }
+    },
+    async ocrConfirmImport() {
+      const r = this.ocrResult;
+      if (!r.equip_name) { alert('请填写装备名称'); return; }
+      if (!r.equip_type) { alert('请选择装备类型'); return; }
+      const payload = {
+        equip_type: r.equip_type,
+        name: r.equip_name,
+        owner_general: '无',
+        skill1: r.skills[0]?.name || null,
+        skill2: r.skills[1]?.name || null,
+        force_bonus: 0, intel_bonus: 0, command_bonus: 0,
+        speed_bonus: 0, politics_bonus: 0, charisma_bonus: 0,
+      };
+      try {
+        const res = await fetch('/api/user/equipment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.token },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        await this.fetchEquip();
+        this.ocrResult = null;
+        alert(`「${payload.name}」已导入装备库`);
+      } catch(e) {
+        alert('导入失败：' + e.message);
+      }
+    },
     async openEquipPanel() {
       this.equipPanel.open = true;
       await this.fetchEquip();
