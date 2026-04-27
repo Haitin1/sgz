@@ -702,8 +702,10 @@ def get_lineups(user_id: str):
         cur.close(); conn.close()
         result = {"a": [None]*5, "b": [None]*5}
         for r in rows:
-            entry = {"name": r["name"], "data": r["data"]}
-            result[r["team"]][r["slot"]] = entry
+            s = r["slot"]
+            if s < 5:
+                entry = {"name": r["name"], "data": r["data"]}
+                result[r["team"]][s] = entry
         return result
     except Exception as e:
         raise HTTPException(500, f"数据库错误：{e}")
@@ -743,6 +745,41 @@ def delete_lineup(user_id: str, team: str, slot: int):
         )
         conn.commit(); cur.close(); conn.close()
         return {"ok": True}
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
+# ─────────────────────────────────────────────────────────────
+# 赛季剧本 & 推荐阵容
+# ─────────────────────────────────────────────────────────────
+
+@app.get("/api/scenarios")
+def get_scenarios():
+    """返回所有赛季剧本，按 display_order 排序"""
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT id, name, is_current FROM scenarios ORDER BY display_order DESC")
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return rows
+    except Exception as e:
+        raise HTTPException(500, f"数据库错误：{e}")
+
+
+@app.get("/api/recommended_lineups")
+def get_recommended_lineups(scenario_id: int):
+    """返回指定赛季的推荐阵容列表"""
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(
+            "SELECT id, name, faction, troop_type, generals, notes FROM recommended_lineups WHERE scenario_id=%s ORDER BY id",
+            (scenario_id,)
+        )
+        rows = [dict(r) for r in cur.fetchall()]
+        cur.close(); conn.close()
+        return rows
     except Exception as e:
         raise HTTPException(500, f"数据库错误：{e}")
 
@@ -834,19 +871,24 @@ def _parse_stats(text: str) -> dict:
 
 
 def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str | None:
+    import difflib
     word = word.strip()
     if not word:
         return None
     for c in candidates:
         if word == c or word in c or c in word:
             return c
-    ws = set(word)
     best, best_score = None, 0
+    ws = set(word)
     for c in candidates:
         cs = set(c)
         if not ws or not cs:
             continue
-        score = len(ws & cs) / max(len(ws), len(cs)) * 100
+        # 字符集交叉比
+        char_score = len(ws & cs) / max(len(ws), len(cs)) * 100
+        # 序列相似比（对 OCR 同位置误读更友好，如 姬/姫）
+        seq_score  = difflib.SequenceMatcher(None, word, c).ratio() * 100
+        score = max(char_score, seq_score)
         if score >= threshold and score > best_score:
             best, best_score = c, score
     return best
@@ -1041,35 +1083,122 @@ def _extract_text_tokens(html: str) -> list[str]:
     return tokens
 
 
-def _parse_lineup_from_html(full_text: str, generals_db: list[dict], skills_db: list[dict]) -> dict:
-    """从 VL-1.5 返回的文本中解析阵容（武将 + 技能）"""
-    gen_names  = [g["name"] for g in generals_db]
-    skill_names = [s["name"] for s in skills_db]
+_LEVEL_RE = _re.compile(r'^(\d{1,2})\s*(.{2,6})$')   # "43孙尚香" / "43 孙尚香"
+
+def _parse_lineup_from_html(
+    full_text: str,
+    generals_db: list[dict],
+    skills_db: list[dict],
+    books_db: list[dict] | None = None,
+) -> dict:
+    """从 VL-1.5 返回的文本中解析阵容（武将 + 技能 + 兵书 + 等级）
+
+    OCR 读取多列截图时有一个规律：
+    - 某将的「主兵书」往往出现在「下一位武将名」之后、「下一位武将技能」之前
+    - 某将的「副兵书」往往出现在「下一位武将名」之前（当前将领技能之后）
+    因此用状态机：刚识别武将名后进入 after_name 状态；
+    该状态下若遇到兵书 → 归给上一位将领；遇到技能 → 切为 in_skills 状态。
+    """
+    gen_names     = [g["name"] for g in generals_db]
+    skill_names   = [s["name"] for s in skills_db]
+    book_names    = [b["name"] for b in (books_db or [])]
+    # 字数规则：4字=主兵书，2字=副兵书（游戏固定规则，优先于 DB 分类）
+    book_type_map = {b["name"]: ("主兵书" if len(b["name"]) == 4 else "副兵书")
+                     for b in (books_db or [])}
 
     tokens = _extract_text_tokens(full_text)
 
-    # ── 按顺序扫描 token，遇到武将名就开新将领，遇到技能就附加到当前将领 ──
     generals_out: list[dict] = []
-    cur_gen: dict | None = None
+    cur_gen:  dict | None = None
+    prev_gen: dict | None = None
+    pending_level: int | None = None
+    # after_name = True  → 刚切换到新将领，尚未看到其任何技能
+    after_name = False
 
     for tok in tokens:
-        tok = tok.strip("，。、·：:「」【】()（）")
-        if not tok or len(tok) < 2:
+        tok = tok.strip("，。、·：:「」【】()（）\"'")
+        if not tok:
             continue
-        # 武将名匹配（较严格）
+
+        # ── 纯数字 token ──
+        if tok.isdigit():
+            n = int(tok)
+            if 1 <= n <= 60:
+                pending_level = n
+            continue
+
+        if len(tok) < 2:
+            continue
+
+        # ── "43孙尚香" 拼合 token ──
+        m_lv = _LEVEL_RE.match(tok)
+        lv_prefix = None
+        if m_lv:
+            maybe_lv  = int(m_lv.group(1))
+            tok_clean = m_lv.group(2)
+            if 1 <= maybe_lv <= 60:
+                lv_prefix = maybe_lv
+                tok = tok_clean.strip()
+
+        # ── 武将名匹配 ──
         gm = _fuzzy_match(tok, gen_names, threshold=75)
         if gm and gm not in [g["name"] for g in generals_out]:
-            cur_gen = {"name": gm, "skills": []}
+            level = lv_prefix or pending_level or 43
+            prev_gen  = cur_gen
+            cur_gen   = {"name": gm, "level": level, "skills": [], "books": []}
+            after_name = True
             generals_out.append(cur_gen)
             if len(generals_out) > 3:
                 generals_out = generals_out[:3]
+            pending_level = None
             continue
-        # 技能名匹配
-        if cur_gen is not None:
-            sk = _fuzzy_match(tok, skill_names, threshold=70)
-            if sk and sk not in [s["name"] for s in cur_gen["skills"]]:
-                if len(cur_gen["skills"]) < 3:
-                    cur_gen["skills"].append({"name": sk})
+
+        pending_level = None
+        if cur_gen is None:
+            continue
+
+        # ── 兵书匹配（直接匹配） ──
+        def _add_book(tgt, bk_name, bk_type):
+            if tgt and bk_name not in [x["name"] for x in tgt["books"]]:
+                tgt["books"].append({"name": bk_name, "book_type": bk_type})
+
+        bk = _fuzzy_match(tok, book_names, threshold=72) if book_names else None
+        if bk:
+            # after_name 阶段：主兵书因多列布局被 OCR 扫到"下一将名"之后，归给上一将
+            target = prev_gen if (after_name and prev_gen is not None) else cur_gen
+            _add_book(target, bk, book_type_map.get(bk, ""))
+            continue
+
+        # ── 兵书分割匹配：OCR 可能把相邻两本书合并（如"守势防备"="守势"+"防备"） ──
+        if book_names and len(tok) in (4, 6) and all('一' <= c <= '鿿' for c in tok):
+            half = len(tok) // 2
+            target = prev_gen if (after_name and prev_gen is not None) else cur_gen
+            matched_split = False
+            for part in (tok[:half], tok[half:]):
+                pb = _fuzzy_match(part, book_names, threshold=88)  # 对半截片段要求更严格
+                if pb:
+                    _add_book(target, pb, book_type_map.get(pb, ""))
+                    matched_split = True
+            if matched_split:
+                continue
+
+        # ── 技能匹配 ──
+        sk = _fuzzy_match(tok, skill_names, threshold=65)
+        if sk and sk not in [s["name"] for s in cur_gen["skills"]]:
+            if len(cur_gen["skills"]) < 3:
+                cur_gen["skills"].append({"name": sk})
+            after_name = False   # 看到第一个技能，结束 after_name 阶段
+            continue
+
+        # ── 技能区域的未匹配占位：
+        #    after_name=False（已进入技能区）且技能未满3个时，
+        #    4字汉字 token 大概率是误读的技能名，原文存入以便用户识别和修正。
+        #    2字及其他长度 token 在此位置多为噪声，忽略。
+        is_skill_zone = (not after_name) and (len(cur_gen["skills"]) < 3)
+        is_4char_cjk  = len(tok) == 4 and all('一' <= c <= '鿿' for c in tok)
+        if is_skill_zone and is_4char_cjk:
+            cur_gen["skills"].append({"name": tok, "unmatched": True})
+            # 不切换 after_name，继续识别可能紧跟的真实技能
 
     return {"generals": generals_out}
 
@@ -1083,6 +1212,11 @@ async def ocr_lineup(file: UploadFile = File(...)):
     generals_db = [dict(r) for r in cur.fetchall()]
     cur.execute("SELECT name FROM skills")
     skills_db = [dict(r) for r in cur.fetchall()]
+    cur.execute("SELECT name, book_type FROM military_books")
+    books_db = [dict(r) for r in cur.fetchall()]
+    # 武将兵种适性（用于推断最佳兵种）
+    cur.execute("SELECT name, cavalry, bow, spear, shield, machine FROM generals")
+    troop_rows = {r["name"]: dict(r) for r in cur.fetchall()}
     cur.close(); conn.close()
 
     async def stream():
@@ -1117,8 +1251,20 @@ async def ocr_lineup(file: UploadFile = File(...)):
                 yield _sse({"error": "识别超时（90秒）"}); return
             lines = await _download_vl_result(jsonl_url)
             joined = "\n".join(lines)
-            result = _parse_lineup_from_html(joined, generals_db, skills_db)
-            result["raw"] = joined[:2000]  # 调试用，截断避免过大
+            result = _parse_lineup_from_html(joined, generals_db, skills_db, books_db)
+            # 补充兵种适性信息（根据 DB 推断最佳兵种）
+            GRADE_ORDER = {"S": 4, "A": 3, "B": 2, "C": 1, "": 0}
+            TROOP_KEYS  = [("cavalry","骑兵"), ("bow","弓兵"), ("spear","枪兵"), ("shield","盾兵"), ("machine","器械")]
+            for g in result["generals"]:
+                tr = troop_rows.get(g["name"], {})
+                best_type, best_grade = "cavalry", "C"
+                for key, _ in TROOP_KEYS:
+                    grade = tr.get(key, "C") or "C"
+                    if GRADE_ORDER.get(grade, 0) > GRADE_ORDER.get(best_grade, 0):
+                        best_type, best_grade = key, grade
+                g["troop_type"]  = best_type
+                g["troop_grade"] = best_grade
+            result["raw"] = joined[:5000]  # 调试用
             yield _sse({"progress": 100, "msg": "完成", "result": result})
         except Exception as e:
             yield _sse({"error": str(e)})
