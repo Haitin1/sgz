@@ -793,6 +793,7 @@ OCR_TOKEN = os.environ.get("BAIDU_OCR_TOKEN", "")
 OCR_SYNC_URL = "https://paddleocr.aistudio-app.com/layout-parsing"
 OCR_JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
 OCR_MODEL = "PaddleOCR-VL-1.5"
+_OCR_DEBUG_FILE = "/tmp/sgz_ocr_debug.txt"
 
 import re as _re
 import asyncio as _asyncio
@@ -824,6 +825,13 @@ async def _ocr_sync(image_bytes: bytes) -> list[str]:
     resp = await loop.run_in_executor(None, lambda: _requests.post(
         OCR_SYNC_URL, json=payload, headers=headers, timeout=30
     ))
+    # 调试
+    try:
+        with open(_OCR_DEBUG_FILE, "w") as f:
+            f.write(f"[SYNC] URL: {OCR_SYNC_URL}\nStatus: {resp.status_code}\n")
+            f.write(f"Response (first 2000): {resp.text[:2000]}\n")
+    except Exception:
+        pass
     if resp.status_code != 200:
         raise RuntimeError(f"同步OCR失败(HTTP {resp.status_code}): {resp.text[:300]}")
     rj = resp.json()
@@ -884,6 +892,16 @@ async def _download_vl_result(jsonl_url: str) -> list[str]:
             md = res.get("markdown", {}).get("text", "")
             if md.strip():
                 lines.append(md)
+    # 调试
+    try:
+        with open(_OCR_DEBUG_FILE, "w") as f:
+            f.write(f"[ASYNC] JSONL URL: {jsonl_url}\n")
+            f.write(f"Raw (first 3000): {raw.text[:3000]}\n\n")
+            f.write(f"Parsed lines: {len(lines)}\n")
+            for i, l in enumerate(lines):
+                f.write(f"  [{i}] {l[:300]}\n")
+    except Exception:
+        pass
     return lines
 
 
@@ -1202,6 +1220,15 @@ async def ocr_equipment(file: UploadFile = File(...)):
             items = _parse_equip_items(lines, eq_skills, eq_names)
             for item in items:
                 item["_checked"] = True
+
+            # 调试: 记录解析结果
+            try:
+                with open(_OCR_DEBUG_FILE, "a") as f:
+                    f.write(f"\n[PARSE] lines={len(lines)} items={len(items)}\n")
+                    for it in items:
+                        f.write(f"  -> {it.get('equip_name')} | {it.get('equip_type')} | {it.get('stats')}\n")
+            except Exception:
+                pass
 
             if not items:
                 yield _sse({"progress": 100, "msg": "完成", "result": {"items": [], "raw": lines}})
