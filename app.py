@@ -946,40 +946,88 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
     """从 OCR 输出（HTML table 或 markdown）中解析装备列表"""
     full_text = "\n".join(lines)
     skill_names = list(eq_skills.keys())
+    equip_names = list(eq_names.keys())
     items: list[dict] = []
+    seen: set[str] = set()  # 去重: "name|type|stats_key"
+
+    def _dedup_key(name, eq_type, stats):
+        sk = ",".join(f"{k}:{v}" for k, v in sorted(stats.items()))
+        return f"{name}|{eq_type}|{sk}"
+
+    def _add_item(name, eq_type, stats, skills):
+        if not name or not stats:
+            return
+        # 模糊匹配装备名
+        matched = _fuzzy_match(name, equip_names)
+        name = matched if matched else name
+        key = _dedup_key(name, eq_type, stats)
+        if key in seen:
+            return
+        seen.add(key)
+        items.append({
+            "equip_name": name,
+            "equip_type": eq_type or "武器",
+            "skills": skills,
+            "stats": stats,
+        })
 
     # ── 优先：HTML <table> 解析 ──
     if "<tr" in full_text.lower():
+        last_type = None
         for tr_m in _TR_PAT.finditer(full_text):
             tds = [m.group(1).strip() for m in _TD_PAT.finditer(tr_m.group(1))]
-            if len(tds) < 4:
+            if len(tds) < 2:
                 continue
-            name     = tds[0]
-            eq_type  = tds[1]
-            # tds[2] = 持有者，跳过
-            stats_text = tds[3]
-            skill_text = tds[4].strip() if len(tds) > 4 else ""
 
-            # 跳过无效行
+            # 跳过表头行和空行
+            if any(h in "".join(tds) for h in ("装备名称", "类型", "持有")):
+                continue
+
+            name = tds[0]
             if not name or _re.match(r'^[-—\s]+$', name):
                 continue
-            if eq_type not in _TYPE_KW:
-                continue
+
+            # 灵活解析: 支持 2~5 列的各种格式
+            eq_type = ""
+            stats_text = ""
+            skill_text = ""
+
+            if len(tds) >= 4:
+                # 标准格式: 名称 | 类型 | 持有者 | 属性 | 技能
+                eq_type = tds[1] if tds[1] in _TYPE_KW else ""
+                stats_text = tds[3]
+                skill_text = tds[4].strip() if len(tds) > 4 else ""
+            elif len(tds) == 3:
+                # OCR 常见: 名称 | 类型(可能空) | 属性
+                if tds[1] in _TYPE_KW:
+                    eq_type = tds[1]
+                    last_type = eq_type
+                stats_text = tds[2]
+            elif len(tds) == 2:
+                # 最简: 名称 | 属性
+                stats_text = tds[1]
+
+            # 用上一次的类型填充空缺
+            if not eq_type and last_type:
+                eq_type = last_type
+
+            # 如果类型列有值，更新 last_type
+            if not eq_type:
+                # 尝试从 eq_names 已知数据推断
+                eq_type = eq_names.get(name, "")
 
             stats = _parse_stats(stats_text)
+            if not stats:
+                continue
+
             skills = []
             if skill_text:
                 ms = _fuzzy_match(skill_text, skill_names)
-                # 匹配到已知技能用标准名，否则直接用 OCR 原文
                 skill_name = ms if ms else skill_text
                 skills.append({"name": skill_name, "desc": eq_skills.get(skill_name, "")})
 
-            items.append({
-                "equip_name": name,
-                "equip_type": eq_type,
-                "skills": skills,
-                "stats": stats,
-            })
+            _add_item(name, eq_type, stats, skills)
+
         if items:
             return items
 
@@ -988,30 +1036,34 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
         if "|" not in line:
             continue
         cols = [c.strip() for c in line.split("|") if c.strip()]
-        if len(cols) < 4:
+        if len(cols) < 2:
             continue
-        name, eq_type = cols[0], cols[1]
-        if not name or eq_type not in _TYPE_KW:
+        name = cols[0]
+        if not name or _re.match(r'^[-—\s]+$', name):
             continue
-        stats = _parse_stats(cols[3])
+        if any(h in name for h in ("装备名称", "类型")):
+            continue
+        eq_type = cols[1] if len(cols) > 1 and cols[1] in _TYPE_KW else eq_names.get(name, "")
+        stats_text = cols[3] if len(cols) > 3 else (cols[2] if len(cols) > 2 else "")
+        stats = _parse_stats(stats_text)
+        if not stats:
+            continue
         skill_text = cols[4].strip() if len(cols) > 4 else ""
         skills = []
         if skill_text:
             ms = _fuzzy_match(skill_text, skill_names)
             skill_name = ms if ms else skill_text
             skills.append({"name": skill_name, "desc": eq_skills.get(skill_name, "")})
-        items.append({"equip_name": name, "equip_type": eq_type,
-                      "skills": skills, "stats": stats})
+        _add_item(name, eq_type, stats, skills)
     if items:
         return items
 
     # ── 降级：逐 token 解析 ──
-    equip_names = list(eq_names.keys())
     cur: dict | None = None
 
     def flush():
-        if cur and cur.get("equip_name"):
-            items.append(cur)
+        if cur and cur.get("equip_name") and cur.get("stats"):
+            _add_item(cur["equip_name"], cur.get("equip_type", ""), cur["stats"], cur.get("skills", []))
 
     for line in lines:
         cleaned = _re.sub(r"[#*`<>|\\]+", " ", line)
