@@ -18,6 +18,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /home/ubuntu/sgz
-            git pull origin main
+            git fetch origin main
+            git reset --hard origin/main
             sudo systemctl restart sgz-sim.service
             echo "部署完成 $(date)"
