@@ -842,13 +842,57 @@ async def _download_vl_result(jsonl_url: str) -> list[str]:
         if not raw_line.strip():
             continue
         try:
-            res_obj = _json_ocr.loads(raw_line)["result"]
+            obj = _json_ocr.loads(raw_line)
         except Exception:
             continue
+        res_obj = obj.get("result", obj)  # 有些版本直接在顶层
+
+        # 方式1: layoutParsingResults[].markdown.text
         for res in res_obj.get("layoutParsingResults", []):
             md = res.get("markdown", {}).get("text", "")
             if md.strip():
-                lines.append(md)   # 整块保留，含 HTML table
+                lines.append(md)
+
+        # 方式2: 顶层 markdown 字段
+        if not lines:
+            md = res_obj.get("markdown", {})
+            if isinstance(md, dict):
+                t = md.get("text", "")
+                if t.strip():
+                    lines.append(t)
+            elif isinstance(md, str) and md.strip():
+                lines.append(md)
+
+        # 方式3: tableResult / textResult 降级
+        if not lines:
+            for key in ("tableResult", "textResult", "ocrResult", "recResult"):
+                val = res_obj.get(key)
+                if isinstance(val, str) and val.strip():
+                    lines.append(val)
+                elif isinstance(val, list):
+                    for item in val:
+                        if isinstance(item, str) and item.strip():
+                            lines.append(item)
+                        elif isinstance(item, dict):
+                            for k in ("text", "content", "value"):
+                                t = item.get(k, "")
+                                if isinstance(t, str) and t.strip():
+                                    lines.append(t)
+                                    break
+
+    # 调试: 写到临时文件方便排查
+    try:
+        import tempfile, os
+        dbg = os.path.join(tempfile.gettempdir(), "sgz_ocr_debug.txt")
+        with open(dbg, "w") as f:
+            f.write(f"URL: {jsonl_url}\nLines: {len(lines)}\n")
+            f.write(f"Raw (first 3000 chars):\n{raw.text[:3000]}\n\n")
+            f.write(f"Parsed lines:\n")
+            for i, l in enumerate(lines):
+                f.write(f"  [{i}] {l[:200]}\n")
+    except Exception:
+        pass
+
     return lines
 
 
@@ -994,6 +1038,55 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             cur["stats"].update(_parse_stats(token))
 
     flush()
+
+    # ── 最终降级: 对整段纯文本做行级解析 ──
+    if not items:
+        full = "\n".join(lines)
+        # 尝试从纯文本中提取 "名称 类型 属性 技能" 模式
+        # 匹配: 武器/防具/坐骑/宝物 前后的装备名 + 属性
+        text_lines = _re.split(r'[\n\r]+', full)
+        for tl in text_lines:
+            tl = tl.strip()
+            if not tl:
+                continue
+            # 跳过表头
+            if _re.match(r'^[-—\s|装备名称类型持有武将属性技能特技]+$', tl):
+                continue
+            # 找属性
+            stats = _parse_stats(tl)
+            if not stats:
+                continue
+            # 找类型
+            eq_type = None
+            for kw in _TYPE_KW:
+                if kw in tl:
+                    eq_type = kw
+                    break
+            if not eq_type:
+                continue
+            # 装备名: 类型前面的文字
+            type_pos = tl.index(eq_type)
+            name_part = tl[:type_pos].strip()
+            # 清理多余符号
+            name_part = _re.sub(r'[|,\-\s]+$', '', name_part).strip()
+            if not name_part:
+                continue
+            # 模糊匹配已知名字
+            matched = _fuzzy_match(name_part, equip_names)
+            eq_name = matched if matched else name_part
+            # 找技能
+            skills = []
+            after_type = tl[type_pos + len(eq_type):]
+            for sn in skill_names:
+                if sn in after_type:
+                    skills.append({"name": sn, "desc": eq_skills.get(sn, "")})
+            items.append({
+                "equip_name": eq_name,
+                "equip_type": eq_type,
+                "skills": skills,
+                "stats": stats,
+            })
+
     return items
 
 
