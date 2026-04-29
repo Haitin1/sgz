@@ -5,7 +5,10 @@
 需先建立 SSH 隧道: ssh -i key -L 15432:localhost:5432 -N -f ubuntu@132.145.24.63
 """
 
-import requests, psycopg2
+import re
+
+import psycopg2
+import requests
 
 NOTION_HOST = "https://spacekid.notion.site"
 SPACE_ID    = "3c3cffd9-e02f-4397-95b9-a0773524e8a6"
@@ -97,6 +100,16 @@ def parse_rows(data, collection_id, field_map):
     return rows
 
 
+_LV_RANGE_RE = re.compile(r"(?P<low>\d+(?:\.\d+)?%?)\s*(?:→|->)\s*(?P<high>\d+(?:\.\d+)?%?)")
+
+
+def normalize_skill_description_to_lv10(text):
+    """把描述中的等级区间值统一替换为右值（10级值），如 21%→42% => 42%。"""
+    if not text:
+        return text
+    return _LV_RANGE_RE.sub(lambda m: m.group("high"), text)
+
+
 def insert_skills(conn, skills):
     cur = conn.cursor()
     cur.execute("TRUNCATE TABLE skills RESTART IDENTITY CASCADE")
@@ -105,6 +118,7 @@ def insert_skills(conn, skills):
     for s in skills:
         if not s.get("name"):
             continue
+        s["description"] = normalize_skill_description_to_lv10(s.get("description"))
         try:
             cur.execute("SAVEPOINT sp1")
             cur.execute("""

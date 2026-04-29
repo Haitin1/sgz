@@ -1113,8 +1113,7 @@ select.w-sm { width: 72px; }
         <table class="equip-table">
           <thead><tr>
             <th>装备名</th><th>类型</th><th>持有武将</th>
-            <th>武力</th><th>智力</th><th>统率</th><th>速度</th><th>政治</th><th>魅力</th>
-            <th>技能</th><th></th>
+            <th>属性</th><th>技能</th><th></th>
           </tr></thead>
           <tbody>
             <template x-for="eq in filteredEquip()" :key="eq.id">
@@ -1122,12 +1121,7 @@ select.w-sm { width: 72px; }
                 <td x-text="eq.name" style="font-weight:600;color:var(--gold)"></td>
                 <td x-text="eq.eq_type"></td>
                 <td x-text="eq.owner_general||'—'" style="color:var(--accent-a)"></td>
-                <td x-text="eq.force_bonus>0?'+'+eq.force_bonus:eq.force_bonus||'—'"></td>
-                <td x-text="eq.intel_bonus>0?'+'+eq.intel_bonus:eq.intel_bonus||'—'"></td>
-                <td x-text="eq.command_bonus>0?'+'+eq.command_bonus:eq.command_bonus||'—'"></td>
-                <td x-text="eq.speed_bonus>0?'+'+eq.speed_bonus:eq.speed_bonus||'—'"></td>
-                <td x-text="eq.politics_bonus>0?'+'+eq.politics_bonus:eq.politics_bonus||'—'"></td>
-                <td x-text="eq.charisma_bonus>0?'+'+eq.charisma_bonus:eq.charisma_bonus||'—'"></td>
+                <td x-text="[eq.force_bonus?'+'+eq.force_bonus+' 武力':'',eq.intel_bonus?'+'+eq.intel_bonus+' 智力':'',eq.command_bonus?'+'+eq.command_bonus+' 统率':'',eq.speed_bonus?'+'+eq.speed_bonus+' 速度':'',eq.politics_bonus?'+'+eq.politics_bonus+' 政治':'',eq.charisma_bonus?'+'+eq.charisma_bonus+' 魅力':''].filter(Boolean).join('，')||'—'" style="white-space:nowrap"></td>
                 <td>
                   <span x-show="eq.skill1" class="equip-skill-tag" x-text="eq.skill1"></span>
                   <span x-show="eq.skill2" class="equip-skill-tag" x-text="eq.skill2"></span>
@@ -1139,7 +1133,7 @@ select.w-sm { width: 72px; }
               </tr>
             </template>
             <tr x-show="filteredEquip().length===0">
-              <td colspan="11" style="text-align:center;padding:24px;color:var(--text3)">暂无装备，点击「添加装备」开始录入</td>
+              <td colspan="6" style="text-align:center;padding:24px;color:var(--text3)">暂无装备，点击「添加装备」开始录入</td>
             </tr>
           </tbody>
         </table>
