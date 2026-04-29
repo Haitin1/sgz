@@ -790,17 +790,50 @@ def get_recommended_lineups(scenario_id: int):
 # ─────────────────────────────────────────────────────────────
 
 OCR_TOKEN = os.environ.get("BAIDU_OCR_TOKEN", "")
+OCR_SYNC_URL = "https://paddleocr.aistudio-app.com/layout-parsing"
 OCR_JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
 OCR_MODEL = "PaddleOCR-VL-1.5"
 
 import re as _re
 import asyncio as _asyncio
+import base64 as _base64
 import json as _json_ocr
 import time as _time
 
 
 def _sse(data: dict) -> str:
     return f"data: {_json_ocr.dumps(data, ensure_ascii=False)}\n\n"
+
+
+async def _ocr_sync(image_bytes: bytes) -> list[str]:
+    """同步 API: 直接 POST 图片 base64，返回识别结果"""
+    import base64
+    file_b64 = base64.b64encode(image_bytes).decode("ascii")
+    headers = {
+        "Authorization": f"token {OCR_TOKEN}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "file": file_b64,
+        "fileType": 1,  # 1=图片
+        "useDocOrientationClassify": False,
+        "useDocUnwarping": False,
+        "useChartRecognition": False,
+    }
+    loop = _asyncio.get_event_loop()
+    resp = await loop.run_in_executor(None, lambda: _requests.post(
+        OCR_SYNC_URL, json=payload, headers=headers, timeout=30
+    ))
+    if resp.status_code != 200:
+        raise RuntimeError(f"同步OCR失败(HTTP {resp.status_code}): {resp.text[:300]}")
+    rj = resp.json()
+    result = rj.get("result", rj)
+    lines = []
+    for res in result.get("layoutParsingResults", []):
+        md = res.get("markdown", {}).get("text", "")
+        if md.strip():
+            lines.append(md)
+    return lines
 
 
 async def _submit_vl_job(image_bytes: bytes) -> str:
@@ -845,54 +878,12 @@ async def _download_vl_result(jsonl_url: str) -> list[str]:
             obj = _json_ocr.loads(raw_line)
         except Exception:
             continue
-        res_obj = obj.get("result", obj)  # 有些版本直接在顶层
+        res_obj = obj.get("result", obj)
 
-        # 方式1: layoutParsingResults[].markdown.text
         for res in res_obj.get("layoutParsingResults", []):
             md = res.get("markdown", {}).get("text", "")
             if md.strip():
                 lines.append(md)
-
-        # 方式2: 顶层 markdown 字段
-        if not lines:
-            md = res_obj.get("markdown", {})
-            if isinstance(md, dict):
-                t = md.get("text", "")
-                if t.strip():
-                    lines.append(t)
-            elif isinstance(md, str) and md.strip():
-                lines.append(md)
-
-        # 方式3: tableResult / textResult 降级
-        if not lines:
-            for key in ("tableResult", "textResult", "ocrResult", "recResult"):
-                val = res_obj.get(key)
-                if isinstance(val, str) and val.strip():
-                    lines.append(val)
-                elif isinstance(val, list):
-                    for item in val:
-                        if isinstance(item, str) and item.strip():
-                            lines.append(item)
-                        elif isinstance(item, dict):
-                            for k in ("text", "content", "value"):
-                                t = item.get(k, "")
-                                if isinstance(t, str) and t.strip():
-                                    lines.append(t)
-                                    break
-
-    # 调试: 写到临时文件方便排查
-    try:
-        import tempfile, os
-        dbg = os.path.join(tempfile.gettempdir(), "sgz_ocr_debug.txt")
-        with open(dbg, "w") as f:
-            f.write(f"URL: {jsonl_url}\nLines: {len(lines)}\n")
-            f.write(f"Raw (first 3000 chars):\n{raw.text[:3000]}\n\n")
-            f.write(f"Parsed lines:\n")
-            for i, l in enumerate(lines):
-                f.write(f"  [{i}] {l[:200]}\n")
-    except Exception:
-        pass
-
     return lines
 
 
@@ -1157,51 +1148,65 @@ async def ocr_equipment(file: UploadFile = File(...)):
 
     async def stream():
         try:
-            yield _sse({"progress": 5, "msg": "提交识别任务…"})
-            job_id = await _submit_vl_job(image_bytes)
-            yield _sse({"progress": 12, "msg": "任务已提交，等待队列…"})
+            lines = []
 
-            deadline = _time.time() + 90
-            jsonl_url = None
-            while _time.time() < deadline:
-                await _asyncio.sleep(3)
-                data = await _poll_vl_job(job_id)
-                state = data["state"]
+            # 优先: 同步 API (layout-parsing)
+            yield _sse({"progress": 5, "msg": "正在识别…"})
+            try:
+                lines = await _ocr_sync(image_bytes)
+                yield _sse({"progress": 80, "msg": f"同步识别完成，解析 {len(lines)} 条结果…"})
+            except Exception as sync_err:
+                yield _sse({"progress": 10, "msg": f"同步API失败({sync_err})，尝试异步API…"})
 
-                if state == "pending":
-                    elapsed = _time.time() - (deadline - 90)
-                    p = min(30, 12 + elapsed * 1.5)
-                    yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
+                # 降级: 异步 API (jobs)
+                job_id = await _submit_vl_job(image_bytes)
+                yield _sse({"progress": 15, "msg": "异步任务已提交，等待队列…"})
 
-                elif state == "running":
-                    try:
-                        total = data["extractProgress"]["totalPages"]
-                        done_pages = data["extractProgress"]["extractedPages"]
-                        p = 30 + (done_pages / max(total, 1)) * 55
-                    except Exception:
+                deadline = _time.time() + 90
+                jsonl_url = None
+                while _time.time() < deadline:
+                    await _asyncio.sleep(3)
+                    data = await _poll_vl_job(job_id)
+                    state = data["state"]
+
+                    if state == "pending":
                         elapsed = _time.time() - (deadline - 90)
-                        p = min(80, 30 + elapsed * 1.5)
-                    yield _sse({"progress": round(p, 1), "msg": "识别中…"})
+                        p = min(30, 15 + elapsed * 1.5)
+                        yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
 
-                elif state == "done":
-                    jsonl_url = data["resultUrl"]["jsonUrl"]
-                    yield _sse({"progress": 90, "msg": "下载结果…"})
-                    break
+                    elif state == "running":
+                        try:
+                            total = data["extractProgress"]["totalPages"]
+                            done_pages = data["extractProgress"]["extractedPages"]
+                            p = 30 + (done_pages / max(total, 1)) * 50
+                        except Exception:
+                            elapsed = _time.time() - (deadline - 90)
+                            p = min(80, 30 + elapsed * 1.5)
+                        yield _sse({"progress": round(p, 1), "msg": "识别中…"})
 
-                elif state == "failed":
-                    yield _sse({"error": data.get("errorMsg", "识别失败")})
+                    elif state == "done":
+                        jsonl_url = data["resultUrl"]["jsonUrl"]
+                        yield _sse({"progress": 85, "msg": "下载结果…"})
+                        break
+
+                    elif state == "failed":
+                        yield _sse({"error": data.get("errorMsg", "识别失败")})
+                        return
+
+                if not jsonl_url:
+                    yield _sse({"error": "识别超时（90秒）"})
                     return
 
-            if not jsonl_url:
-                yield _sse({"error": "识别超时（90秒）"})
-                return
+                lines = await _download_vl_result(jsonl_url)
 
-            lines = await _download_vl_result(jsonl_url)
             items = _parse_equip_items(lines, eq_skills, eq_names)
             for item in items:
                 item["_checked"] = True
 
-            yield _sse({"progress": 100, "msg": "完成", "result": {"items": items, "raw": lines}})
+            if not items:
+                yield _sse({"progress": 100, "msg": "完成", "result": {"items": [], "raw": lines}})
+            else:
+                yield _sse({"progress": 100, "msg": "完成", "result": {"items": items, "raw": lines}})
 
         except Exception as e:
             yield _sse({"error": str(e)})
