@@ -1121,7 +1121,7 @@ select.w-sm { width: 72px; }
                 <td x-text="eq.name" style="font-weight:600;color:var(--gold)"></td>
                 <td x-text="eq.eq_type"></td>
                 <td x-text="eq.owner_general||'—'" style="color:var(--accent-a)"></td>
-                <td x-text="[eq.force_bonus?'+'+eq.force_bonus+' 武力':'',eq.intel_bonus?'+'+eq.intel_bonus+' 智力':'',eq.command_bonus?'+'+eq.command_bonus+' 统率':'',eq.speed_bonus?'+'+eq.speed_bonus+' 速度':'',eq.politics_bonus?'+'+eq.politics_bonus+' 政治':'',eq.charisma_bonus?'+'+eq.charisma_bonus+' 魅力':''].filter(Boolean).join('，')||'—'" style="white-space:nowrap"></td>
+                <td x-text="[eq.force_bonus?'武力+'+eq.force_bonus:'',eq.intel_bonus?'智力+'+eq.intel_bonus:'',eq.command_bonus?'统率+'+eq.command_bonus:'',eq.speed_bonus?'速度+'+eq.speed_bonus:'',eq.politics_bonus?'政治+'+eq.politics_bonus:'',eq.charisma_bonus?'魅力+'+eq.charisma_bonus:''].filter(Boolean).join(' ')||'—'" style="white-space:nowrap"></td>
                 <td>
                   <span x-show="eq.skill1" class="equip-skill-tag" x-text="eq.skill1"></span>
                   <span x-show="eq.skill2" class="equip-skill-tag" x-text="eq.skill2"></span>
