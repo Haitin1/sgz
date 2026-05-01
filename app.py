@@ -1027,6 +1027,41 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
         if items:
             return items
 
+    # ── 优先：行分隔OCR格式（每\n\n一件装备，字段用——分隔）──
+    # format: "名称 类型—— 属性1 属性2 技能"
+    if '—' in full_text or '\n\n' in full_text:
+        candidate_lines = [l.strip() for l in _re.split(r'\n{2,}', full_text) if l.strip()]
+        for cline in candidate_lines:
+            # 把 —— 替换为空格，方便分词
+            cline_clean = _re.sub(r'[—－]+', ' ', cline)
+            parts = cline_clean.split()
+            if not parts:
+                continue
+            # 找类型关键词位置
+            type_idx = next((i for i, p in enumerate(parts) if p in _TYPE_KW), None)
+            if type_idx is None:
+                continue
+            name_raw = ' '.join(parts[:type_idx])
+            eq_type = parts[type_idx]
+            rest = parts[type_idx + 1:]
+            stats: dict = {}
+            skills: list = []
+            for r in rest:
+                s = _parse_stats(r)
+                if s:
+                    stats.update(s)
+                else:
+                    ms = _fuzzy_match(r, skill_names)
+                    if ms:
+                        skills.append({"name": ms, "desc": eq_skills.get(ms, "")})
+            if not stats:
+                continue
+            matched = _fuzzy_match(name_raw, equip_names)
+            name = matched if matched else name_raw
+            _add_item(name, eq_type, stats, skills)
+        if items:
+            return items
+
     # ── 降级：markdown | 表格解析 ──
     for line in lines:
         if "|" not in line:
