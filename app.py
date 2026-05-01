@@ -829,10 +829,11 @@ async def _submit_vl_job(image_bytes: bytes) -> str:
     resp = await loop.run_in_executor(None, lambda: _requests.post(
         OCR_JOB_URL, headers=headers,
         data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
-            "useDocOrientationClassify": False,
-            "useDocUnwarping": False,
-            "useChartRecognition": False,
-            "useLayoutDetection": False,
+            "use_doc_preprocessor": False,
+            "use_layout_detection": False,
+            "use_chart_recognition": False,
+            "use_seal_recognition": True,
+            "use_ocr_for_image_block": True,
         })},
         files={"file": ("image.jpg", image_bytes, "image/jpeg")},
         timeout=20,
@@ -1197,17 +1198,6 @@ async def ocr_equipment(file: UploadFile = File(...)):
 
             lines = await _download_vl_result(jsonl_url)
             items = _parse_equip_items(lines, eq_skills, eq_names)
-
-            # 如果 PaddleOCR 没识别到装备，用 Tesseract 兜底
-            if not items:
-                yield _sse({"progress": 92, "msg": "PaddleOCR未识别到装备，尝试本地OCR…"})
-                try:
-                    t_lines = await _ocr_tesseract(image_bytes)
-                    if t_lines:
-                        lines = t_lines
-                        items = _parse_equip_items(t_lines, eq_skills, eq_names)
-                except Exception as te:
-                    yield _sse({"progress": 95, "msg": f"本地OCR也失败: {te}"})
             for item in items:
                 item["_checked"] = True
 
