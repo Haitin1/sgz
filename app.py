@@ -1166,74 +1166,52 @@ async def ocr_equipment(file: UploadFile = File(...)):
 
     async def stream():
         try:
-            lines = []
+            # 异步 API (jobs)
+            yield _sse({"progress": 5, "msg": "提交识别任务…"})
+            job_id = await _submit_vl_job(image_bytes)
+            yield _sse({"progress": 12, "msg": "任务已提交，等待队列…"})
 
-            # 优先: 同步 API (layout-parsing)
-            yield _sse({"progress": 5, "msg": "正在识别…"})
-            try:
-                lines = await _ocr_sync(image_bytes)
-                yield _sse({"progress": 80, "msg": f"同步识别完成，解析 {len(lines)} 条结果…"})
-            except Exception as sync_err:
-                yield _sse({"progress": 10, "msg": f"同步API失败({sync_err})，尝试异步API…"})
+            deadline = _time.time() + 90
+            jsonl_url = None
+            while _time.time() < deadline:
+                await _asyncio.sleep(3)
+                data = await _poll_vl_job(job_id)
+                state = data["state"]
 
-                # 降级: 异步 API (jobs)
-                job_id = await _submit_vl_job(image_bytes)
-                yield _sse({"progress": 15, "msg": "异步任务已提交，等待队列…"})
+                if state == "pending":
+                    elapsed = _time.time() - (deadline - 90)
+                    p = min(30, 12 + elapsed * 1.5)
+                    yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
 
-                deadline = _time.time() + 90
-                jsonl_url = None
-                while _time.time() < deadline:
-                    await _asyncio.sleep(3)
-                    data = await _poll_vl_job(job_id)
-                    state = data["state"]
-
-                    if state == "pending":
+                elif state == "running":
+                    try:
+                        total = data["extractProgress"]["totalPages"]
+                        done_pages = data["extractProgress"]["extractedPages"]
+                        p = 30 + (done_pages / max(total, 1)) * 55
+                    except Exception:
                         elapsed = _time.time() - (deadline - 90)
-                        p = min(30, 15 + elapsed * 1.5)
-                        yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
+                        p = min(80, 30 + elapsed * 1.5)
+                    yield _sse({"progress": round(p, 1), "msg": "识别中…"})
 
-                    elif state == "running":
-                        try:
-                            total = data["extractProgress"]["totalPages"]
-                            done_pages = data["extractProgress"]["extractedPages"]
-                            p = 30 + (done_pages / max(total, 1)) * 50
-                        except Exception:
-                            elapsed = _time.time() - (deadline - 90)
-                            p = min(80, 30 + elapsed * 1.5)
-                        yield _sse({"progress": round(p, 1), "msg": "识别中…"})
+                elif state == "done":
+                    jsonl_url = data["resultUrl"]["jsonUrl"]
+                    yield _sse({"progress": 90, "msg": "下载结果…"})
+                    break
 
-                    elif state == "done":
-                        jsonl_url = data["resultUrl"]["jsonUrl"]
-                        yield _sse({"progress": 85, "msg": "下载结果…"})
-                        break
-
-                    elif state == "failed":
-                        yield _sse({"error": data.get("errorMsg", "识别失败")})
-                        return
-
-                if not jsonl_url:
-                    yield _sse({"error": "识别超时（90秒）"})
+                elif state == "failed":
+                    yield _sse({"error": data.get("errorMsg", "识别失败")})
                     return
 
-                lines = await _download_vl_result(jsonl_url)
+            if not jsonl_url:
+                yield _sse({"error": "识别超时（90秒）"})
+                return
 
+            lines = await _download_vl_result(jsonl_url)
             items = _parse_equip_items(lines, eq_skills, eq_names)
             for item in items:
                 item["_checked"] = True
 
-            # 调试: 记录解析结果
-            try:
-                with open(_OCR_DEBUG_FILE, "a") as f:
-                    f.write(f"\n[PARSE] lines={len(lines)} items={len(items)}\n")
-                    for it in items:
-                        f.write(f"  -> {it.get('equip_name')} | {it.get('equip_type')} | {it.get('stats')}\n")
-            except Exception:
-                pass
-
-            if not items:
-                yield _sse({"progress": 100, "msg": "完成", "result": {"items": [], "raw": lines}})
-            else:
-                yield _sse({"progress": 100, "msg": "完成", "result": {"items": items, "raw": lines}})
+            yield _sse({"progress": 100, "msg": "完成", "result": {"items": items, "raw": lines}})
 
         except Exception as e:
             yield _sse({"error": str(e)})
@@ -1243,6 +1221,17 @@ async def ocr_equipment(file: UploadFile = File(...)):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.get("/api/ocr/debug")
+async def ocr_debug():
+    """查看 OCR 调试日志"""
+    import os
+    if os.path.exists(_OCR_DEBUG_FILE):
+        with open(_OCR_DEBUG_FILE, "r") as f:
+            content = f.read()
+        return {"log": content}
+    return {"log": "(暂无调试日志，请先执行一次 OCR 识别)"}
 
 
 def _extract_text_tokens(html: str) -> list[str]:
