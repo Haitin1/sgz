@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header, UploadFile, File
 import base64
 import requests as _requests
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional
 import os
@@ -878,6 +878,14 @@ async def _download_vl_result(jsonl_url: str) -> list[str]:
     """下载 JSONL 结果，返回所有 markdown/HTML 文本行"""
     loop = _asyncio.get_event_loop()
     raw = await loop.run_in_executor(None, lambda: _requests.get(jsonl_url, timeout=15))
+    # 先写调试日志（原始数据）
+    try:
+        with open(_OCR_DEBUG_FILE, "w") as f:
+            f.write(f"JSONL URL: {jsonl_url}\n")
+            f.write(f"HTTP status: {raw.status_code}\n")
+            f.write(f"Raw response (first 5000 chars):\n{raw.text[:5000]}\n\n")
+    except Exception:
+        pass
     lines = []
     for raw_line in raw.text.strip().split("\n"):
         if not raw_line.strip():
@@ -892,14 +900,12 @@ async def _download_vl_result(jsonl_url: str) -> list[str]:
             md = res.get("markdown", {}).get("text", "")
             if md.strip():
                 lines.append(md)
-    # 调试
+    # 追加解析结果
     try:
-        with open(_OCR_DEBUG_FILE, "w") as f:
-            f.write(f"[ASYNC] JSONL URL: {jsonl_url}\n")
-            f.write(f"Raw (first 3000): {raw.text[:3000]}\n\n")
+        with open(_OCR_DEBUG_FILE, "a") as f:
             f.write(f"Parsed lines: {len(lines)}\n")
             for i, l in enumerate(lines):
-                f.write(f"  [{i}] {l[:300]}\n")
+                f.write(f"--- line[{i}] ---\n{l[:1000]}\n")
     except Exception:
         pass
     return lines
@@ -1169,14 +1175,16 @@ async def ocr_equipment(file: UploadFile = File(...)):
             # 异步 API (jobs)
             yield _sse({"progress": 5, "msg": "提交识别任务…"})
             job_id = await _submit_vl_job(image_bytes)
-            yield _sse({"progress": 12, "msg": "任务已提交，等待队列…"})
+            yield _sse({"progress": 12, "msg": f"任务已提交: {job_id}"})
 
             deadline = _time.time() + 90
             jsonl_url = None
+            last_state = ""
             while _time.time() < deadline:
                 await _asyncio.sleep(3)
                 data = await _poll_vl_job(job_id)
                 state = data["state"]
+                last_state = state
 
                 if state == "pending":
                     elapsed = _time.time() - (deadline - 90)
@@ -1199,11 +1207,12 @@ async def ocr_equipment(file: UploadFile = File(...)):
                     break
 
                 elif state == "failed":
-                    yield _sse({"error": data.get("errorMsg", "识别失败")})
+                    err_msg = data.get("errorMsg", "识别失败")
+                    yield _sse({"error": f"OCR任务失败: {err_msg}"})
                     return
 
             if not jsonl_url:
-                yield _sse({"error": "识别超时（90秒）"})
+                yield _sse({"error": f"识别超时（90秒），最后状态: {last_state}"})
                 return
 
             lines = await _download_vl_result(jsonl_url)
@@ -1225,13 +1234,22 @@ async def ocr_equipment(file: UploadFile = File(...)):
 
 @app.get("/api/ocr/debug")
 async def ocr_debug():
-    """查看 OCR 调试日志"""
+    """查看 OCR 调试日志 + token 状态"""
     import os
+    has_token = bool(OCR_TOKEN.strip())
+    token_info = f"{OCR_TOKEN[:8]}...(len={len(OCR_TOKEN)})" if has_token else "(空! 请设置 BAIDU_OCR_TOKEN 环境变量)"
+    debug_log = ""
     if os.path.exists(_OCR_DEBUG_FILE):
         with open(_OCR_DEBUG_FILE, "r") as f:
-            content = f.read()
-        return {"log": content}
-    return {"log": "(暂无调试日志，请先执行一次 OCR 识别)"}
+            debug_log = f.read()
+    return JSONResponse({
+        "token": token_info,
+        "has_token": has_token,
+        "sync_url": OCR_SYNC_URL,
+        "async_url": OCR_JOB_URL,
+        "model": OCR_MODEL,
+        "log": debug_log or "(暂无日志，请先执行一次OCR识别)"
+    })
 
 
 def _extract_text_tokens(html: str) -> list[str]:
