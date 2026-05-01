@@ -828,7 +828,13 @@ async def _submit_vl_job(image_bytes: bytes) -> str:
     loop = _asyncio.get_event_loop()
     resp = await loop.run_in_executor(None, lambda: _requests.post(
         OCR_JOB_URL, headers=headers,
-        data={"model": OCR_MODEL},
+        data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
+            "useDocOrientationClassify": False,
+            "useDocUnwarping": False,
+            "useLayoutDetection": False,
+            "useChartRecognition": False,
+            "useOcrForImageBlock": True,
+        })},
         files={"file": ("image.jpg", image_bytes, "image/jpeg")},
         timeout=20,
     ))
