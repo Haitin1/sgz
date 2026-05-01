@@ -806,42 +806,21 @@ def _sse(data: dict) -> str:
     return f"data: {_json_ocr.dumps(data, ensure_ascii=False)}\n\n"
 
 
-async def _ocr_sync(image_bytes: bytes) -> list[str]:
-    """同步 API: 直接 POST 图片 base64，返回识别结果"""
-    import base64
-    file_b64 = base64.b64encode(image_bytes).decode("ascii")
-    headers = {
-        "Authorization": f"token {OCR_TOKEN}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "file": file_b64,
-        "fileType": 1,  # 1=图片
-        "useDocOrientationClassify": False,
-        "useDocUnwarping": False,
-        "useChartRecognition": False,
-    }
+async def _ocr_tesseract(image_bytes: bytes) -> list[str]:
+    """本地 Tesseract OCR 兜底"""
+    import pytesseract
+    from PIL import Image
+    import io
     loop = _asyncio.get_event_loop()
-    resp = await loop.run_in_executor(None, lambda: _requests.post(
-        OCR_SYNC_URL, json=payload, headers=headers, timeout=30
-    ))
-    # 调试
-    try:
-        with open(_OCR_DEBUG_FILE, "w") as f:
-            f.write(f"[SYNC] URL: {OCR_SYNC_URL}\nStatus: {resp.status_code}\n")
-            f.write(f"Response (first 2000): {resp.text[:2000]}\n")
-    except Exception:
-        pass
-    if resp.status_code != 200:
-        raise RuntimeError(f"同步OCR失败(HTTP {resp.status_code}): {resp.text[:300]}")
-    rj = resp.json()
-    result = rj.get("result", rj)
-    lines = []
-    for res in result.get("layoutParsingResults", []):
-        md = res.get("markdown", {}).get("text", "")
-        if md.strip():
-            lines.append(md)
-    return lines
+    def _do_ocr():
+        img = Image.open(io.BytesIO(image_bytes))
+        # 用中文+英文识别
+        text = pytesseract.image_to_string(img, lang='chi_sim+eng', config='--psm 6')
+        return text
+    text = await loop.run_in_executor(None, _do_ocr)
+    if text.strip():
+        return [text]
+    return []
 
 
 async def _submit_vl_job(image_bytes: bytes) -> str:
@@ -852,10 +831,8 @@ async def _submit_vl_job(image_bytes: bytes) -> str:
         data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
             "useDocOrientationClassify": False,
             "useDocUnwarping": False,
-            "useChartRecognition": True,
-            "useSealRecognition": False,
-            "useOcrForImageBlock": True,
-            "formatBlockContent": True,
+            "useChartRecognition": False,
+            "useLayoutDetection": False,
         })},
         files={"file": ("image.jpg", image_bytes, "image/jpeg")},
         timeout=20,
@@ -1220,6 +1197,17 @@ async def ocr_equipment(file: UploadFile = File(...)):
 
             lines = await _download_vl_result(jsonl_url)
             items = _parse_equip_items(lines, eq_skills, eq_names)
+
+            # 如果 PaddleOCR 没识别到装备，用 Tesseract 兜底
+            if not items:
+                yield _sse({"progress": 92, "msg": "PaddleOCR未识别到装备，尝试本地OCR…"})
+                try:
+                    t_lines = await _ocr_tesseract(image_bytes)
+                    if t_lines:
+                        lines = t_lines
+                        items = _parse_equip_items(t_lines, eq_skills, eq_names)
+                except Exception as te:
+                    yield _sse({"progress": 95, "msg": f"本地OCR也失败: {te}"})
             for item in items:
                 item["_checked"] = True
 
