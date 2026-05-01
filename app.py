@@ -852,7 +852,10 @@ async def _submit_vl_job(image_bytes: bytes) -> str:
         data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
             "useDocOrientationClassify": False,
             "useDocUnwarping": False,
-            "useChartRecognition": False,
+            "useChartRecognition": True,
+            "useSealRecognition": False,
+            "useOcrForImageBlock": True,
+            "formatBlockContent": True,
         })},
         files={"file": ("image.jpg", image_bytes, "image/jpeg")},
         timeout=20,
