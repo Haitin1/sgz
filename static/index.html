@@ -3857,6 +3857,11 @@ function simulator() {
       });
       while (gens.length < 3) gens.push(this._emptyGeneral(team));
       for (let i = 0; i < 3; i++) this.teams[team][i] = gens[i];
+      // 设置队伍兵种（S 票数最多的兵种）
+      if (res.team_troop) {
+        this.teamTroop[team] = res.team_troop;
+        this.lockTeamTroop(team);
+      }
       this.ocrLineupModal = false;
       this.ocrLineupResult = null;
     },

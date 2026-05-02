@@ -1395,18 +1395,48 @@ def _parse_lineup_columns(
                 continue
 
         # —— 兵书行 ——
+        # 游戏规则：主兵书4字，副兵书2字；OCR 常将两本副兵书拼在一起输出（无空格）
         all_books: list[str] = []
+        main_book_set  = {b["name"] for b in (books_db or []) if len(b["name"]) == 4}
+        sub_book_names = [b["name"] for b in (books_db or []) if len(b["name"]) == 2]
         for tok in tokens:
-            bm = _fuzzy_match(tok, book_names, threshold=70)
-            if bm:
-                all_books.append(bm)
-            elif len(tok) in (4, 6) and all('一' <= c <= '鿿' for c in tok):
-                # 两本书合并在一起（如"文韬执锐"="文韬"+"执锐"）
-                half = len(tok) // 2
-                for part in (tok[:half], tok[half:]):
-                    pb = _fuzzy_match(part, book_names, threshold=85)
-                    if pb:
-                        all_books.append(pb)
+            if not all('一' <= c <= '鿿' for c in tok):
+                continue
+            tlen = len(tok)
+            if tlen == 4:
+                # 优先精确匹配主兵书（4字），避免 substring 误匹配拼合副兵书
+                if tok in main_book_set:
+                    all_books.append(tok)
+                else:
+                    # OCR 误读的主兵书：先尝试模糊匹配主兵书列表
+                    bm = _fuzzy_match(tok, list(main_book_set), threshold=75)
+                    if bm:
+                        all_books.append(bm)
+                    else:
+                        # 不是主兵书 → 拆为两本副兵书（2+2）
+                        for part in (tok[:2], tok[2:]):
+                            pb = _fuzzy_match(part, sub_book_names, threshold=80)
+                            if pb:
+                                all_books.append(pb)
+            elif tlen == 2:
+                pb = _fuzzy_match(tok, book_names, threshold=80)
+                if pb:
+                    all_books.append(pb)
+            elif tlen == 6:
+                # 先试 4字主兵书 + 2字副兵书
+                if tok[:4] in main_book_set:
+                    all_books.append(tok[:4])
+                    pb = _fuzzy_match(tok[4:], sub_book_names, threshold=80)
+                    if pb: all_books.append(pb)
+                else:
+                    # 三本2字副兵书拼合
+                    for i in range(0, 6, 2):
+                        pb = _fuzzy_match(tok[i:i+2], sub_book_names, threshold=80)
+                        if pb: all_books.append(pb)
+            else:
+                bm = _fuzzy_match(tok, book_names, threshold=70)
+                if bm:
+                    all_books.append(bm)
 
         if all_books:
             bpg, extra = divmod(len(all_books), n)
@@ -1576,6 +1606,7 @@ async def ocr_lineup(file: UploadFile = File(...)):
             # 补充兵种适性信息（根据 DB 推断最佳兵种）
             GRADE_ORDER = {"S": 4, "A": 3, "B": 2, "C": 1, "": 0}
             TROOP_KEYS  = [("cavalry","骑兵"), ("bow","弓兵"), ("spear","枪兵"), ("shield","盾兵"), ("machine","器械")]
+            s_count: dict[str, int] = {}
             for g in result["generals"]:
                 tr = troop_rows.get(g["name"], {})
                 best_type, best_grade = "cavalry", "C"
@@ -1583,8 +1614,16 @@ async def ocr_lineup(file: UploadFile = File(...)):
                     grade = tr.get(key, "C") or "C"
                     if GRADE_ORDER.get(grade, 0) > GRADE_ORDER.get(best_grade, 0):
                         best_type, best_grade = key, grade
+                    if grade == "S":
+                        s_count[key] = s_count.get(key, 0) + 1
                 g["troop_type"]  = best_type
                 g["troop_grade"] = best_grade
+            # 队伍兵种：S 最多的兵种（优先按 S 票数，票数相同取 TROOP_KEYS 顺序靠前）
+            if s_count:
+                team_troop_key = max(TROOP_KEYS, key=lambda kv: s_count.get(kv[0], 0))[0]
+            else:
+                team_troop_key = "cavalry"
+            result["team_troop"] = team_troop_key
             result["raw"] = lines[:100]  # 调试用
             yield _sse({"progress": 100, "msg": "完成", "result": result})
         except Exception as e:
