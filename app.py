@@ -1051,9 +1051,13 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
                 if s:
                     stats.update(s)
                 else:
-                    ms = _fuzzy_match(r, skill_names)
+                    # 阈值50：凝/疑 等形近字OCR误读也能匹配
+                    ms = _fuzzy_match(r, skill_names, threshold=50)
                     if ms:
                         skills.append({"name": ms, "desc": eq_skills.get(ms, "")})
+                    elif r and len(r) >= 2:
+                        # 匹配失败：保留原始OCR文字，让用户在输入框手动修正
+                        skills.append({"name": r, "desc": ""})
             if not stats:
                 continue
             matched = _fuzzy_match(name_raw, equip_names)
@@ -1082,7 +1086,7 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
         skill_text = cols[4].strip() if len(cols) > 4 else ""
         skills = []
         if skill_text:
-            ms = _fuzzy_match(skill_text, skill_names)
+            ms = _fuzzy_match(skill_text, skill_names, threshold=50)
             skill_name = ms if ms else skill_text
             skills.append({"name": skill_name, "desc": eq_skills.get(skill_name, "")})
         _add_item(name, eq_type, stats, skills)
@@ -1114,11 +1118,16 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             if token in _TYPE_KW:
                 cur["equip_type"] = token
                 continue
-            ms = _fuzzy_match(token, skill_names)
+            ms = _fuzzy_match(token, skill_names, threshold=50)
             if ms and ms not in [s["name"] for s in cur["skills"]]:
                 cur["skills"].append({"name": ms, "desc": eq_skills[ms]})
                 continue
-            cur["stats"].update(_parse_stats(token))
+            token_stats = _parse_stats(token)
+            if token_stats:
+                cur["stats"].update(token_stats)
+            elif len(token) >= 2 and token not in _TYPE_KW:
+                # 非属性非类型，保留为未匹配技能
+                cur["skills"].append({"name": token, "desc": ""})
 
     flush()
 
