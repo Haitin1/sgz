@@ -946,6 +946,54 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             "stats": stats,
         })
 
+    # ── 通用 UI 噪声集（多个解析器共用）──
+    _NOISE = {'品质','类型','持有','详情','排序','总览','装备','材料',
+              '道具','营造','货布商店','装备名称','批量出售','珍品','返回',
+              '库藏','铜币','玉璧','金铁','反','武将','属性','技能','特技',
+              '排序','筛选','确认','取消','关闭','背包'}
+
+    # ── 优先：RapidOCR 本地格式（每行一条装备，字段空格分隔）──
+    # format: "名称 类型 属性属性 技能"  例: "七星宝刀 武器 武力+8.14统率+4.65 龙骧"
+    has_type_in_lines = any(
+        any(p in _TYPE_KW for p in l.split())
+        for l in lines
+        if not all(p in _NOISE or _re.search(r'[\d/\\%]', p) for p in l.split())
+    )
+    if has_type_in_lines and '\n\n' not in full_text and '<tr' not in full_text.lower():
+        for line in lines:
+            parts = line.split()
+            if not parts:
+                continue
+            type_idx = next((i for i, p in enumerate(parts) if p in _TYPE_KW), None)
+            if type_idx is None:
+                continue
+            name_raw = ' '.join(parts[:type_idx]).strip()
+            if not name_raw or name_raw in _NOISE:
+                continue
+            eq_type = parts[type_idx]
+            rest = parts[type_idx + 1:]
+            stats: dict = {}
+            skills: list = []
+            for r in rest:
+                if r in _NOISE or (not _re.match(r'^(武力|智力|统率|速度|政治|魅力)', r) and _re.search(r'[\d/\\%]', r)):
+                    continue
+                s = _parse_stats(r)
+                if s:
+                    stats.update(s)
+                else:
+                    ms = _fuzzy_match(r, skill_names, threshold=50)
+                    if ms:
+                        skills.append({"name": ms, "desc": eq_skills.get(ms, "")})
+                    elif len(r) >= 2 and not _re.search(r'[\d/\\%]', r):
+                        skills.append({"name": r, "desc": ""})
+            if not stats:
+                continue
+            matched = _fuzzy_match(name_raw, equip_names)
+            name = matched if matched else name_raw
+            _add_item(name, eq_type, stats, skills)
+        if items:
+            return items
+
     # ── 优先：HTML <table> 解析 ──
     if "<tr" in full_text.lower():
         last_type = None
@@ -1148,8 +1196,9 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
             token_stats = _parse_stats(token)
             if token_stats:
                 cur["stats"].update(token_stats)
-            elif len(token) >= 2 and token not in _TYPE_KW:
-                # 非属性非类型，保留为未匹配技能
+            elif len(token) >= 2 and token not in _TYPE_KW and token not in _NOISE \
+                    and not _re.search(r'[\d/\\%]', token):
+                # 非属性非类型非噪声，保留为未匹配技能
                 cur["skills"].append({"name": token, "desc": ""})
 
     flush()
