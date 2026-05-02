@@ -928,7 +928,10 @@ def _fuzzy_match(word: str, candidates: list[str], threshold: int = 70) -> str |
         char_score = len(ws & cs) / max(len(ws), len(cs)) * 100
         # 序列相似比（对 OCR 同位置误读更友好，如 姬/姫）
         seq_score  = difflib.SequenceMatcher(None, word, c).ratio() * 100
-        score = max(char_score, seq_score)
+        # 位置对齐加分：同位置字符相同（区分"疑神"→"凝神"vs"神医"）
+        pos_matches = sum(1 for i in range(min(len(word), len(c))) if word[i] == c[i])
+        pos_bonus = pos_matches / max(len(word), len(c)) * 30
+        score = max(char_score, seq_score) + pos_bonus
         if score >= threshold and score > best_score:
             best, best_score = c, score
     return best
