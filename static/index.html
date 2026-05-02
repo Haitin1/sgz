@@ -1313,6 +1313,116 @@ select.w-sm { width: 72px; }
   </div>
 
   <!-- 主流阵容推荐弹窗 -->
+  <!-- 阵容 OCR 识别导入弹窗 -->
+  <div class="modal-overlay" x-show="ocrLineupModal" x-cloak
+    @click.self="ocrLineupModal=false; ocrLineupResult=null; ocrLineupFile=null; if(ocrLineupPreviewUrl){URL.revokeObjectURL(ocrLineupPreviewUrl);ocrLineupPreviewUrl=null;}"
+    @paste.window="ocrLineupModal && ocrLineupHandlePaste($event)">
+    <div class="modal-box" style="width:min(560px,96vw)">
+      <button class="modal-close" @click="ocrLineupModal=false; ocrLineupResult=null; ocrLineupFile=null; if(ocrLineupPreviewUrl){URL.revokeObjectURL(ocrLineupPreviewUrl);ocrLineupPreviewUrl=null;}">×</button>
+      <h2 class="modal-title">🤖 识别阵容导入
+        <span style="font-size:13px;font-weight:400;color:var(--text2);margin-left:8px"
+          x-text="ocrLineupTeam==='a'?'→ 我方':'→ 敌方'"></span>
+      </h2>
+
+      <!-- 上传区 -->
+      <template x-if="!ocrLineupFile && !ocrLineupLoading && !ocrLineupResult">
+        <div>
+          <div class="ocr-drop-zone"
+            :class="ocrLineupDragging ? 'dragging' : ''"
+            @click="$refs.ocrLineupInput.click()"
+            @dragover.prevent="ocrLineupDragging=true"
+            @dragleave="ocrLineupDragging=false"
+            @drop.prevent="ocrLineupDragging=false; ocrLineupHandleFile($event.dataTransfer.files[0])">
+            <div style="font-size:28px;margin-bottom:8px">📷</div>
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px">拖放阵容截图，或点击选择</div>
+            <div style="font-size:12px;color:var(--text3)">也可直接 Ctrl+V 粘贴截图</div>
+          </div>
+          <input type="file" x-ref="ocrLineupInput" accept="image/*" style="display:none"
+            @change="ocrLineupHandleFile($event.target.files[0]); $event.target.value=''">
+        </div>
+      </template>
+
+      <!-- 预览 + 开始识别 -->
+      <template x-if="ocrLineupFile && !ocrLineupLoading && !ocrLineupResult">
+        <div>
+          <img :src="ocrLineupPreviewUrl" style="width:100%;max-height:280px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
+          <div style="display:flex;gap:8px">
+            <button class="btn" style="flex:1" @click="ocrLineupFile=null; ocrLineupPreviewUrl=null">重新选图</button>
+            <button class="btn btn-primary" style="flex:2" @click="ocrLineupStartRecognition()">🔍 开始识别</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 识别中 -->
+      <template x-if="ocrLineupLoading">
+        <div>
+          <img :src="ocrLineupPreviewUrl" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px">
+            <span x-text="ocrLineupProgressMsg || '识别中…'"></span>
+            <span x-text="Math.round(ocrLineupProgress) + '%'"></span>
+          </div>
+          <div style="height:6px;background:var(--surface2);border-radius:3px;overflow:hidden">
+            <div style="height:100%;background:#10b981;border-radius:3px;transition:width .3s"
+              :style="'width:' + ocrLineupProgress + '%'"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 识别结果 -->
+      <template x-if="ocrLineupResult && !ocrLineupLoading">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">
+            ✅ 识别到 <span x-text="ocrLineupResult.generals.length"></span> 位武将，确认后导入
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;padding-right:4px;margin-bottom:12px">
+            <template x-for="(gen, gi) in ocrLineupResult.generals" :key="gi">
+              <div style="border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--surface)">
+                <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+                  <input class="form-input" style="width:80px;font-size:13px;font-weight:600;padding:2px 6px" x-model="gen.name">
+                  <select class="form-input" style="width:70px;font-size:12px;padding:2px 4px" x-model="gen.troop_type">
+                    <option value="cavalry">骑兵</option>
+                    <option value="bow">弓兵</option>
+                    <option value="spear">枪兵</option>
+                    <option value="shield">盾兵</option>
+                    <option value="machine">器械</option>
+                  </select>
+                  <span style="font-size:11px;color:var(--text3)" x-text="'Lv.' + gen.level"></span>
+                </div>
+                <!-- 战法 -->
+                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px;align-items:center">
+                  <span style="font-size:10px;color:var(--text3);flex-shrink:0">战法</span>
+                  <template x-for="(sk, si) in gen.skills" :key="si">
+                    <input type="text" x-model="sk.name"
+                      style="width:70px;font-size:11px;padding:1px 4px;border:1px solid #bfdbfe;border-radius:4px;background:#eff6ff;color:#1d4ed8;text-align:center">
+                  </template>
+                </div>
+                <!-- 兵书 -->
+                <template x-if="gen.books && gen.books.length">
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">
+                    <span style="font-size:10px;color:var(--text3);flex-shrink:0">兵书</span>
+                    <template x-for="(bk, bi) in gen.books" :key="bi">
+                      <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#fef9c3;border:1px solid #fde68a;color:#92400e">
+                        <span style="font-size:9px;font-weight:700;color:#b45309" x-text="bk.book_type==='主兵书'?'主':'副'"></span>
+                        <span x-text="bk.name"></span>
+                      </span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" style="flex:2;background:linear-gradient(135deg,#2563eb,#1d4ed8)"
+              @click="applyOcrLineup('a')">导入我方（A）</button>
+            <button class="btn btn-primary" style="flex:2;background:linear-gradient(135deg,#dc2626,#b91c1c)"
+              @click="applyOcrLineup('b')">导入敌方（B）</button>
+            <button class="btn" style="flex:1" @click="ocrLineupResult=null; ocrLineupFile=null; ocrLineupPreviewUrl=null">重新识别</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <div class="modal-overlay" x-show="recModal.open" x-cloak @click.self="recModal.open=false">
     <div class="modal-box" style="width:min(680px,96vw);max-height:88vh;display:flex;flex-direction:column">
       <button class="modal-close" @click="recModal.open=false">×</button>
@@ -1428,6 +1538,7 @@ select.w-sm { width: 72px; }
         </div>
         <button class="lineup-action-btn" :class="lineupDeleteMode.a ? 'del-active' : ''" @click="lineupDeleteMode.a = !lineupDeleteMode.a">删除</button>
         <button class="lineup-action-btn" style="color:#2563eb;border-color:#bfdbfe;background:#eff6ff" @click="openRecModal('a')">📋 推荐阵容</button>
+        <button class="lineup-action-btn" style="color:#059669;border-color:#6ee7b7;background:#ecfdf5" @click="openOcrLineupModal('a')">🤖 识别导入</button>
       </div>
     </div>
     <div class="card">
@@ -1984,6 +2095,7 @@ select.w-sm { width: 72px; }
 
         <button class="lineup-action-btn" :class="lineupDeleteMode.b ? 'del-active' : ''" @click="lineupDeleteMode.b = !lineupDeleteMode.b">删除</button>
         <button class="lineup-action-btn" style="color:#dc2626;border-color:#fecaca;background:#fef2f2" @click="openRecModal('b')">📋 推荐阵容</button>
+        <button class="lineup-action-btn" style="color:#059669;border-color:#6ee7b7;background:#ecfdf5" @click="openOcrLineupModal('b')">🤖 识别导入</button>
       </div>
     </div>
     <div class="card">
@@ -2748,6 +2860,16 @@ function simulator() {
     ocrFile: null,
     ocrImgZoomed: false,
     ocrZoomX: 80, ocrZoomY: 60, ocrZoomW: 440, ocrZoomH: 340,
+    // ── 阵容 OCR ──
+    ocrLineupModal: false,
+    ocrLineupTeam: 'a',
+    ocrLineupFile: null,
+    ocrLineupPreviewUrl: null,
+    ocrLineupLoading: false,
+    ocrLineupDragging: false,
+    ocrLineupProgress: 0,
+    ocrLineupProgressMsg: '',
+    ocrLineupResult: null,
     // ── 推荐阵容 ──
     scenarios: [],
     currentScenario: null,
@@ -3622,6 +3744,114 @@ function simulator() {
     troopLabel(t) {
       const m = { cavalry:'骑兵', bow:'弓兵', spear:'枪兵', shield:'盾兵', machine:'器械', mixed:'混合' };
       return m[t] || t || '—';
+    },
+    openOcrLineupModal(team) {
+      this.ocrLineupTeam = team;
+      this.ocrLineupModal = true;
+      this.ocrLineupResult = null;
+      this.ocrLineupFile = null;
+      if (this.ocrLineupPreviewUrl) { URL.revokeObjectURL(this.ocrLineupPreviewUrl); this.ocrLineupPreviewUrl = null; }
+    },
+    ocrLineupHandleFile(file) {
+      if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
+      if (this.ocrLineupPreviewUrl) URL.revokeObjectURL(this.ocrLineupPreviewUrl);
+      this.ocrLineupFile = file;
+      this.ocrLineupPreviewUrl = URL.createObjectURL(file);
+      this.ocrLineupResult = null;
+    },
+    ocrLineupHandlePaste(event) {
+      for (const item of (event.clipboardData?.items || [])) {
+        if (item.type.startsWith('image/')) { this.ocrLineupHandleFile(item.getAsFile()); break; }
+      }
+    },
+    async ocrLineupStartRecognition() {
+      if (!this.ocrLineupFile) return;
+      this.ocrLineupLoading = true;
+      this.ocrLineupProgress = 0;
+      this.ocrLineupProgressMsg = '压缩图片…';
+      try {
+        // 压缩图片
+        const compressed = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.onload = () => {
+            const maxPx = 2500, scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * scale);
+            canvas.height = Math.round(img.height * scale);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(b => b ? resolve(b) : reject(new Error('压缩失败')), 'image/jpeg', 0.92);
+          };
+          img.onerror = reject;
+          img.src = this.ocrLineupPreviewUrl;
+        });
+        const form = new FormData();
+        form.append('file', compressed, 'lineup.jpg');
+        this.ocrLineupProgress = 10;
+        this.ocrLineupProgressMsg = '识别中…';
+        const resp = await fetch('/api/ocr/lineup', { method: 'POST', body: form });
+        const reader = resp.body.getReader();
+        const dec = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, { stream: true });
+          const parts = buf.split('\n\n');
+          buf = parts.pop();
+          for (const part of parts) {
+            const line = part.replace(/^data:\s*/, '').trim();
+            if (!line) continue;
+            try {
+              const evt = JSON.parse(line);
+              if (evt.progress !== undefined) { this.ocrLineupProgress = evt.progress; this.ocrLineupProgressMsg = evt.msg || ''; }
+              if (evt.error) { alert('识别失败：' + evt.error); this.ocrLineupLoading = false; return; }
+              if (evt.result) {
+                const res = evt.result;
+                // 确保每位武将有3个战法槽
+                (res.generals || []).forEach(g => {
+                  while ((g.skills || []).length < 3) (g.skills = g.skills || []).push({ name: '' });
+                });
+                this.ocrLineupResult = res;
+              }
+            } catch(e) {}
+          }
+        }
+      } catch(e) { alert('识别出错：' + e.message); }
+      finally { this.ocrLineupLoading = false; }
+    },
+    applyOcrLineup(team) {
+      const res = this.ocrLineupResult;
+      if (!res || !res.generals?.length) return;
+      const gens = res.generals.map(g => {
+        const found = this.generalsData.find(x => x.name === g.name);
+        const base = found ? { ...found } : { name: g.name, strength:0,intelligence:0,leadership:0,speed:0,politics:0,charisma:0 };
+        const skills = (g.skills || []).map(sk => {
+          const s = this.skillsData.find(x => x.name === sk.name);
+          return s ? { name:s.name, type:s.type||'主动', damage:s.damage||0, heal:s.heal||0, buff:s.buff||0, debuff:s.debuff||0, desc:s.description||'' }
+                   : { name:sk.name||'', type:'主动', damage:0, heal:0, buff:0, debuff:0, desc:'' };
+        });
+        while (skills.length < 3) skills.push({ name:'', type:'主动', damage:0, heal:0, buff:0, debuff:0, desc:'' });
+        const books = g.books || [];
+        const mainBook = books.find(b => b.book_type === '主兵书');
+        const subBooks = books.filter(b => b.book_type !== '主兵书');
+        return {
+          ...base,
+          _team: team,
+          level: g.level || 43,
+          red_dots: 0,
+          troop_type: g.troop_type || base.troop_type || 'cavalry',
+          troop_grade: g.troop_grade || base.troop_grade || 'C',
+          equips: {'武器':null,'防具':null,'坐骑':null,'宝物':null},
+          main_book:  mainBook?.name  || null,
+          sub_book1:  subBooks[0]?.name || null,
+          sub_book2:  subBooks[1]?.name || null,
+          skills: skills.slice(0, 3),
+        };
+      });
+      while (gens.length < 3) gens.push(this._emptyGeneral(team));
+      for (let i = 0; i < 3; i++) this.teams[team][i] = gens[i];
+      this.ocrLineupModal = false;
+      this.ocrLineupResult = null;
     },
     async openRecModal(team) {
       this.recModal = { open: true, team };
