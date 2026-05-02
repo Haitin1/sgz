@@ -1175,9 +1175,9 @@ select.w-sm { width: 72px; }
   </div>
 
   <!-- OCR 图片放大浮层（可拖动、可缩放）-->
-  <div x-show="ocrImgZoomed && ocrPreviewUrl" x-cloak
+  <div x-show="ocrImgZoomed && ocrPreviewUrl" x-cloak x-ref="ocrZoomEl"
     :style="`position:fixed;left:${ocrZoomX}px;top:${ocrZoomY}px;z-index:10010;
-             width:440px;height:340px;min-width:180px;min-height:140px;
+             width:${ocrZoomW}px;height:${ocrZoomH}px;min-width:180px;min-height:140px;
              background:var(--card);border:1px solid var(--border);border-radius:12px;
              box-shadow:0 8px 40px rgba(0,0,0,0.45);
              display:flex;flex-direction:column;resize:both;overflow:hidden;`">
@@ -2747,7 +2747,7 @@ function simulator() {
     ocrProgress: 0,
     ocrFile: null,
     ocrImgZoomed: false,
-    ocrZoomX: 80, ocrZoomY: 60,
+    ocrZoomX: 80, ocrZoomY: 60, ocrZoomW: 440, ocrZoomH: 340,
     // ── 推荐阵容 ──
     scenarios: [],
     currentScenario: null,
@@ -3544,6 +3544,9 @@ function simulator() {
     },
     ocrStartDrag(e) {
       e.preventDefault();
+      // 拖动前先把 CSS resize 改过的实际尺寸同步回状态，防止 Alpine 重渲染时覆盖
+      const el = this.$refs.ocrZoomEl;
+      if (el) { this.ocrZoomW = el.offsetWidth; this.ocrZoomH = el.offsetHeight; }
       const onMove = (ev) => { this.ocrZoomX += ev.movementX; this.ocrZoomY += ev.movementY; };
       const onUp   = ()   => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
       window.addEventListener('mousemove', onMove);
