@@ -1263,11 +1263,11 @@ select.w-sm { width: 72px; }
                           style="width:46px;font-size:11px;padding:1px 3px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);text-align:right">
                       </label>
                     </template>
-                    <input class="form-input" x-model="item.skills[0].name" placeholder="技1"
-                      style="width:2.8em;font-size:11px;padding:1px 2px;flex-shrink:0;text-align:center;min-width:0"
+                    <input x-model="item.skills[0].name" placeholder="技1"
+                      style="width:2.8em;font-size:11px;padding:1px 2px;flex-shrink:0;text-align:center;min-width:0;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);outline:none;box-sizing:border-box"
                       :style="item.skills[0].name ? 'color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600' : ''">
-                    <input class="form-input" x-model="item.skills[1].name" placeholder="技2"
-                      style="width:2.8em;font-size:11px;padding:1px 2px;flex-shrink:0;text-align:center;min-width:0"
+                    <input x-model="item.skills[1].name" placeholder="技2"
+                      style="width:2.8em;font-size:11px;padding:1px 2px;flex-shrink:0;text-align:center;min-width:0;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);outline:none;box-sizing:border-box"
                       :style="item.skills[1].name ? 'color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600' : ''">
                   </div>
                 </div>
