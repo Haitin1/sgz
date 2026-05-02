@@ -1065,7 +1065,7 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
                     ms = _fuzzy_match(t, skill_names, threshold=50)
                     if ms:
                         skills.append({"name": ms, "desc": eq_skills.get(ms, "")})
-                    elif len(t) >= 2 and t not in _UI_NOISE:
+                    elif len(t) >= 2 and t not in _UI_NOISE and not _re.search(r'[\d/\\%]', t):
                         skills.append({"name": t, "desc": ""})
                 j += 1
             if not stats:
