@@ -1320,6 +1320,110 @@ def _extract_text_tokens(html: str) -> list[str]:
 
 _LEVEL_RE = _re.compile(r'^(\d{1,2})\s*(.{2,6})$')   # "43孙尚香" / "43 孙尚香"
 
+# 兵书类别关键词（OCR 会扫到，但不是兵书名）
+_BOOK_CAT_KW = {'作战','始计','辅助','防守','奇袭','牵制','强攻','治军','扰敌'}
+
+
+def _parse_lineup_columns(
+    lines: list[str],
+    generals_db: list[dict],
+    skills_db:   list[dict],
+    books_db:    list[dict] | None = None,
+) -> list[dict] | None:
+    """
+    针对 RapidOCR 横向扫描输出的纵列格式解析阵容。
+    游戏阵容截图格式：武将名同行（N列）→ 每行 N 个战法（列对应武将）→ 兵书行。
+    返回武将列表，或 None（格式不匹配时回退旧解析器）。
+    """
+    gen_names  = [g["name"] for g in generals_db]
+    skill_names= [s["name"] for s in skills_db]
+    book_names = [b["name"] for b in (books_db or [])]
+    book_type_map = {b["name"]: b.get("book_type", "副兵书") for b in (books_db or [])}
+
+    # ── Step 1: 找武将名行（格式 "47庞统 47诸葛亮 47法正"）──
+    generals: list[dict] = []
+    gen_line_idx = -1
+    for li, line in enumerate(lines):
+        found = []
+        for tok in line.split():
+            m = _LEVEL_RE.match(tok)
+            if m:
+                lv, name_cand = int(m.group(1)), m.group(2).strip()
+                if 1 <= lv <= 60:
+                    gm = _fuzzy_match(name_cand, gen_names, threshold=70)
+                    if gm:
+                        found.append((gm, lv))
+        if found:
+            generals = [{"name": n, "level": lv, "skills": [], "books": []}
+                        for n, lv in found]
+            gen_line_idx = li
+            break
+
+    if not generals:
+        return None
+
+    n = len(generals)  # 列数
+
+    # ── Step 2: 逐行解析武将名行之后的内容 ──
+    for line in lines[gen_line_idx + 1:]:
+        tokens = line.split()
+        if not tokens:
+            continue
+
+        # 跳过兵书类别行（"作战 作战 始计" 等）
+        if all(t in _BOOK_CAT_KW for t in tokens):
+            continue
+
+        # —— 战法行 ——
+        # 去掉 "S"/"A"/"B" 等单字母品质标记
+        non_grade = [t for t in tokens if not _re.fullmatch(r'[SABC]', t)]
+        if non_grade:
+            # 每个 token 尝试模糊匹配战法
+            matches = [(t, _fuzzy_match(t, skill_names, threshold=58)) for t in non_grade]
+            valid = [(t, sm) for t, sm in matches if sm]
+            # 如果有效匹配数 ≥ 1 且 token 数量 == 列数 → 战法行
+            if valid and len(non_grade) == n:
+                for col, (raw, sm) in enumerate(matches):
+                    if col < n and len(generals[col]["skills"]) < 3:
+                        generals[col]["skills"].append({"name": sm or raw})
+                continue
+            # token 数量不等于列数，但全部都是战法也接受
+            if valid and len(valid) == len(non_grade) and len(non_grade) <= n:
+                for col, (raw, sm) in enumerate(matches):
+                    if col < n and len(generals[col]["skills"]) < 3:
+                        generals[col]["skills"].append({"name": sm or raw})
+                continue
+
+        # —— 兵书行 ——
+        all_books: list[str] = []
+        for tok in tokens:
+            bm = _fuzzy_match(tok, book_names, threshold=70)
+            if bm:
+                all_books.append(bm)
+            elif len(tok) in (4, 6) and all('一' <= c <= '鿿' for c in tok):
+                # 两本书合并在一起（如"文韬执锐"="文韬"+"执锐"）
+                half = len(tok) // 2
+                for part in (tok[:half], tok[half:]):
+                    pb = _fuzzy_match(part, book_names, threshold=85)
+                    if pb:
+                        all_books.append(pb)
+
+        if all_books:
+            bpg, extra = divmod(len(all_books), n)
+            idx = 0
+            for col in range(n):
+                count = bpg + (1 if col < extra else 0)
+                for _ in range(count):
+                    if idx < len(all_books):
+                        bk = all_books[idx]
+                        generals[col]["books"].append(
+                            {"name": bk, "book_type": book_type_map.get(bk, "副兵书")}
+                        )
+                        idx += 1
+
+    return generals if generals else None
+
+
 def _parse_lineup_from_html(
     full_text: str,
     generals_db: list[dict],
@@ -1462,8 +1566,13 @@ async def ocr_lineup(file: UploadFile = File(...)):
                 yield _sse({"error": "未识别到任何文字，请检查图片质量"})
                 return
             yield _sse({"progress": 70, "msg": f"解析中…"})
-            joined = "\n".join(lines)
-            result = _parse_lineup_from_html(joined, generals_db, skills_db, books_db)
+            # 优先用纵列解析器（适合 RapidOCR 横向扫描输出）
+            col_generals = _parse_lineup_columns(lines, generals_db, skills_db, books_db)
+            if col_generals is not None:
+                result = {"generals": col_generals}
+            else:
+                joined = "\n".join(lines)
+                result = _parse_lineup_from_html(joined, generals_db, skills_db, books_db)
             # 补充兵种适性信息（根据 DB 推断最佳兵种）
             GRADE_ORDER = {"S": 4, "A": 3, "B": 2, "C": 1, "": 0}
             TROOP_KEYS  = [("cavalry","骑兵"), ("bow","弓兵"), ("spear","枪兵"), ("shield","盾兵"), ("machine","器械")]
