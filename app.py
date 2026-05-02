@@ -1053,6 +1053,9 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
                 t = tokens[j]
                 if t in _TYPE_KW:
                     break
+                # 下一个token是类型词，说明当前token是下一件装备的名称，停止
+                if j + 1 < len(tokens) and tokens[j + 1] in _TYPE_KW:
+                    break
                 if _re.match(r'^[-－—–\s]+$', t):  # 跳过 -- 分隔符
                     j += 1; continue
                 s = _parse_stats(t)
