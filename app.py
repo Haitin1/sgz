@@ -834,6 +834,8 @@ async def _submit_vl_job(image_bytes: bytes) -> str:
             "useLayoutDetection": False,
             "useChartRecognition": False,
             "useOcrForImageBlock": True,
+            "useSealRecognition": True,
+            "formatBlockContent": True,
         })},
         files={"file": ("image.jpg", image_bytes, "image/jpeg")},
         timeout=20,
@@ -1027,6 +1029,47 @@ def _parse_equip_items(lines: list[str], eq_skills: dict, eq_names: dict) -> lis
 
             _add_item(name, eq_type, stats, skills)
 
+        if items:
+            return items
+
+    # ── 优先：逐token格式（spotting模式，每字段单独一行，\n\n分隔）──
+    # format: 名称\n\n类型\n\n--\n\n属性\n\n技能\n\n名称\n\n...
+    if '\n\n' in full_text:
+        _UI_NOISE = {'品质','类型','持有','详情','排序','总览','装备','材料',
+                     '道具','营造','货布商店','装备名称','批量出售','珍品','返回'}
+        tokens = [t.strip() for t in _re.split(r'\n+', full_text) if t.strip()]
+        for ti, tok in enumerate(tokens):
+            if tok not in _TYPE_KW:
+                continue
+            # 类型前一个token是装备名
+            name_raw = tokens[ti - 1] if ti > 0 else ''
+            if not name_raw or name_raw in _UI_NOISE or _parse_stats(name_raw):
+                continue
+            # 往后找属性和技能（跳过--，遇到下一个类型关键词停止）
+            stats: dict = {}
+            skills: list = []
+            j = ti + 1
+            while j < len(tokens) and j <= ti + 4:
+                t = tokens[j]
+                if t in _TYPE_KW:
+                    break
+                if _re.match(r'^[-－—–\s]+$', t):  # 跳过 -- 分隔符
+                    j += 1; continue
+                s = _parse_stats(t)
+                if s:
+                    stats.update(s)
+                else:
+                    ms = _fuzzy_match(t, skill_names, threshold=50)
+                    if ms:
+                        skills.append({"name": ms, "desc": eq_skills.get(ms, "")})
+                    elif len(t) >= 2 and t not in _UI_NOISE:
+                        skills.append({"name": t, "desc": ""})
+                j += 1
+            if not stats:
+                continue
+            matched = _fuzzy_match(name_raw, equip_names)
+            name = matched if matched else name_raw
+            _add_item(name, tok, stats, skills)
         if items:
             return items
 
