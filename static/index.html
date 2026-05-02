@@ -1174,15 +1174,40 @@ select.w-sm { width: 72px; }
     </div>
   </div>
 
-  <!-- OCR 图片放大浮层（固定在左侧，不遮挡中间弹窗数据）-->
+  <!-- OCR 图片放大浮层（可拖动、可缩放）-->
   <div x-show="ocrImgZoomed && ocrPreviewUrl" x-cloak
-    @click="ocrImgZoomed=false"
-    style="position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:10010;
-           max-width:44vw;max-height:88vh;
-           background:var(--card);border:1px solid var(--border);border-radius:12px;
-           box-shadow:0 8px 40px rgba(0,0,0,0.4);padding:8px;cursor:zoom-out">
-    <img :src="ocrPreviewUrl" style="max-width:100%;max-height:82vh;object-fit:contain;display:block;border-radius:8px">
-    <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:4px">点击关闭</div>
+    x-data="{
+      _drag: false,
+      posX: 80, posY: 80,
+      _onMove(e) { if(this._drag){ this.posX += e.movementX; this.posY += e.movementY; } },
+      _onUp()  { this._drag = false; },
+      _init()  { this.posX = Math.round((window.innerWidth - 440) / 2); this.posY = 60;
+                 this._mv = this._onMove.bind(this); this._up = this._onUp.bind(this);
+                 window.addEventListener('mousemove', this._mv);
+                 window.addEventListener('mouseup',   this._up); }
+    }"
+    x-init="_init()"
+    :style="`position:fixed;left:${posX}px;top:${posY}px;z-index:10010;
+             width:440px;height:340px;min-width:180px;min-height:140px;
+             background:var(--card);border:1px solid var(--border);border-radius:12px;
+             box-shadow:0 8px 40px rgba(0,0,0,0.45);
+             display:flex;flex-direction:column;resize:both;overflow:hidden;`">
+    <!-- 拖动标题栏 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:5px 10px;background:var(--surface);border-radius:12px 12px 0 0;
+                cursor:move;user-select:none;flex-shrink:0;border-bottom:1px solid var(--border)"
+      @mousedown.prevent="_drag=true">
+      <span style="font-size:11px;color:var(--text3)">📷 截图预览 · 拖动移动 · 右下角缩放</span>
+      <button @click.stop="ocrImgZoomed=false"
+        style="background:none;border:none;color:var(--text3);font-size:18px;line-height:1;
+               cursor:pointer;padding:0 2px;border-radius:4px"
+        onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color=''">×</button>
+    </div>
+    <!-- 图片区 -->
+    <div style="flex:1;overflow:hidden;padding:6px">
+      <img :src="ocrPreviewUrl"
+        style="width:100%;height:100%;object-fit:contain;display:block;border-radius:6px">
+    </div>
   </div>
 
   <!-- OCR 识别导入弹窗 -->
