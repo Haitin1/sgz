@@ -1174,11 +1174,22 @@ select.w-sm { width: 72px; }
     </div>
   </div>
 
+  <!-- OCR 图片放大浮层（固定在左侧，不遮挡中间弹窗数据）-->
+  <div x-show="ocrImgZoomed && ocrPreviewUrl" x-cloak
+    @click="ocrImgZoomed=false"
+    style="position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:10010;
+           max-width:44vw;max-height:88vh;
+           background:var(--card);border:1px solid var(--border);border-radius:12px;
+           box-shadow:0 8px 40px rgba(0,0,0,0.4);padding:8px;cursor:zoom-out">
+    <img :src="ocrPreviewUrl" style="max-width:100%;max-height:82vh;object-fit:contain;display:block;border-radius:8px">
+    <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:4px">点击关闭</div>
+  </div>
+
   <!-- OCR 识别导入弹窗 -->
-  <div class="modal-overlay" x-show="ocrModal" x-cloak @click.self="ocrModal=false; ocrResult=null; ocrFile=null; ocrPreviewUrl=null"
+  <div class="modal-overlay" x-show="ocrModal" x-cloak @click.self="ocrModal=false; ocrResult=null; ocrFile=null; ocrPreviewUrl=null; ocrImgZoomed=false"
     @paste.window="ocrHandlePaste($event)">
     <div class="modal-box" style="width:min(520px,96vw)">
-      <button class="modal-close" @click="ocrModal=false; ocrResult=null; ocrFile=null; ocrPreviewUrl=null">×</button>
+      <button class="modal-close" @click="ocrModal=false; ocrResult=null; ocrFile=null; ocrPreviewUrl=null; ocrImgZoomed=false">×</button>
       <h2 class="modal-title">🤖 智能识别导入</h2>
 
       <!-- 上传区（无文件时显示） -->
@@ -1230,7 +1241,10 @@ select.w-sm { width: 72px; }
       <!-- 识别结果：批量列表 -->
       <template x-if="ocrResult && !ocrLoading">
         <div>
-          <img x-show="ocrPreviewUrl" :src="ocrPreviewUrl" style="width:100%;max-height:160px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
+          <img x-show="ocrPreviewUrl" :src="ocrPreviewUrl"
+            style="width:100%;max-height:160px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;cursor:zoom-in"
+            title="点击放大对比"
+            @click="ocrImgZoomed=true">
           <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">
             ✅ 识别到 <span x-text="ocrResult.items.length"></span> 件装备，勾选后批量导入
           </div>
@@ -2718,6 +2732,7 @@ function simulator() {
     ocrPreviewUrl: null,
     ocrProgress: 0,
     ocrFile: null,
+    ocrImgZoomed: false,
     // ── 推荐阵容 ──
     scenarios: [],
     currentScenario: null,
