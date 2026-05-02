@@ -1263,11 +1263,12 @@ select.w-sm { width: 72px; }
                           style="width:46px;font-size:11px;padding:1px 3px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);text-align:right">
                       </label>
                     </template>
-                    <template x-for="(sk, si) in item.skills" :key="si">
-                      <input class="form-input" x-model="sk.name"
-                        style="width:36px;font-size:11px;padding:1px 4px;flex-shrink:0;color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600;text-align:center">
-                    </template>
-                    <span x-show="!item.skills.length" style="font-size:11px;color:#d1d5db;flex-shrink:0">无特技</span>
+                    <input class="form-input" x-model="item.skills[0].name" placeholder="特技1"
+                      style="width:52px;font-size:11px;padding:1px 4px;flex-shrink:0;text-align:center"
+                      :style="item.skills[0].name ? 'color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600' : ''">
+                    <input class="form-input" x-model="item.skills[1].name" placeholder="特技2"
+                      style="width:52px;font-size:11px;padding:1px 4px;flex-shrink:0;text-align:center"
+                      :style="item.skills[1].name ? 'color:#166534;background:#dcfce7;border-color:#86efac;font-weight:600' : ''">
                   </div>
                 </div>
               </div>
@@ -3547,6 +3548,10 @@ function simulator() {
             }
             if (evt.result) {
               await new Promise(r => setTimeout(r, 300));
+              // 每件装备 skills 补齐到2个槽，方便用户直接编辑
+              (evt.result.items || []).forEach(item => {
+                while (item.skills.length < 2) item.skills.push({name: '', desc: ''});
+              });
               this.ocrResult = evt.result;
             }
           }
