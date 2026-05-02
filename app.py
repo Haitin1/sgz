@@ -789,109 +789,83 @@ def get_recommended_lineups(scenario_id: int):
 # OCR 识别
 # ─────────────────────────────────────────────────────────────
 
-OCR_TOKEN = os.environ.get("BAIDU_OCR_TOKEN", "")
-OCR_SYNC_URL = "https://paddleocr.aistudio-app.com/layout-parsing"
-OCR_JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
-OCR_MODEL = "PaddleOCR-VL-1.5"
-_OCR_DEBUG_FILE = "/tmp/sgz_ocr_debug.txt"
-
 import re as _re
 import asyncio as _asyncio
-import base64 as _base64
 import json as _json_ocr
 import time as _time
+
+_OCR_DEBUG_FILE = "/tmp/sgz_ocr_debug.txt"
+
+# 本地 OCR 实例（延迟初始化，首次调用时加载模型）
+_rapid_ocr_instance = None
 
 
 def _sse(data: dict) -> str:
     return f"data: {_json_ocr.dumps(data, ensure_ascii=False)}\n\n"
 
 
-async def _ocr_tesseract(image_bytes: bytes) -> list[str]:
-    """本地 Tesseract OCR 兜底"""
-    import pytesseract
-    from PIL import Image
-    import io
+async def _run_local_ocr(image_bytes: bytes) -> list[str]:
+    """使用本地 RapidOCR (PP-OCRv4 ONNX) 识别图片，返回按阅读顺序排列的文本行"""
     loop = _asyncio.get_event_loop()
-    def _do_ocr():
-        img = Image.open(io.BytesIO(image_bytes))
-        # 用中文+英文识别
-        text = pytesseract.image_to_string(img, lang='chi_sim+eng', config='--psm 6')
-        return text
-    text = await loop.run_in_executor(None, _do_ocr)
-    if text.strip():
-        return [text]
-    return []
 
+    def _do():
+        global _rapid_ocr_instance
+        if _rapid_ocr_instance is None:
+            from rapidocr_onnxruntime import RapidOCR
+            _rapid_ocr_instance = RapidOCR()
 
-async def _submit_vl_job(image_bytes: bytes) -> str:
-    headers = {"Authorization": f"bearer {OCR_TOKEN}"}
-    loop = _asyncio.get_event_loop()
-    resp = await loop.run_in_executor(None, lambda: _requests.post(
-        OCR_JOB_URL, headers=headers,
-        data={"model": OCR_MODEL, "optionalPayload": _json_ocr.dumps({
-            "useDocOrientationClassify": False,
-            "useDocUnwarping": False,
-            "useLayoutDetection": False,
-            "useChartRecognition": False,
-            "useOcrForImageBlock": True,
-            "useSealRecognition": True,
-            "formatBlockContent": True,
-        })},
-        files={"file": ("image.jpg", image_bytes, "image/jpeg")},
-        timeout=20,
-    ))
-    if resp.status_code != 200:
-        raise RuntimeError(f"提交失败(HTTP {resp.status_code}): {resp.text[:300]}")
-    rj = resp.json()
-    if rj.get("code", 0) != 0:
-        raise RuntimeError(f"OCR API错误(code={rj['code']}): {rj.get('msg', '')} | {resp.text[:200]}")
-    return rj["data"]["jobId"]
+        result, _ = _rapid_ocr_instance(image_bytes)
+        if not result:
+            return []
 
+        # result: [[bbox_points, text, score], ...]
+        # bbox_points: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]]
+        items = []
+        for r in result:
+            bbox, text = r[0], r[1]
+            score = r[2] if len(r) > 2 else 1.0
+            if score < 0.4:
+                continue
+            y_center = sum(pt[1] for pt in bbox) / 4
+            x_left   = bbox[0][0]
+            height   = abs(bbox[2][1] - bbox[0][1])
+            items.append((y_center, x_left, text, height))
 
-async def _poll_vl_job(job_id: str) -> dict:
-    headers = {"Authorization": f"bearer {OCR_TOKEN}"}
-    loop = _asyncio.get_event_loop()
-    resp = await loop.run_in_executor(
-        None, lambda: _requests.get(f"{OCR_JOB_URL}/{job_id}", headers=headers, timeout=10)
-    )
-    return resp.json()["data"]
+        if not items:
+            return []
 
+        # 按 Y 排序后分行（Y 差 < 平均行高×0.6 则视为同一行）
+        items.sort(key=lambda x: x[0])
+        avg_h = sum(x[3] for x in items) / len(items)
+        threshold = max(10, avg_h * 0.6)
 
-async def _download_vl_result(jsonl_url: str) -> list[str]:
-    """下载 JSONL 结果，返回所有 markdown/HTML 文本行"""
-    loop = _asyncio.get_event_loop()
-    raw = await loop.run_in_executor(None, lambda: _requests.get(jsonl_url, timeout=15))
-    # 先写调试日志（原始数据）
-    try:
-        with open(_OCR_DEBUG_FILE, "w") as f:
-            f.write(f"JSONL URL: {jsonl_url}\n")
-            f.write(f"HTTP status: {raw.status_code}\n")
-            f.write(f"Raw response (first 5000 chars):\n{raw.text[:5000]}\n\n")
-    except Exception:
-        pass
-    lines = []
-    for raw_line in raw.text.strip().split("\n"):
-        if not raw_line.strip():
-            continue
+        rows, cur_row = [], [items[0]]
+        for item in items[1:]:
+            if item[0] - cur_row[-1][0] <= threshold:
+                cur_row.append(item)
+            else:
+                rows.append(cur_row)
+                cur_row = [item]
+        rows.append(cur_row)
+
+        # 同行按 X 排序，合并成一个字符串
+        lines = []
+        for row in rows:
+            row.sort(key=lambda x: x[1])
+            lines.append(' '.join(x[2] for x in row))
+
+        # 写调试日志
         try:
-            obj = _json_ocr.loads(raw_line)
+            with open(_OCR_DEBUG_FILE, "w") as f:
+                f.write(f"RapidOCR lines ({len(lines)}):\n")
+                for i, l in enumerate(lines):
+                    f.write(f"[{i}] {l}\n")
         except Exception:
-            continue
-        res_obj = obj.get("result", obj)
+            pass
 
-        for res in res_obj.get("layoutParsingResults", []):
-            md = res.get("markdown", {}).get("text", "")
-            if md.strip():
-                lines.append(md)
-    # 追加解析结果
-    try:
-        with open(_OCR_DEBUG_FILE, "a") as f:
-            f.write(f"Parsed lines: {len(lines)}\n")
-            for i, l in enumerate(lines):
-                f.write(f"--- line[{i}] ---\n{l[:1000]}\n")
-    except Exception:
-        pass
-    return lines
+        return lines
+
+    return await loop.run_in_executor(None, _do)
 
 
 _STAT_MAP = {
@@ -1246,56 +1220,16 @@ async def ocr_equipment(file: UploadFile = File(...)):
 
     async def stream():
         try:
-            # 异步 API (jobs)
-            yield _sse({"progress": 5, "msg": "提交识别任务…"})
-            job_id = await _submit_vl_job(image_bytes)
-            yield _sse({"progress": 12, "msg": f"任务已提交: {job_id}"})
-
-            deadline = _time.time() + 90
-            jsonl_url = None
-            last_state = ""
-            while _time.time() < deadline:
-                await _asyncio.sleep(3)
-                data = await _poll_vl_job(job_id)
-                state = data["state"]
-                last_state = state
-
-                if state == "pending":
-                    elapsed = _time.time() - (deadline - 90)
-                    p = min(30, 12 + elapsed * 1.5)
-                    yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
-
-                elif state == "running":
-                    try:
-                        total = data["extractProgress"]["totalPages"]
-                        done_pages = data["extractProgress"]["extractedPages"]
-                        p = 30 + (done_pages / max(total, 1)) * 55
-                    except Exception:
-                        elapsed = _time.time() - (deadline - 90)
-                        p = min(80, 30 + elapsed * 1.5)
-                    yield _sse({"progress": round(p, 1), "msg": "识别中…"})
-
-                elif state == "done":
-                    jsonl_url = data["resultUrl"]["jsonUrl"]
-                    yield _sse({"progress": 90, "msg": "下载结果…"})
-                    break
-
-                elif state == "failed":
-                    err_msg = data.get("errorMsg", "识别失败")
-                    yield _sse({"error": f"OCR任务失败: {err_msg}"})
-                    return
-
-            if not jsonl_url:
-                yield _sse({"error": f"识别超时（90秒），最后状态: {last_state}"})
+            yield _sse({"progress": 10, "msg": "识别中…"})
+            lines = await _run_local_ocr(image_bytes)
+            if not lines:
+                yield _sse({"error": "未识别到任何文字，请检查图片质量"})
                 return
-
-            lines = await _download_vl_result(jsonl_url)
+            yield _sse({"progress": 80, "msg": f"解析中（{len(lines)} 行）…"})
             items = _parse_equip_items(lines, eq_skills, eq_names)
             for item in items:
                 item["_checked"] = True
-
             yield _sse({"progress": 100, "msg": "完成", "result": {"items": items, "raw": lines}})
-
         except Exception as e:
             yield _sse({"error": str(e)})
 
@@ -1308,20 +1242,14 @@ async def ocr_equipment(file: UploadFile = File(...)):
 
 @app.get("/api/ocr/debug")
 async def ocr_debug():
-    """查看 OCR 调试日志 + token 状态"""
-    import os
-    has_token = bool(OCR_TOKEN.strip())
-    token_info = f"{OCR_TOKEN[:8]}...(len={len(OCR_TOKEN)})" if has_token else "(空! 请设置 BAIDU_OCR_TOKEN 环境变量)"
+    """查看 OCR 调试日志"""
     debug_log = ""
     if os.path.exists(_OCR_DEBUG_FILE):
         with open(_OCR_DEBUG_FILE, "r") as f:
             debug_log = f.read()
     return JSONResponse({
-        "token": token_info,
-        "has_token": has_token,
-        "sync_url": OCR_SYNC_URL,
-        "async_url": OCR_JOB_URL,
-        "model": OCR_MODEL,
+        "engine": "RapidOCR (local, PP-OCRv4 ONNX)",
+        "model_loaded": _rapid_ocr_instance is not None,
         "log": debug_log or "(暂无日志，请先执行一次OCR识别)"
     })
 
@@ -1479,35 +1407,12 @@ async def ocr_lineup(file: UploadFile = File(...)):
 
     async def stream():
         try:
-            yield _sse({"progress": 5, "msg": "提交识别任务…"})
-            job_id = await _submit_vl_job(image_bytes)
-            yield _sse({"progress": 12, "msg": "任务已提交，等待队列…"})
-            deadline = _time.time() + 90
-            jsonl_url = None
-            while _time.time() < deadline:
-                await _asyncio.sleep(3)
-                data = await _poll_vl_job(job_id)
-                state = data["state"]
-                if state == "pending":
-                    p = min(30, 12 + (_time.time() - (deadline - 90)) * 1.5)
-                    yield _sse({"progress": round(p, 1), "msg": "队列等待中…"})
-                elif state == "running":
-                    try:
-                        total = data["extractProgress"]["totalPages"]
-                        done_pages = data["extractProgress"]["extractedPages"]
-                        p = 30 + (done_pages / max(total, 1)) * 55
-                    except Exception:
-                        p = min(80, 30 + (_time.time() - (deadline - 90)) * 1.5)
-                    yield _sse({"progress": round(p, 1), "msg": "识别中…"})
-                elif state == "done":
-                    jsonl_url = data["resultUrl"]["jsonUrl"]
-                    yield _sse({"progress": 90, "msg": "下载结果…"})
-                    break
-                elif state == "failed":
-                    yield _sse({"error": data.get("errorMsg", "识别失败")}); return
-            if not jsonl_url:
-                yield _sse({"error": "识别超时（90秒）"}); return
-            lines = await _download_vl_result(jsonl_url)
+            yield _sse({"progress": 10, "msg": "识别中…"})
+            lines = await _run_local_ocr(image_bytes)
+            if not lines:
+                yield _sse({"error": "未识别到任何文字，请检查图片质量"})
+                return
+            yield _sse({"progress": 70, "msg": f"解析中…"})
             joined = "\n".join(lines)
             result = _parse_lineup_from_html(joined, generals_db, skills_db, books_db)
             # 补充兵种适性信息（根据 DB 推断最佳兵种）
@@ -1522,7 +1427,7 @@ async def ocr_lineup(file: UploadFile = File(...)):
                         best_type, best_grade = key, grade
                 g["troop_type"]  = best_type
                 g["troop_grade"] = best_grade
-            result["raw"] = joined[:5000]  # 调试用
+            result["raw"] = lines[:100]  # 调试用
             yield _sse({"progress": 100, "msg": "完成", "result": result})
         except Exception as e:
             yield _sse({"error": str(e)})
