@@ -1176,18 +1176,7 @@ select.w-sm { width: 72px; }
 
   <!-- OCR 图片放大浮层（可拖动、可缩放）-->
   <div x-show="ocrImgZoomed && ocrPreviewUrl" x-cloak
-    x-data="{
-      _drag: false,
-      posX: 80, posY: 80,
-      _onMove(e) { if(this._drag){ this.posX += e.movementX; this.posY += e.movementY; } },
-      _onUp()  { this._drag = false; },
-      _init()  { this.posX = Math.round((window.innerWidth - 440) / 2); this.posY = 60;
-                 this._mv = this._onMove.bind(this); this._up = this._onUp.bind(this);
-                 window.addEventListener('mousemove', this._mv);
-                 window.addEventListener('mouseup',   this._up); }
-    }"
-    x-init="_init()"
-    :style="`position:fixed;left:${posX}px;top:${posY}px;z-index:10010;
+    :style="`position:fixed;left:${ocrZoomX}px;top:${ocrZoomY}px;z-index:10010;
              width:440px;height:340px;min-width:180px;min-height:140px;
              background:var(--card);border:1px solid var(--border);border-radius:12px;
              box-shadow:0 8px 40px rgba(0,0,0,0.45);
@@ -1196,7 +1185,7 @@ select.w-sm { width: 72px; }
     <div style="display:flex;align-items:center;justify-content:space-between;
                 padding:5px 10px;background:var(--surface);border-radius:12px 12px 0 0;
                 cursor:move;user-select:none;flex-shrink:0;border-bottom:1px solid var(--border)"
-      @mousedown.prevent="_drag=true">
+      @mousedown="ocrStartDrag($event)">
       <span style="font-size:11px;color:var(--text3)">📷 截图预览 · 拖动移动 · 右下角缩放</span>
       <button @click.stop="ocrImgZoomed=false"
         style="background:none;border:none;color:var(--text3);font-size:18px;line-height:1;
@@ -1269,7 +1258,7 @@ select.w-sm { width: 72px; }
           <img x-show="ocrPreviewUrl" :src="ocrPreviewUrl"
             style="width:100%;max-height:160px;object-fit:contain;border-radius:8px;border:1px solid var(--border);margin-bottom:10px;cursor:zoom-in"
             title="点击放大对比"
-            @click="ocrImgZoomed=true">
+            @click="ocrOpenZoom()">
           <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:10px">
             ✅ 识别到 <span x-text="ocrResult.items.length"></span> 件装备，勾选后批量导入
           </div>
@@ -2758,6 +2747,7 @@ function simulator() {
     ocrProgress: 0,
     ocrFile: null,
     ocrImgZoomed: false,
+    ocrZoomX: 80, ocrZoomY: 60,
     // ── 推荐阵容 ──
     scenarios: [],
     currentScenario: null,
@@ -3546,6 +3536,18 @@ function simulator() {
         };
         img.src = url;
       });
+    },
+    ocrOpenZoom() {
+      this.ocrZoomX = Math.max(10, Math.round((window.innerWidth - 440) / 2));
+      this.ocrZoomY = 60;
+      this.ocrImgZoomed = true;
+    },
+    ocrStartDrag(e) {
+      e.preventDefault();
+      const onMove = (ev) => { this.ocrZoomX += ev.movementX; this.ocrZoomY += ev.movementY; };
+      const onUp   = ()   => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup',   onUp);
     },
     ocrHandleFile(file) {
       if (!file || !file.type.startsWith('image/')) { alert('请选择图片文件'); return; }
