@@ -1321,7 +1321,15 @@ def _extract_text_tokens(html: str) -> list[str]:
 _LEVEL_RE = _re.compile(r'^(\d{1,2})\s*(.{2,6})$')   # "43孙尚香" / "43 孙尚香"
 
 # 兵书类别关键词（OCR 会扫到，但不是兵书名）
-_BOOK_CAT_KW = {'作战','始计','辅助','防守','奇袭','牵制','强攻','治军','扰敌'}
+_BOOK_CAT_KW    = {'作战','始计','辅助','防守','奇袭','牵制','强攻','治军','扰敌'}
+_TROOP_LABEL_MAP = {'骑兵':'cavalry','弓兵':'bow','枪兵':'spear','盾兵':'shield','器械':'machine'}
+_TROOP_LINE_RE   = _re.compile(r'(骑兵|弓兵|枪兵|盾兵|器械)([SABC5]?)')
+# 格式2中出现的状态/体力噪音行关键词
+_STATUS_NOISE_RE = _re.compile(
+    r'^(?:体力|策力|部队中|重伤|御\d*|主将|副将|觉醒|觉星|SP\s?觉醒|蜀|魏|吴|汉|群)'
+    r'|^\d+[：:]\d+'   # 重伤倒计时 "06：40"
+    r'|\d+/\d+'         # 兵力/体力分数
+)
 
 
 def _parse_lineup_columns(
@@ -1370,8 +1378,23 @@ def _parse_lineup_columns(
         if not tokens:
             continue
 
+        # —— 跳过噪音行（体力/策力/部队状态/阵营/觉醒标签等）——
+        if all(_STATUS_NOISE_RE.search(t) for t in tokens):
+            continue
         # 跳过兵书类别行（"作战 作战 始计" 等）
         if all(t in _BOOK_CAT_KW for t in tokens):
+            continue
+
+        # —— 格式2: 兵种行（"弓兵S 3371/9700 弓兵S 2931/9800 ..."）——
+        # 特征：每列 token 以兵种开头（骑/弓/枪/盾/器）
+        troop_matches = _TROOP_LINE_RE.findall(line)
+        if len(troop_matches) >= max(1, n - 1):  # 至少 n-1 列能识别兵种（OCR可能漏一列）
+            for col, (label, grade) in enumerate(troop_matches):
+                if col >= n:
+                    break
+                grade = grade.replace('5', 'S').upper() or 'S'   # OCR 常把 S 识别为 5
+                generals[col]['troop_type']  = _TROOP_LABEL_MAP.get(label, 'cavalry')
+                generals[col]['troop_grade'] = grade if grade in ('S','A','B','C') else 'S'
             continue
 
         # —— 战法行 ——
@@ -1608,21 +1631,27 @@ async def ocr_lineup(file: UploadFile = File(...)):
             TROOP_KEYS  = [("cavalry","骑兵"), ("bow","弓兵"), ("spear","枪兵"), ("shield","盾兵"), ("machine","器械")]
             s_count: dict[str, int] = {}
             for g in result["generals"]:
-                tr = troop_rows.get(g["name"], {})
-                best_type, best_grade = "cavalry", "C"
-                for key, _ in TROOP_KEYS:
-                    grade = tr.get(key, "C") or "C"
-                    if GRADE_ORDER.get(grade, 0) > GRADE_ORDER.get(best_grade, 0):
-                        best_type, best_grade = key, grade
-                    if grade == "S":
-                        s_count[key] = s_count.get(key, 0) + 1
-                g["troop_type"]  = best_type
-                g["troop_grade"] = best_grade
+                if g.get("troop_type"):
+                    # 格式2：解析器已从截图直接读出兵种，直接统计 S 票
+                    if g.get("troop_grade") == "S":
+                        s_count[g["troop_type"]] = s_count.get(g["troop_type"], 0) + 1
+                else:
+                    # 格式1：截图无兵种信息，从数据库推算最优兵种
+                    tr = troop_rows.get(g["name"], {})
+                    best_type, best_grade = "cavalry", "C"
+                    for key, _ in TROOP_KEYS:
+                        grade = tr.get(key, "C") or "C"
+                        if GRADE_ORDER.get(grade, 0) > GRADE_ORDER.get(best_grade, 0):
+                            best_type, best_grade = key, grade
+                        if grade == "S":
+                            s_count[key] = s_count.get(key, 0) + 1
+                    g["troop_type"]  = best_type
+                    g["troop_grade"] = best_grade
             # 队伍兵种：S 最多的兵种（优先按 S 票数，票数相同取 TROOP_KEYS 顺序靠前）
             if s_count:
                 team_troop_key = max(TROOP_KEYS, key=lambda kv: s_count.get(kv[0], 0))[0]
             else:
-                team_troop_key = "cavalry"
+                team_troop_key = (result["generals"][0].get("troop_type") or "cavalry")
             result["team_troop"] = team_troop_key
             result["raw"] = lines[:100]  # 调试用
             yield _sse({"progress": 100, "msg": "完成", "result": result})
