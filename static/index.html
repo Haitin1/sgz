@@ -3829,9 +3829,21 @@ function simulator() {
     applyOcrLineup(team) {
       const res = this.ocrLineupResult;
       if (!res || !res.generals?.length) return;
+      const teamTroopKey = res.team_troop || null;
       const gens = res.generals.map(g => {
         const found = this.generalsData.find(x => x.name === g.name);
         const base = found ? { ...found } : { name: g.name, strength:0,intelligence:0,leadership:0,speed:0,politics:0,charisma:0 };
+        // 构建适性对象（从 generalsData 原始字段）
+        const affinities = {
+          cavalry: base.cavalry || 'C',
+          bow:     base.bow     || 'C',
+          spear:   base.spear   || 'C',
+          shield:  base.shield  || 'C',
+          machine: base.machine || 'C',
+        };
+        // 队伍兵种统一覆盖每个武将兵种
+        const troop_type  = teamTroopKey || g.troop_type || base.troop_type || 'cavalry';
+        const troop_grade = affinities[troop_type] || 'C';
         const skills = (g.skills || []).map(sk => {
           const s = this.skillsData.find(x => x.name === sk.name);
           return s ? { name:s.name, type:s.type||'主动', damage:s.damage||0, heal:s.heal||0, buff:s.buff||0, debuff:s.debuff||0, desc:s.description||'' }
@@ -3846,8 +3858,9 @@ function simulator() {
           _team: team,
           level: g.level || 43,
           red_dots: 0,
-          troop_type: g.troop_type || base.troop_type || 'cavalry',
-          troop_grade: g.troop_grade || base.troop_grade || 'C',
+          affinities,
+          troop_type,
+          troop_grade,
           equips: {'武器':null,'防具':null,'坐骑':null,'宝物':null},
           main_book:  mainBook?.name  || null,
           sub_book1:  subBooks[0]?.name || null,
@@ -3858,8 +3871,8 @@ function simulator() {
       while (gens.length < 3) gens.push(this._emptyGeneral(team));
       for (let i = 0; i < 3; i++) this.teams[team][i] = gens[i];
       // 设置队伍兵种（S 票数最多的兵种）
-      if (res.team_troop) {
-        this.teamTroop[team] = res.team_troop;
+      if (teamTroopKey) {
+        this.teamTroop[team] = teamTroopKey;
         this.lockTeamTroop(team);
       }
       this.ocrLineupModal = false;
