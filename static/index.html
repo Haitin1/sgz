@@ -3814,9 +3814,10 @@ function simulator() {
               if (evt.error) { alert('识别失败：' + evt.error); this.ocrLineupLoading = false; return; }
               if (evt.result) {
                 const res = evt.result;
-                // 确保每位武将有3个战法槽
+                // 确保每位武将有3个战法槽；统一设置为队伍兵种
                 (res.generals || []).forEach(g => {
                   while ((g.skills || []).length < 3) (g.skills = g.skills || []).push({ name: '' });
+                  if (res.team_troop) g.troop_type = res.team_troop;
                 });
                 this.ocrLineupResult = res;
               }
