@@ -20,6 +20,10 @@ from damage_engine import calc_damage, TROOP_COEF, troop_counter_coef
 CONTROL_STATUSES = {"震慑", "计穷", "缴械", "混乱", "虚弱", "禁疗", "嘲讽", "伪报", "挑拨", "破坏", "捕获"}
 COMMAND_PASSIVE_TYPES = {"指挥", "被动"}
 PRE_BATTLE_TYPES = {"指挥", "被动", "兵种", "阵法"}
+STRATEGY_DOT_STATUSES = {"灼烧", "水攻", "中毒", "沙暴"}
+WEAPON_DOT_STATUSES = {"溃逃"}
+TRUE_DOT_STATUSES = {"叛逃"}
+HOT_STATUSES = {"休整"}
 
 # ─────────────────────────────────────────────────────────────
 # 数据结构
@@ -452,6 +456,7 @@ class BattleEngine:
         for state in my_states:
             if not state.alive:
                 continue
+            self._apply_ongoing_statuses(state, my_states, enemy_states, eng, rnd)
             for skill in state.cfg.skills:
                 # 主动/突击战法的 effect_json 要等实际发动时再接入，避免每回合白送效果。
                 if skill.skill_type not in PRE_BATTLE_TYPES:
@@ -619,7 +624,15 @@ class BattleEngine:
                 operation=status.get("operation", "add"),
                 source_skill=skill.name,
                 stackable=bool(status.get("stackable", False)),
-                meta={"caster": caster.cfg.name, "effect": effect},
+                meta={
+                    "caster": caster.cfg.name,
+                    "effect": effect,
+                    "rate": value,
+                    "source_attr": self._state_attr(caster, status.get("scales_with", status.get("attr", "智力"))),
+                    "source_troops": caster.current_troops,
+                    "source_troop_grade": caster.cfg.troop_grade,
+                    "source_troop_type": caster.cfg.troop_type,
+                },
             )
             self._emit(
                 eng,
@@ -826,6 +839,99 @@ class BattleEngine:
                 return float(value["base"])
             return default
         return float(value)
+
+    def _apply_ongoing_statuses(
+        self,
+        state: GeneralState,
+        allies: list[GeneralState],
+        enemies: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ):
+        for status in list(state.statuses):
+            if status.name in STRATEGY_DOT_STATUSES:
+                self._apply_status_tick_damage(status, state, "谋略", eng, rnd)
+            elif status.name in WEAPON_DOT_STATUSES:
+                self._apply_status_tick_damage(status, state, "兵刃", eng, rnd)
+            elif status.name in TRUE_DOT_STATUSES:
+                self._apply_status_tick_damage(status, state, "无视防御", eng, rnd)
+            elif status.name in HOT_STATUSES or status.operation == "heal_over_time":
+                self._apply_status_tick_heal(status, state, eng, rnd)
+
+    def _apply_status_tick_damage(self, status: Status, target: GeneralState, damage_type: str, eng: int, rnd: int):
+        rate = status.value or float(status.meta.get("rate", 0.0) or 0.0)
+        if rate <= 0 or not target.alive:
+            return
+        source_attr = float(status.meta.get("source_attr", 100.0))
+        before = target.current_troops
+        if damage_type == "无视防御":
+            amount = int(max(1, source_attr * rate * max(target.current_troops, 1) ** 0.1))
+        else:
+            def_attr = target.intel if damage_type == "谋略" else target.command
+            result = calc_damage(
+                num=int(status.meta.get("source_troops", target.current_troops)),
+                atk=source_attr,
+                def_=def_attr,
+                def_num=target.current_troops,
+                atk_troop_grade=status.meta.get("source_troop_grade", target.cfg.troop_grade),
+                def_troop_grade=target.cfg.troop_grade,
+                atk_troop_type=status.meta.get("source_troop_type", target.cfg.troop_type),
+                def_troop_type=target.cfg.troop_type,
+                skill_rate=rate,
+            )
+            amount = result["total"]
+        actual = target.take_damage(amount)
+        self._emit(
+            eng,
+            rnd,
+            status.meta.get("caster", status.source_skill or status.name),
+            f"【{status.name}】持续{damage_type}伤害",
+            actual,
+            target.cfg.name,
+            event="status_tick_damage",
+            source_skill=status.source_skill,
+            damage_type=damage_type,
+            troops_before=before,
+            troops_after=target.current_troops,
+            details={"status": status.name, "rate": rate, "source_attr": source_attr},
+        )
+
+    def _apply_status_tick_heal(self, status: Status, target: GeneralState, eng: int, rnd: int):
+        rate = status.value or float(status.meta.get("rate", 0.0) or 0.0)
+        if rate <= 0 or not target.alive:
+            return
+        before = target.current_troops
+        source_attr = float(status.meta.get("source_attr", target.intel))
+        amount = int(source_attr * rate * max(target.current_troops, 1) ** 0.1)
+        healed = target.heal(amount)
+        if healed == 0 and target.has_status("禁疗"):
+            self._emit(
+                eng,
+                rnd,
+                target.cfg.name,
+                "禁疗阻止持续治疗",
+                0,
+                status.meta.get("caster", status.source_skill or status.name),
+                event="heal_blocked",
+                source_skill=status.source_skill,
+                troops_before=before,
+                troops_after=target.current_troops,
+                details={"status": status.name, "attempted_heal": amount},
+            )
+            return
+        self._emit(
+            eng,
+            rnd,
+            status.meta.get("caster", status.source_skill or status.name),
+            f"【{status.name}】持续治疗",
+            healed,
+            target.cfg.name,
+            event="status_tick_heal",
+            source_skill=status.source_skill,
+            troops_before=before,
+            troops_after=target.current_troops,
+            details={"status": status.name, "rate": rate, "source_attr": source_attr},
+        )
 
     def _state_attr(self, state: GeneralState, attr: str) -> float:
         mapping = {
