@@ -1181,8 +1181,14 @@ class BattleEngine:
 
         # ── 普通攻击（缴械则跳过） ────────────────────────────
         if not state.has_status("缴械"):
-            target = enemies[0]  # 简化：打第1个存活敌人
-            dmg = self._normal_attack(state, target, tech_self, tech_enemy)
+            target = self._normal_attack_target(state, enemies, allies, eng, rnd)
+            if not target:
+                return
+            target_is_enemy = target in enemies
+            damage_target_allies = enemies if target_is_enemy else allies
+            damage_target_enemies = allies if target_is_enemy else enemies
+            damage_target_tech = tech_enemy if target_is_enemy else tech_self
+            dmg = self._normal_attack(state, target, tech_self, damage_target_tech)
             actual = self._deal_damage(
                 target,
                 dmg,
@@ -1190,9 +1196,9 @@ class BattleEngine:
                 allies,
                 eng,
                 rnd,
-                target_allies=enemies,
-                target_enemies=allies,
-                target_tech=tech_enemy,
+                target_allies=damage_target_allies,
+                target_enemies=damage_target_enemies,
+                target_tech=damage_target_tech,
                 attacker_tech=tech_self,
             )
             self._emit(eng, rnd, state.cfg.name,
@@ -1228,14 +1234,56 @@ class BattleEngine:
                     allies,
                     eng,
                     rnd,
-                    target_allies=enemies,
-                    target_enemies=allies,
-                    target_tech=tech_enemy,
+                    target_allies=damage_target_allies,
+                    target_enemies=damage_target_enemies,
+                    target_tech=damage_target_tech,
                     attacker_tech=tech_self,
                 )
                 self._emit(eng, rnd, state.cfg.name,
                                           "连击（额外普攻）", act2, target.cfg.name)
                 self._after_normal_attack(state, target, enemies, allies, tech_self, tech_enemy, eng, rnd)
+
+    def _normal_attack_target(
+        self,
+        attacker: GeneralState,
+        enemies: list[GeneralState],
+        allies: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ) -> Optional[GeneralState]:
+        alive_enemies = [s for s in enemies if s.alive]
+        alive_allies = [s for s in allies if s.alive]
+        if not alive_enemies:
+            return None
+        taunter = next((s for s in alive_enemies if s.has_status("嘲讽")), None)
+        if taunter:
+            self._emit(
+                eng,
+                rnd,
+                taunter.cfg.name,
+                "嘲讽吸引普通攻击",
+                0,
+                attacker.cfg.name,
+                event="target_redirect",
+                details={"reason": "嘲讽"},
+            )
+            return taunter
+        if attacker.has_status("混乱"):
+            candidates = [s for s in alive_enemies + alive_allies if s is not attacker]
+            target = random.choice(candidates) if candidates else None
+            if target:
+                self._emit(
+                    eng,
+                    rnd,
+                    attacker.cfg.name,
+                    "混乱导致目标随机",
+                    0,
+                    target.cfg.name,
+                    event="target_redirect",
+                    details={"reason": "混乱"},
+                )
+            return target
+        return alive_enemies[0]
 
     # ── 普攻后突击 ────────────────────────────────────────────
 
