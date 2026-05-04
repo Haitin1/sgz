@@ -97,6 +97,7 @@ class SkillInput(BaseModel):
     status_chance: float = 1.0
     ignore_defense: bool = False
     guaranteed_hit: bool = False
+    effect_json: Optional[dict] = None
 
 
 class GeneralInput(BaseModel):
@@ -153,6 +154,7 @@ def convert_team(generals: list[GeneralInput]) -> list[GeneralConfig]:
                 status_chance=s.status_chance,
                 ignore_defense=s.ignore_defense,
                 guaranteed_hit=s.guaranteed_hit,
+                effect_json=s.effect_json,
             )
             for s in g.skills
         ]
@@ -581,7 +583,7 @@ def list_skills():
         conn = get_db()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         cur.execute("""
-            SELECT id, name, category, trigger_prob, target, description, quality, effect
+            SELECT id, name, category, trigger_prob, target, description, quality, effect, effect_json
             FROM skills
             ORDER BY category, name
         """)

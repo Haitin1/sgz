@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import random
+import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Optional
@@ -50,6 +51,9 @@ class SkillDef:
     ignore_defense: bool = False   # 破阵
     guaranteed_hit: bool = False   # 必中
 
+    # 结构化战法效果。description 只展示文本，战斗逻辑应逐步迁移到这里。
+    effect_json: Optional[dict] = None
+
 
 @dataclass
 class GeneralConfig:
@@ -69,6 +73,13 @@ class GeneralConfig:
 class Status:
     name: str
     rounds_left: int   # 剩余回合数（-1 = 永久/本局）
+    value: float = 0.0
+    value_type: str = "flat"  # flat / percent
+    attr: Optional[str] = None
+    operation: str = "add"
+    source_skill: Optional[str] = None
+    stackable: bool = False
+    meta: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -97,26 +108,70 @@ class GeneralState:
     prep_rounds_left: int = 0
 
     @property
-    def force(self):  return self.cfg.force  + self.bonus_force
+    def force(self):  return self._stat_with_status("武力", self.cfg.force + self.bonus_force)
     @property
-    def intel(self):  return self.cfg.intel  + self.bonus_intel
+    def intel(self):  return self._stat_with_status("智力", self.cfg.intel + self.bonus_intel)
     @property
-    def command(self): return self.cfg.command + self.bonus_command
+    def command(self): return self._stat_with_status("统率", self.cfg.command + self.bonus_command)
     @property
-    def speed(self):  return self.cfg.speed  + self.bonus_speed
+    def speed(self):  return self._stat_with_status("速度", self.cfg.speed + self.bonus_speed)
 
     def has_status(self, name: str) -> bool:
         return any(s.name == name for s in self.statuses)
 
-    def add_status(self, name: str, rounds: int = 2):
+    def add_status(
+        self,
+        name: str,
+        rounds: int = 2,
+        *,
+        value: float = 0.0,
+        value_type: str = "flat",
+        attr: Optional[str] = None,
+        operation: str = "add",
+        source_skill: Optional[str] = None,
+        stackable: bool = False,
+        meta: Optional[dict] = None,
+    ):
         # 部分状态不可叠加，检查是否已有
         no_stack = {"先攻", "必中", "破阵", "抵御", "洞察", "连击", "军心动摇"}
-        if name in no_stack and self.has_status(name):
+        if not stackable and name in no_stack and self.has_status(name):
             return
-        self.statuses.append(Status(name=name, rounds_left=rounds))
+        self.statuses.append(Status(
+            name=name,
+            rounds_left=rounds,
+            value=value,
+            value_type=value_type,
+            attr=attr,
+            operation=operation,
+            source_skill=source_skill,
+            stackable=stackable,
+            meta=meta or {},
+        ))
 
     def remove_status(self, name: str):
         self.statuses = [s for s in self.statuses if s.name != name]
+
+    def status_value(self, name: str, *, operation: Optional[str] = None) -> float:
+        total = 0.0
+        for s in self.statuses:
+            if s.name != name:
+                continue
+            if operation and s.operation != operation:
+                continue
+            total += s.value
+        return total
+
+    def _stat_with_status(self, attr: str, base: float) -> int:
+        flat = 0.0
+        percent = 0.0
+        for s in self.statuses:
+            if s.attr != attr:
+                continue
+            if s.value_type == "percent":
+                percent += s.value
+            else:
+                flat += s.value
+        return int((base + flat) * (1 + percent))
 
     def tick_statuses(self):
         """每回合末减少状态持续时间，移除到期状态"""
@@ -287,6 +342,9 @@ class BattleEngine:
 
         # ── 战斗回合 ──────────────────────────────────────────
         for rnd in range(1, self.MAX_ROUNDS + 1):
+            self._round_start(states_a, states_b, eng, rnd)
+            self._round_start(states_b, states_a, eng, rnd)
+
             # 所有存活武将按速度（+先攻）排序
             all_generals = [
                 (s, "A") for s in states_a if s.alive
@@ -351,11 +409,37 @@ class BattleEngine:
                     if target:
                         target.add_status(skill.apply_status, skill.status_duration)
 
+                self._trigger_skill_effects(
+                    "battle_start",
+                    skill,
+                    state,
+                    my_states,
+                    enemy_states,
+                    eng,
+                    0,
+                )
+
                 self.log.append(LogEntry(
                     engagement=eng, round=0,
                     actor=state.cfg.name,
                     action=f"[准备] 发动【{skill.name}】",
                 ))
+
+    def _round_start(
+        self,
+        my_states: list[GeneralState],
+        enemy_states: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ):
+        for state in my_states:
+            if not state.alive:
+                continue
+            for skill in state.cfg.skills:
+                # 主动/突击战法的 effect_json 要等实际发动时再接入，避免每回合白送效果。
+                if skill.skill_type not in ("指挥", "被动", "兵种", "阵法"):
+                    continue
+                self._trigger_skill_effects("round_start", skill, state, my_states, enemy_states, eng, rnd)
 
     def _apply_stat_bonus(self, state: GeneralState, attr: str, val):
         mapping = {"武力": "bonus_force", "智力": "bonus_intel",
@@ -368,6 +452,178 @@ class BattleEngine:
                    "增伤": "bonus_dmg_dealt", "减伤": "bonus_dmg_recv"}
         if attr in mapping:
             setattr(state, mapping[attr], getattr(state, mapping[attr]) + val)
+
+    def _effective_damage_reduction(self, attacker: GeneralState, raw_reduction: float) -> float:
+        """Apply states that bypass part of the defender's damage reduction."""
+        bypass = min(attacker.status_value("看破"), 1.0)
+        return raw_reduction * (1 - bypass)
+
+    def _trigger_skill_effects(
+        self,
+        event: str,
+        skill: SkillDef,
+        caster: GeneralState,
+        allies: list[GeneralState],
+        enemies: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ):
+        data = skill.effect_json or {}
+        for effect in data.get("effects", []):
+            if effect.get("event") != event:
+                continue
+            if not self._condition_matches(effect.get("condition"), rnd):
+                continue
+            chance = self._effect_value(effect.get("chance"), default=1.0)
+            if random.random() > chance:
+                continue
+
+            action = effect.get("action")
+            targets = self._resolve_effect_targets(effect.get("target"), caster, allies, enemies)
+            if action == "apply_status":
+                self._effect_apply_status(effect, skill, caster, targets, eng, rnd)
+            elif action == "heal":
+                self._effect_heal(effect, skill, caster, targets, eng, rnd)
+
+    def _effect_apply_status(
+        self,
+        effect: dict,
+        skill: SkillDef,
+        caster: GeneralState,
+        targets: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ):
+        status = effect.get("status") or {}
+        name = status.get("name")
+        if not name:
+            return
+        value = self._effect_value(status.get("value"), default=0.0)
+        for target in targets:
+            target.add_status(
+                name,
+                rounds=int(status.get("duration", effect.get("duration", 2))),
+                value=value,
+                value_type=status.get("value_type", "flat"),
+                attr=status.get("attr"),
+                operation=status.get("operation", "add"),
+                source_skill=skill.name,
+                stackable=bool(status.get("stackable", False)),
+                meta={"caster": caster.cfg.name, "effect": effect},
+            )
+            self.log.append(LogEntry(
+                eng,
+                rnd,
+                caster.cfg.name,
+                f"【{skill.name}】施加【{name}】",
+                0,
+                target.cfg.name,
+            ))
+
+    def _effect_heal(
+        self,
+        effect: dict,
+        skill: SkillDef,
+        caster: GeneralState,
+        targets: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ):
+        heal = effect.get("heal") or {}
+        rate = self._effect_value(heal.get("rate"), default=0.0)
+        if rate <= 0:
+            return
+        attr_name = heal.get("scales_with", "智力")
+        attr = self._state_attr(caster, attr_name)
+        for target in targets:
+            amount = int(attr * rate * caster.current_troops ** 0.1)
+            healed = target.heal(amount)
+            self.log.append(LogEntry(
+                eng,
+                rnd,
+                caster.cfg.name,
+                f"【{skill.name}】结构化治疗",
+                healed,
+                target.cfg.name,
+            ))
+
+    def _resolve_effect_targets(
+        self,
+        target: Optional[str],
+        caster: GeneralState,
+        allies: list[GeneralState],
+        enemies: list[GeneralState],
+    ) -> list[GeneralState]:
+        alive_allies = [s for s in allies if s.alive]
+        alive_enemies = [s for s in enemies if s.alive]
+        if target == "self":
+            return [caster] if caster.alive else []
+        if target in ("all_ally", "all_ally_shield_advanced"):
+            return alive_allies
+        if target == "all_enemy":
+            return alive_enemies
+        if target == "ally_group_2_3":
+            return alive_allies[:3]
+        if target == "enemy_group_2_3":
+            return alive_enemies[:3]
+        if target == "single_ally":
+            return alive_allies[:1]
+        if target in ("single_enemy", "random_enemy"):
+            return alive_enemies[:1]
+        return [caster] if caster.alive else []
+
+    def _condition_matches(self, condition: Optional[str], rnd: int) -> bool:
+        if not condition:
+            return True
+        condition = condition.strip()
+        parts = re.split(r"\s+(?:AND|and)\s+", condition)
+        if len(parts) > 1:
+            return all(self._condition_matches(part, rnd) for part in parts)
+
+        mod_match = re.fullmatch(r"round\s*%\s*(\d+)\s*==\s*(\d+)", condition)
+        if mod_match:
+            divisor = int(mod_match.group(1))
+            expected = int(mod_match.group(2))
+            return divisor > 0 and rnd % divisor == expected
+
+        cmp_match = re.fullmatch(r"round\s*(==|!=|>=|<=|>|<)\s*(\d+)", condition)
+        if cmp_match:
+            op = cmp_match.group(1)
+            value = int(cmp_match.group(2))
+            if op == "==":
+                return rnd == value
+            if op == "!=":
+                return rnd != value
+            if op == ">=":
+                return rnd >= value
+            if op == "<=":
+                return rnd <= value
+            if op == ">":
+                return rnd > value
+            if op == "<":
+                return rnd < value
+
+        return False
+
+    def _effect_value(self, value, *, default: float = 0.0) -> float:
+        if value is None:
+            return default
+        if isinstance(value, dict):
+            if value.get("max") is not None:
+                return float(value["max"])
+            if value.get("base") is not None:
+                return float(value["base"])
+            return default
+        return float(value)
+
+    def _state_attr(self, state: GeneralState, attr: str) -> float:
+        mapping = {
+            "武力": state.force,
+            "智力": state.intel,
+            "统率": state.command,
+            "速度": state.speed,
+        }
+        return mapping.get(attr, state.intel)
 
     # ── 军心动摇 ──────────────────────────────────────────────
 
@@ -490,7 +746,10 @@ class BattleEngine:
             atk = caster.force if skill.damage_type == "兵刃" else caster.intel
             def_ = target.command if skill.damage_type == "兵刃" else target.intel
             inc_atk = caster.bonus_dmg_dealt + tech_self.dealt_bonus
-            dec_def = target.bonus_dmg_recv + tech_enemy.recv_reduction
+            dec_def = self._effective_damage_reduction(
+                caster,
+                target.bonus_dmg_recv + tech_enemy.recv_reduction,
+            )
             ignore_def = skill.ignore_defense or caster.has_status("破阵")
 
             result = calc_damage(
@@ -540,12 +799,18 @@ class BattleEngine:
         tech_enemy: TechConfig,
     ) -> int:
         inc_atk = attacker.bonus_dmg_dealt + tech_self.dealt_bonus
-        dec_def = defender.bonus_dmg_recv + tech_enemy.recv_reduction
+        dec_def = self._effective_damage_reduction(
+            attacker,
+            defender.bonus_dmg_recv + tech_enemy.recv_reduction,
+        )
         ignore_def = attacker.has_status("破阵")
+        is_strategy_attack = attacker.has_status("法术普攻")
+        atk = attacker.intel if is_strategy_attack else attacker.force
+        def_ = defender.intel if is_strategy_attack else defender.command
         result = calc_damage(
             num=attacker.current_troops,
-            atk=attacker.force,
-            def_=(0 if ignore_def else defender.command),
+            atk=atk,
+            def_=(0 if ignore_def else def_),
             def_num=defender.current_troops,
             atk_troop_grade=attacker.cfg.troop_grade,
             def_troop_grade=defender.cfg.troop_grade,

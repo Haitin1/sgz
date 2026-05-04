@@ -3030,6 +3030,7 @@ function simulator() {
         damage_rate: 0, damage_type: '兵刃',
         target_mode: sk.target === '敌军全体' ? 'all_enemy' : sk.target === '自身' ? 'self' : 'single_enemy',
         heal_rate: 0, heal_target: 'self', apply_status: '',
+        effect_json: sk.effect_json || null,
       };
       this.skillPicker.open = false;
     },
@@ -4238,6 +4239,7 @@ function simulator() {
           heal_rate: s.heal_rate,
           heal_target: s.heal_target,
           apply_status: s.apply_status || null,
+          effect_json: s.effect_json || null,
         })),
       });
       return {
