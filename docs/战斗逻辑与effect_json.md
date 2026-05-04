@@ -35,6 +35,38 @@
 }
 ```
 
+主动战法释放时示例：
+
+```json
+{
+  "version": 1,
+  "effects": [
+    {
+      "event": "skill_release",
+      "target": "random_enemy",
+      "action": "deal_damage",
+      "damage": {
+        "type": "谋略",
+        "rate": {"base": 1.18, "max": 2.36},
+        "scales_with": "智力",
+        "defense_attr": "智力"
+      }
+    },
+    {
+      "event": "skill_release",
+      "target": "random_enemy",
+      "action": "apply_status",
+      "status": {
+        "name": "计穷",
+        "category": "控制状态",
+        "duration": 1,
+        "stackable": false
+      }
+    }
+  ]
+}
+```
+
 ## 常用字段
 
 | 字段 | 说明 |
@@ -140,15 +172,16 @@
 
 - `SkillDef.effect_json` 可携带结构化效果。
 - `/api/skills` 会返回 `effect_json`，前端选战法后会把它带入 `/api/simulate`。
-- 已执行事件：`battle_start`、`round_start`。
-- 已执行动作：`apply_status`、`heal`。
-- `round_start` 目前只执行 `指挥/被动/兵种/阵法` 的结构化效果，主动/突击战法必须等实际发动时再接入，避免每回合自动触发。
+- 已执行事件：`battle_start`、`round_start`、`skill_release`。
+- 已执行动作：`apply_status`、`heal`、`deal_damage`。
+- `round_start` 目前只执行 `指挥/被动/兵种/阵法` 的结构化效果，主动/突击战法必须等实际发动时才执行 `skill_release`，避免每回合自动触发。
+- 如果战法存在 `skill_release` 结构化效果，释放时优先执行结构化效果并跳过旧字段伤害/治疗/施加状态，避免同一个战法重复结算。
 - 数值默认取 `{base,max}` 里的 `max`，因为当前数据库录入按 10 级战法效果为准。
 
 ## 后续接入顺序
 
-1. 接入 `skill_release`，让主动战法发动时执行 `effect_json`。
-2. 接入 `after_normal_attack`，支撑突击战法和连击/群攻类触发链。
-3. 接入 `on_damage_taken`，支撑急救、警戒、抵御消耗、反击、渊然难测等被动链。
+1. 接入 `after_normal_attack`，支撑突击战法和连击/群攻类触发链。
+2. 接入 `on_damage_taken`，支撑急救、警戒、抵御消耗、反击、渊然难测等被动链。
+3. 补充更完整的条件表达式解析，例如属性比较、主将判断、首回合触发等。
 4. 把高频战法逐个写入 `effect_json`，每个复杂战法用真实战报核对触发时点和日志。
 5. 暂不从 `description` 自动反推逻辑，避免错误解析。

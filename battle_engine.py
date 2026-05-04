@@ -467,8 +467,12 @@ class BattleEngine:
         enemies: list[GeneralState],
         eng: int,
         rnd: int,
-    ):
+        tech_self: Optional[TechConfig] = None,
+        tech_enemy: Optional[TechConfig] = None,
+    ) -> int:
         data = skill.effect_json or {}
+        executed = 0
+        target_cache: dict[str, list[GeneralState]] = {}
         for effect in data.get("effects", []):
             if effect.get("event") != event:
                 continue
@@ -479,11 +483,22 @@ class BattleEngine:
                 continue
 
             action = effect.get("action")
-            targets = self._resolve_effect_targets(effect.get("target"), caster, allies, enemies)
+            target_key = effect.get("target") or "self"
+            if target_key not in target_cache:
+                target_cache[target_key] = self._resolve_effect_targets(target_key, caster, allies, enemies)
+            targets = target_cache[target_key]
             if action == "apply_status":
                 self._effect_apply_status(effect, skill, caster, targets, eng, rnd)
+                executed += 1
             elif action == "heal":
                 self._effect_heal(effect, skill, caster, targets, eng, rnd)
+                executed += 1
+            elif action == "deal_damage":
+                if tech_self is None or tech_enemy is None:
+                    continue
+                self._effect_deal_damage(effect, skill, caster, targets, allies, tech_self, tech_enemy, eng, rnd)
+                executed += 1
+        return executed
 
     def _effect_apply_status(
         self,
@@ -547,6 +562,59 @@ class BattleEngine:
                 target.cfg.name,
             ))
 
+    def _effect_deal_damage(
+        self,
+        effect: dict,
+        skill: SkillDef,
+        caster: GeneralState,
+        targets: list[GeneralState],
+        allies: list[GeneralState],
+        tech_self: TechConfig,
+        tech_enemy: TechConfig,
+        eng: int,
+        rnd: int,
+    ):
+        damage = effect.get("damage") or {}
+        rate = self._effect_value(damage.get("rate"), default=0.0)
+        if rate <= 0:
+            return
+        damage_type = damage.get("type", "兵刃")
+        atk_attr = damage.get("scales_with") or ("武力" if damage_type == "兵刃" else "智力")
+        def_attr = damage.get("defense_attr") or ("统率" if damage_type == "兵刃" else "智力")
+        atk = self._state_attr(caster, atk_attr)
+        inc_atk = caster.bonus_dmg_dealt + tech_self.dealt_bonus
+
+        for target in targets:
+            def_ = self._state_attr(target, def_attr)
+            dec_def = self._effective_damage_reduction(
+                caster,
+                target.bonus_dmg_recv + tech_enemy.recv_reduction,
+            )
+            ignore_def = damage.get("ignore_defense", False) or caster.has_status("破阵")
+            result = calc_damage(
+                num=caster.current_troops,
+                atk=atk,
+                def_=(0 if ignore_def else def_),
+                def_num=target.current_troops,
+                atk_troop_grade=caster.cfg.troop_grade,
+                def_troop_grade=target.cfg.troop_grade,
+                atk_troop_type=caster.cfg.troop_type,
+                def_troop_type=target.cfg.troop_type,
+                skill_rate=rate,
+                inc_atk=inc_atk,
+                dec_def=dec_def,
+                crit=caster.bonus_crit_rate if damage_type == "兵刃" else caster.bonus_qimou_rate,
+            )
+            actual = self._deal_damage(target, result["total"], caster, allies, eng, rnd)
+            self.log.append(LogEntry(
+                eng,
+                rnd,
+                caster.cfg.name,
+                f"【{skill.name}】结构化{damage_type}伤害",
+                actual,
+                target.cfg.name,
+            ))
+
     def _resolve_effect_targets(
         self,
         target: Optional[str],
@@ -558,6 +626,10 @@ class BattleEngine:
         alive_enemies = [s for s in enemies if s.alive]
         if target == "self":
             return [caster] if caster.alive else []
+        if target == "ally_main":
+            return alive_allies[:1]
+        if target == "enemy_main":
+            return alive_enemies[:1]
         if target in ("all_ally", "all_ally_shield_advanced"):
             return alive_allies
         if target == "all_enemy":
@@ -568,7 +640,9 @@ class BattleEngine:
             return alive_enemies[:3]
         if target == "single_ally":
             return alive_allies[:1]
-        if target in ("single_enemy", "random_enemy"):
+        if target == "random_enemy":
+            return [random.choice(alive_enemies)] if alive_enemies else []
+        if target == "single_enemy":
             return alive_enemies[:1]
         return [caster] if caster.alive else []
 
@@ -737,6 +811,20 @@ class BattleEngine:
         eng: int,
         rnd: int,
     ):
+        structured_release = self._trigger_skill_effects(
+            "skill_release",
+            skill,
+            caster,
+            allies,
+            enemies,
+            eng,
+            rnd,
+            tech_self,
+            tech_enemy,
+        )
+        if structured_release:
+            return
+
         target = self._pick_target(skill, allies, enemies)
         if not target:
             return
