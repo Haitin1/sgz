@@ -538,8 +538,6 @@ class BattleEngine:
         for effect in data.get("effects", []):
             if effect.get("event") != event:
                 continue
-            if not self._condition_matches(effect.get("condition"), rnd):
-                continue
             chance = self._effect_value(effect.get("chance"), default=1.0)
             if random.random() > chance:
                 continue
@@ -549,6 +547,8 @@ class BattleEngine:
             if target_key not in target_cache:
                 target_cache[target_key] = self._resolve_effect_targets(target_key, caster, allies, enemies)
             targets = target_cache[target_key]
+            if not self._condition_matches(effect.get("condition"), rnd, caster=caster, targets=targets):
+                continue
             if action == "apply_status":
                 self._effect_apply_status(effect, skill, caster, targets, eng, rnd)
                 executed += 1
@@ -831,13 +831,20 @@ class BattleEngine:
     def _pick_by(self, states: list[GeneralState], key, *, reverse: bool = True) -> list[GeneralState]:
         return [sorted(states, key=key, reverse=reverse)[0]] if states else []
 
-    def _condition_matches(self, condition: Optional[str], rnd: int) -> bool:
+    def _condition_matches(
+        self,
+        condition: Optional[str],
+        rnd: int,
+        *,
+        caster: Optional[GeneralState] = None,
+        targets: Optional[list[GeneralState]] = None,
+    ) -> bool:
         if not condition:
             return True
         condition = condition.strip()
         parts = re.split(r"\s+(?:AND|and)\s+", condition)
         if len(parts) > 1:
-            return all(self._condition_matches(part, rnd) for part in parts)
+            return all(self._condition_matches(part, rnd, caster=caster, targets=targets) for part in parts)
 
         mod_match = re.fullmatch(r"round\s*%\s*(\d+)\s*==\s*(\d+)", condition)
         if mod_match:
@@ -862,6 +869,59 @@ class BattleEngine:
             if op == "<":
                 return rnd < value
 
+        if condition == "caster.is_main":
+            return bool(caster and caster.is_main)
+        if condition == "not caster.is_main":
+            return bool(caster and not caster.is_main)
+
+        has_status_match = re.fullmatch(r"(caster|target)\.has_status\(['\"](.+)['\"]\)", condition)
+        if has_status_match:
+            subject, status_name = has_status_match.groups()
+            if subject == "caster":
+                return bool(caster and caster.has_status(status_name))
+            return bool(targets and any(t.has_status(status_name) for t in targets))
+
+        attr_cmp_match = re.fullmatch(
+            r"(caster|target)\.(force|intel|command|speed|troops)\s*(==|!=|>=|<=|>|<)\s*(caster|target)\.(force|intel|command|speed|troops)",
+            condition,
+        )
+        if attr_cmp_match:
+            left_subject, left_attr, op, right_subject, right_attr = attr_cmp_match.groups()
+            left = self._condition_subject_value(left_subject, left_attr, caster, targets)
+            right = self._condition_subject_value(right_subject, right_attr, caster, targets)
+            if left is None or right is None:
+                return False
+            return self._compare(left, op, right)
+
+        return False
+
+    def _condition_subject_value(
+        self,
+        subject: str,
+        attr: str,
+        caster: Optional[GeneralState],
+        targets: Optional[list[GeneralState]],
+    ) -> Optional[float]:
+        state = caster if subject == "caster" else (targets[0] if targets else None)
+        if not state:
+            return None
+        if attr == "troops":
+            return float(state.current_troops)
+        return float(self._state_attr(state, {"force": "武力", "intel": "智力", "command": "统率", "speed": "速度"}[attr]))
+
+    def _compare(self, left: float, op: str, right: float) -> bool:
+        if op == "==":
+            return left == right
+        if op == "!=":
+            return left != right
+        if op == ">=":
+            return left >= right
+        if op == "<=":
+            return left <= right
+        if op == ">":
+            return left > right
+        if op == "<":
+            return left < right
         return False
 
     def _effect_value(self, value, *, default: float = 0.0) -> float:

@@ -116,6 +116,27 @@
 | duration | 持续回合 |
 | notes | 暂时无法完全结构化的补充说明 |
 
+## 条件表达式
+
+当前支持的 `condition`：
+
+- `round >= 3`
+- `round % 2 == 1`
+- `caster.is_main`
+- `not caster.is_main`
+- `caster.has_status("连击")`
+- `target.has_status("灼烧")`
+- `target.force > target.intel`
+- `caster.intel >= target.intel`
+
+条件可以用 `AND` 连接，例如：
+
+```json
+{
+  "condition": "round >= 2 AND caster.is_main"
+}
+```
+
 ## 事件枚举
 
 | event | 说明 |
@@ -255,8 +276,8 @@
 
 ## 后续接入顺序
 
-1. 补充更完整的条件表达式解析，例如属性比较、主将判断、首回合触发、目标状态判断等。
-2. 增加更多结构化目标选择策略，例如女性、黄巾、特定阵营、指定站位。
+1. 增加更多结构化目标选择策略，例如女性、黄巾、特定阵营、指定站位。
+2. 扩展条件表达式，例如兵力百分比、多个目标分别判断、阵营/性别/兵种判断。
 3. 增强持续性状态结算：按来源当前属性、状态刷新/覆盖规则、同类状态冲突。
 4. 把高频战法逐个写入 `effect_json`，每个复杂战法用真实战报核对触发时点和日志。
 5. 暂不从 `description` 自动反推逻辑，避免错误解析。
