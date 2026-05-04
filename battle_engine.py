@@ -469,10 +469,11 @@ class BattleEngine:
         rnd: int,
         tech_self: Optional[TechConfig] = None,
         tech_enemy: Optional[TechConfig] = None,
+        context: Optional[dict] = None,
     ) -> int:
         data = skill.effect_json or {}
         executed = 0
-        target_cache: dict[str, list[GeneralState]] = {}
+        target_cache: dict[str, list[GeneralState]] = self._context_targets(context)
         for effect in data.get("effects", []):
             if effect.get("event") != event:
                 continue
@@ -496,9 +497,18 @@ class BattleEngine:
             elif action == "deal_damage":
                 if tech_self is None or tech_enemy is None:
                     continue
-                self._effect_deal_damage(effect, skill, caster, targets, allies, tech_self, tech_enemy, eng, rnd)
+                self._effect_deal_damage(effect, skill, caster, targets, allies, enemies, tech_self, tech_enemy, eng, rnd)
                 executed += 1
         return executed
+
+    def _context_targets(self, context: Optional[dict]) -> dict[str, list[GeneralState]]:
+        targets: dict[str, list[GeneralState]] = {}
+        for key, value in (context or {}).items():
+            if isinstance(value, GeneralState):
+                targets[key] = [value]
+            elif isinstance(value, list) and all(isinstance(v, GeneralState) for v in value):
+                targets[key] = value
+        return targets
 
     def _effect_apply_status(
         self,
@@ -569,6 +579,7 @@ class BattleEngine:
         caster: GeneralState,
         targets: list[GeneralState],
         allies: list[GeneralState],
+        enemies: list[GeneralState],
         tech_self: TechConfig,
         tech_enemy: TechConfig,
         eng: int,
@@ -605,7 +616,18 @@ class BattleEngine:
                 dec_def=dec_def,
                 crit=caster.bonus_crit_rate if damage_type == "兵刃" else caster.bonus_qimou_rate,
             )
-            actual = self._deal_damage(target, result["total"], caster, allies, eng, rnd)
+            actual = self._deal_damage(
+                target,
+                result["total"],
+                caster,
+                allies,
+                eng,
+                rnd,
+                target_allies=enemies,
+                target_enemies=allies,
+                target_tech=tech_enemy,
+                attacker_tech=tech_self,
+            )
             self.log.append(LogEntry(
                 eng,
                 rnd,
@@ -626,6 +648,8 @@ class BattleEngine:
         alive_enemies = [s for s in enemies if s.alive]
         if target == "self":
             return [caster] if caster.alive else []
+        if target in ("normal_attack_target", "damage_target", "damage_source"):
+            return []
         if target == "ally_main":
             return alive_allies[:1]
         if target == "enemy_main":
@@ -768,34 +792,94 @@ class BattleEngine:
         if not state.has_status("缴械"):
             target = enemies[0]  # 简化：打第1个存活敌人
             dmg = self._normal_attack(state, target, tech_self, tech_enemy)
-            actual = self._deal_damage(target, dmg, state, allies, eng, rnd)
+            actual = self._deal_damage(
+                target,
+                dmg,
+                state,
+                allies,
+                eng,
+                rnd,
+                target_allies=enemies,
+                target_enemies=allies,
+                target_tech=tech_enemy,
+                attacker_tech=tech_self,
+            )
             self.log.append(LogEntry(eng, rnd, state.cfg.name,
                                       "普通攻击", actual, target.cfg.name))
+            self._after_normal_attack(state, target, enemies, allies, tech_self, tech_enemy, eng, rnd)
 
             # 群攻
             if state.has_status("群攻") and len(enemies) > 1:
                 for splash_target in enemies[1:]:
                     splash = int(dmg * 0.5)   # 溅射 50%（简化）
-                    act2 = self._deal_damage(splash_target, splash, state, allies, eng, rnd)
+                    act2 = self._deal_damage(
+                        splash_target,
+                        splash,
+                        state,
+                        allies,
+                        eng,
+                        rnd,
+                        target_allies=enemies,
+                        target_enemies=allies,
+                        target_tech=tech_enemy,
+                        attacker_tech=tech_self,
+                    )
                     self.log.append(LogEntry(eng, rnd, state.cfg.name,
                                               "群攻溅射", act2, splash_target.cfg.name))
 
             # 连击：额外一次普攻
             if state.has_status("连击"):
                 dmg2 = self._normal_attack(state, target, tech_self, tech_enemy)
-                act2 = self._deal_damage(target, dmg2, state, allies, eng, rnd)
+                act2 = self._deal_damage(
+                    target,
+                    dmg2,
+                    state,
+                    allies,
+                    eng,
+                    rnd,
+                    target_allies=enemies,
+                    target_enemies=allies,
+                    target_tech=tech_enemy,
+                    attacker_tech=tech_self,
+                )
                 self.log.append(LogEntry(eng, rnd, state.cfg.name,
                                           "连击（额外普攻）", act2, target.cfg.name))
+                self._after_normal_attack(state, target, enemies, allies, tech_self, tech_enemy, eng, rnd)
 
-        # ── 突击战法 ──────────────────────────────────────────
+    # ── 普攻后突击 ────────────────────────────────────────────
+
+    def _after_normal_attack(
+        self,
+        state: GeneralState,
+        normal_target: GeneralState,
+        enemies: list[GeneralState],
+        allies: list[GeneralState],
+        tech_self: TechConfig,
+        tech_enemy: TechConfig,
+        eng: int,
+        rnd: int,
+    ):
         for skill in state.cfg.skills:
             if skill.skill_type != "突击":
                 continue
             if state.has_status("缴械"):
                 break
             if random.random() <= skill.activation_rate:
-                self._execute_skill(skill, state, enemies, allies,
-                                    tech_self, tech_enemy, eng, rnd)
+                executed = self._trigger_skill_effects(
+                    "after_normal_attack",
+                    skill,
+                    state,
+                    allies,
+                    enemies,
+                    eng,
+                    rnd,
+                    tech_self,
+                    tech_enemy,
+                    context={"normal_attack_target": normal_target},
+                )
+                if not executed:
+                    self._execute_skill(skill, state, enemies, allies,
+                                        tech_self, tech_enemy, eng, rnd)
             break  # 同时只处理一个突击战法
 
     # ── 执行战法 ──────────────────────────────────────────────
@@ -854,7 +938,18 @@ class BattleEngine:
                 crit=caster.bonus_crit_rate,
             )
             dmg = result["total"]
-            actual = self._deal_damage(target, dmg, caster, allies, eng, rnd)
+            actual = self._deal_damage(
+                target,
+                dmg,
+                caster,
+                allies,
+                eng,
+                rnd,
+                target_allies=enemies,
+                target_enemies=allies,
+                target_tech=tech_enemy,
+                attacker_tech=tech_self,
+            )
             self.log.append(LogEntry(eng, rnd, caster.cfg.name,
                                       f"【{skill.name}】{skill.damage_type}伤害",
                                       actual, target.cfg.name))
@@ -921,6 +1016,11 @@ class BattleEngine:
         attacker_allies: list[GeneralState],  # 攻方队友（用于分摊）
         eng: int,
         rnd: int,
+        *,
+        target_allies: Optional[list[GeneralState]] = None,
+        target_enemies: Optional[list[GeneralState]] = None,
+        target_tech: Optional[TechConfig] = None,
+        attacker_tech: Optional[TechConfig] = None,
     ) -> int:
         if not target.alive:
             return 0
@@ -932,6 +1032,18 @@ class BattleEngine:
             return 0
 
         actual = target.take_damage(amount)
+        if actual > 0:
+            self._on_damage_taken(
+                target,
+                attacker,
+                actual,
+                target_allies or [target],
+                target_enemies or attacker_allies,
+                target_tech,
+                attacker_tech,
+                eng,
+                rnd,
+            )
 
         # 反击：受到普通攻击时对攻方造成反伤
         if target.has_status("反击") and target.alive:
@@ -945,6 +1057,38 @@ class BattleEngine:
             attacker.heal(absorb)
 
         return actual
+
+    def _on_damage_taken(
+        self,
+        target: GeneralState,
+        attacker: GeneralState,
+        actual_damage: int,
+        target_allies: list[GeneralState],
+        target_enemies: list[GeneralState],
+        target_tech: Optional[TechConfig],
+        attacker_tech: Optional[TechConfig],
+        eng: int,
+        rnd: int,
+    ):
+        for skill in target.cfg.skills:
+            if skill.skill_type not in ("指挥", "被动", "兵种", "阵法"):
+                continue
+            self._trigger_skill_effects(
+                "on_damage_taken",
+                skill,
+                target,
+                target_allies,
+                target_enemies,
+                eng,
+                rnd,
+                target_tech,
+                attacker_tech,
+                context={
+                    "damage_target": target,
+                    "damage_source": attacker,
+                    "damage_amount": actual_damage,
+                },
+            )
 
     # ── 目标选择 ──────────────────────────────────────────────
 

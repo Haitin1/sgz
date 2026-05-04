@@ -67,6 +67,38 @@
 }
 ```
 
+突击战法普攻后示例：
+
+```json
+{
+  "version": 1,
+  "effects": [
+    {
+      "event": "after_normal_attack",
+      "target": "normal_attack_target",
+      "action": "deal_damage",
+      "damage": {
+        "type": "兵刃",
+        "rate": {"base": 0.925, "max": 0.925},
+        "scales_with": "武力",
+        "defense_attr": "统率"
+      }
+    },
+    {
+      "event": "after_normal_attack",
+      "target": "normal_attack_target",
+      "action": "apply_status",
+      "status": {
+        "name": "计穷",
+        "category": "控制状态",
+        "duration": 1,
+        "stackable": false
+      }
+    }
+  ]
+}
+```
+
 ## 常用字段
 
 | 字段 | 说明 |
@@ -131,6 +163,8 @@
 | ally_group_2_3 | 我军群体 2-3 人 |
 | enemy_group_2_3 | 敌军群体 2-3 人 |
 | damage_source | 伤害来源 |
+| damage_target | 受到伤害的目标 |
+| normal_attack_target | 本次普通攻击目标 |
 | random_enemy | 敌军随机武将 |
 
 ## 状态结构
@@ -172,16 +206,18 @@
 
 - `SkillDef.effect_json` 可携带结构化效果。
 - `/api/skills` 会返回 `effect_json`，前端选战法后会把它带入 `/api/simulate`。
-- 已执行事件：`battle_start`、`round_start`、`skill_release`。
+- 已执行事件：`battle_start`、`round_start`、`skill_release`、`after_normal_attack`、`on_damage_taken`。
 - 已执行动作：`apply_status`、`heal`、`deal_damage`。
 - `round_start` 目前只执行 `指挥/被动/兵种/阵法` 的结构化效果，主动/突击战法必须等实际发动时才执行 `skill_release`，避免每回合自动触发。
 - 如果战法存在 `skill_release` 结构化效果，释放时优先执行结构化效果并跳过旧字段伤害/治疗/施加状态，避免同一个战法重复结算。
+- 突击战法现在挂在每次普通攻击后的 `after_normal_attack`；如果没有结构化效果，会回落到旧字段执行。
+- `on_damage_taken` 目前会在实际受到伤害后触发受伤者自身的 `指挥/被动/兵种/阵法` 结构化效果。
 - 数值默认取 `{base,max}` 里的 `max`，因为当前数据库录入按 10 级战法效果为准。
 
 ## 后续接入顺序
 
-1. 接入 `after_normal_attack`，支撑突击战法和连击/群攻类触发链。
-2. 接入 `on_damage_taken`，支撑急救、警戒、抵御消耗、反击、渊然难测等被动链。
-3. 补充更完整的条件表达式解析，例如属性比较、主将判断、首回合触发等。
+1. 接入 `before_damage` / `after_damage`，支撑警戒、严密、分摊、分担、增减伤动态改写。
+2. 补充更完整的条件表达式解析，例如属性比较、主将判断、首回合触发、目标状态判断等。
+3. 增加结构化目标选择策略，例如兵力最低、武力最高、智力最高、主将/副将筛选。
 4. 把高频战法逐个写入 `effect_json`，每个复杂战法用真实战报核对触发时点和日志。
 5. 暂不从 `description` 自动反推逻辑，避免错误解析。
