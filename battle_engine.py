@@ -17,6 +17,10 @@ from typing import Optional
 
 from damage_engine import calc_damage, TROOP_COEF, troop_counter_coef
 
+CONTROL_STATUSES = {"震慑", "计穷", "缴械", "混乱", "虚弱", "禁疗", "嘲讽", "伪报", "挑拨", "破坏", "捕获"}
+COMMAND_PASSIVE_TYPES = {"指挥", "被动"}
+PRE_BATTLE_TYPES = {"指挥", "被动", "兵种", "阵法"}
+
 # ─────────────────────────────────────────────────────────────
 # 数据结构
 # ─────────────────────────────────────────────────────────────
@@ -199,6 +203,8 @@ class GeneralState:
     def heal(self, amount: int) -> int:
         """治疗，返回实际回复量。上限为 max_troops（不超过本局开始兵力）"""
         if not self.alive:
+            return 0
+        if self.has_status("禁疗"):
             return 0
         before = self.current_troops
         self.current_troops = min(self.current_troops + amount, self.max_troops)
@@ -398,7 +404,9 @@ class BattleEngine:
             if not state.alive:
                 continue
             for skill in state.cfg.skills:
-                if skill.skill_type not in ("指挥", "被动", "兵种", "阵法"):
+                if skill.skill_type not in PRE_BATTLE_TYPES:
+                    continue
+                if self._is_skill_disabled(state, skill):
                     continue
                 if random.random() > skill.activation_rate:
                     continue
@@ -446,7 +454,9 @@ class BattleEngine:
                 continue
             for skill in state.cfg.skills:
                 # 主动/突击战法的 effect_json 要等实际发动时再接入，避免每回合白送效果。
-                if skill.skill_type not in ("指挥", "被动", "兵种", "阵法"):
+                if skill.skill_type not in PRE_BATTLE_TYPES:
+                    continue
+                if self._is_skill_disabled(state, skill):
                     continue
                 self._trigger_skill_effects("round_start", skill, state, my_states, enemy_states, eng, rnd)
 
@@ -466,6 +476,12 @@ class BattleEngine:
         """Apply states that bypass part of the defender's damage reduction."""
         bypass = min(attacker.status_value("看破"), 1.0)
         return raw_reduction * (1 - bypass)
+
+    def _is_skill_disabled(self, state: GeneralState, skill: SkillDef) -> bool:
+        return state.has_status("伪报") and skill.skill_type in COMMAND_PASSIVE_TYPES
+
+    def _can_apply_status(self, target: GeneralState, status_name: str) -> bool:
+        return not (status_name in CONTROL_STATUSES and target.has_status("洞察"))
 
     def _emit(
         self,
@@ -581,6 +597,19 @@ class BattleEngine:
             return
         value = self._effect_value(status.get("value"), default=0.0)
         for target in targets:
+            if not self._can_apply_status(target, name):
+                self._emit(
+                    eng,
+                    rnd,
+                    target.cfg.name,
+                    f"洞察免疫【{name}】",
+                    0,
+                    caster.cfg.name,
+                    event="status_immune",
+                    source_skill=skill.name,
+                    details={"status": name},
+                )
+                continue
             target.add_status(
                 name,
                 rounds=int(status.get("duration", effect.get("duration", 2))),
@@ -623,6 +652,21 @@ class BattleEngine:
             before = target.current_troops
             amount = int(attr * rate * caster.current_troops ** 0.1)
             healed = target.heal(amount)
+            if healed == 0 and target.has_status("禁疗"):
+                self._emit(
+                    eng,
+                    rnd,
+                    target.cfg.name,
+                    "禁疗阻止治疗",
+                    0,
+                    caster.cfg.name,
+                    event="heal_blocked",
+                    source_skill=skill.name,
+                    troops_before=before,
+                    troops_after=target.current_troops,
+                    details={"attempted_heal": amount},
+                )
+                continue
             self._emit(
                 eng,
                 rnd,
@@ -799,6 +843,8 @@ class BattleEngine:
             + target.status_value("减伤")
             + target.status_value("警戒")
         )
+        if attacker.has_status("虚弱"):
+            return 0.0
         return max(0.0, 1 + inc - red)
 
     def _apply_damage_modifiers(
@@ -820,6 +866,8 @@ class BattleEngine:
             (target, target_allies, target_enemies),
         ):
             for skill in owner.cfg.skills:
+                if self._is_skill_disabled(owner, skill):
+                    continue
                 for effect in self._matching_effects("before_damage", skill, rnd):
                     if effect.get("action") != "modify_damage":
                         continue
@@ -1101,18 +1149,42 @@ class BattleEngine:
             heal_targets = allies if skill.heal_target == "all_ally" else [caster]
             attr = caster.intel  # 治疗一般基于智力
             for t in heal_targets:
+                before = t.current_troops
                 amount = int(attr * skill.heal_rate * caster.current_troops ** 0.1)
                 healed = t.heal(amount)
+                if healed == 0 and t.has_status("禁疗"):
+                    self._emit(eng, rnd, t.cfg.name,
+                                              "禁疗阻止治疗",
+                                              0, caster.cfg.name,
+                                              event="heal_blocked",
+                                              source_skill=skill.name,
+                                              troops_before=before,
+                                              troops_after=t.current_troops,
+                                              details={"attempted_heal": amount})
+                    continue
                 self._emit(eng, rnd, caster.cfg.name,
                                           f"【{skill.name}】治疗",
-                                          healed, t.cfg.name)
+                                          healed, t.cfg.name,
+                                          event="heal",
+                                          source_skill=skill.name,
+                                          troops_before=before,
+                                          troops_after=t.current_troops)
 
         # 施加状态
         if skill.apply_status and random.random() <= skill.status_chance:
-            target.add_status(skill.apply_status, skill.status_duration)
-            self._emit(eng, rnd, caster.cfg.name,
-                                      f"【{skill.name}】施加【{skill.apply_status}】",
-                                      0, target.cfg.name)
+            if self._can_apply_status(target, skill.apply_status):
+                target.add_status(skill.apply_status, skill.status_duration)
+                self._emit(eng, rnd, caster.cfg.name,
+                                          f"【{skill.name}】施加【{skill.apply_status}】",
+                                          0, target.cfg.name,
+                                          event="apply_status",
+                                          source_skill=skill.name)
+            else:
+                self._emit(eng, rnd, target.cfg.name,
+                                          f"洞察免疫【{skill.apply_status}】",
+                                          0, caster.cfg.name,
+                                          event="status_immune",
+                                          source_skill=skill.name)
 
     # ── 普通攻击伤害 ──────────────────────────────────────────
 
@@ -1261,6 +1333,8 @@ class BattleEngine:
             (target, target_allies, target_enemies, target_tech, attacker_tech),
         ):
             for skill in owner.cfg.skills:
+                if self._is_skill_disabled(owner, skill):
+                    continue
                 self._trigger_skill_effects(
                     "after_damage",
                     skill,
@@ -1291,7 +1365,9 @@ class BattleEngine:
         rnd: int,
     ):
         for skill in target.cfg.skills:
-            if skill.skill_type not in ("指挥", "被动", "兵种", "阵法"):
+            if skill.skill_type not in PRE_BATTLE_TYPES:
+                continue
+            if self._is_skill_disabled(target, skill):
                 continue
             self._trigger_skill_effects(
                 "on_damage_taken",
