@@ -780,21 +780,56 @@ class BattleEngine:
             return alive_allies[:1]
         if target == "enemy_main":
             return alive_enemies[:1]
+        if target == "ally_deputies":
+            return alive_allies[1:]
+        if target == "enemy_deputies":
+            return alive_enemies[1:]
         if target in ("all_ally", "all_ally_shield_advanced"):
             return alive_allies
         if target == "all_enemy":
             return alive_enemies
         if target == "ally_group_2_3":
-            return alive_allies[:3]
+            return self._pick_group(alive_allies)
         if target == "enemy_group_2_3":
-            return alive_enemies[:3]
+            return self._pick_group(alive_enemies)
         if target == "single_ally":
             return alive_allies[:1]
         if target == "random_enemy":
             return [random.choice(alive_enemies)] if alive_enemies else []
+        if target == "random_ally":
+            return [random.choice(alive_allies)] if alive_allies else []
+        if target == "enemy_lowest_troops":
+            return self._pick_by(alive_enemies, lambda s: s.current_troops, reverse=False)
+        if target == "ally_lowest_troops":
+            return self._pick_by(alive_allies, lambda s: s.current_troops, reverse=False)
+        if target == "enemy_highest_force":
+            return self._pick_by(alive_enemies, lambda s: s.force)
+        if target == "ally_highest_force":
+            return self._pick_by(alive_allies, lambda s: s.force)
+        if target == "enemy_highest_intel":
+            return self._pick_by(alive_enemies, lambda s: s.intel)
+        if target == "ally_highest_intel":
+            return self._pick_by(alive_allies, lambda s: s.intel)
+        if target == "enemy_highest_command":
+            return self._pick_by(alive_enemies, lambda s: s.command)
+        if target == "ally_highest_command":
+            return self._pick_by(alive_allies, lambda s: s.command)
+        if target == "enemy_highest_speed":
+            return self._pick_by(alive_enemies, lambda s: s.speed)
+        if target == "ally_highest_speed":
+            return self._pick_by(alive_allies, lambda s: s.speed)
         if target == "single_enemy":
             return alive_enemies[:1]
         return [caster] if caster.alive else []
+
+    def _pick_group(self, states: list[GeneralState]) -> list[GeneralState]:
+        if len(states) <= 2:
+            return states
+        size = random.randint(2, min(3, len(states)))
+        return random.sample(states, size)
+
+    def _pick_by(self, states: list[GeneralState], key, *, reverse: bool = True) -> list[GeneralState]:
+        return [sorted(states, key=key, reverse=reverse)[0]] if states else []
 
     def _condition_matches(self, condition: Optional[str], rnd: int) -> bool:
         if not condition:

@@ -170,6 +170,8 @@
 | self | 自身 |
 | ally_main | 我方主将 |
 | enemy_main | 敌方主将 |
+| ally_deputies | 我方副将 |
+| enemy_deputies | 敌方副将 |
 | single_ally | 我方单体 |
 | single_enemy | 敌军单体 |
 | all_ally | 我军全体 |
@@ -180,6 +182,17 @@
 | damage_target | 受到伤害的目标 |
 | normal_attack_target | 本次普通攻击目标 |
 | random_enemy | 敌军随机武将 |
+| random_ally | 我方随机武将 |
+| enemy_lowest_troops | 敌军兵力最低武将 |
+| ally_lowest_troops | 我方兵力最低武将 |
+| enemy_highest_force | 敌军武力最高武将 |
+| ally_highest_force | 我方武力最高武将 |
+| enemy_highest_intel | 敌军智力最高武将 |
+| ally_highest_intel | 我方智力最高武将 |
+| enemy_highest_command | 敌军统率最高武将 |
+| ally_highest_command | 我方统率最高武将 |
+| enemy_highest_speed | 敌军速度最高武将 |
+| ally_highest_speed | 我方速度最高武将 |
 
 ## 状态结构
 
@@ -243,7 +256,7 @@
 ## 后续接入顺序
 
 1. 补充更完整的条件表达式解析，例如属性比较、主将判断、首回合触发、目标状态判断等。
-2. 增加结构化目标选择策略，例如兵力最低、武力最高、智力最高、主将/副将筛选。
-3. 增加持续性状态结算：灼烧、水攻、中毒、沙暴、溃逃、叛逃、休整。
+2. 增加更多结构化目标选择策略，例如女性、黄巾、特定阵营、指定站位。
+3. 增强持续性状态结算：按来源当前属性、状态刷新/覆盖规则、同类状态冲突。
 4. 把高频战法逐个写入 `effect_json`，每个复杂战法用真实战报核对触发时点和日志。
 5. 暂不从 `description` 自动反推逻辑，避免错误解析。
