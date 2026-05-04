@@ -149,6 +149,20 @@
 | disable_skill_type | 禁用战法类型 |
 | trigger_attack | 触发一次攻击 |
 
+伤害修正示例：
+
+```json
+{
+  "event": "before_damage",
+  "target": "damage_target",
+  "action": "modify_damage",
+  "damage_modifier": {
+    "operation": "reduce_percent",
+    "value": {"base": 0.2, "max": 0.4}
+  }
+}
+```
+
 ## 目标枚举
 
 | target | 说明 |
@@ -212,12 +226,15 @@
 - 如果战法存在 `skill_release` 结构化效果，释放时优先执行结构化效果并跳过旧字段伤害/治疗/施加状态，避免同一个战法重复结算。
 - 突击战法现在挂在每次普通攻击后的 `after_normal_attack`；如果没有结构化效果，会回落到旧字段执行。
 - `on_damage_taken` 目前会在实际受到伤害后触发受伤者自身的 `指挥/被动/兵种/阵法` 结构化效果。
+- `before_damage` 已支持 `modify_damage`，可在扣兵前调整伤害。
+- `after_damage` 会在实际扣兵后触发双方结构化效果，并输出兵力变化。
+- 战报日志保留旧字段，同时新增 `event`、`source_skill`、`damage_type`、`troops_before`、`troops_after`、`details`，用于逐步还原真实战报。
 - 数值默认取 `{base,max}` 里的 `max`，因为当前数据库录入按 10 级战法效果为准。
 
 ## 后续接入顺序
 
-1. 接入 `before_damage` / `after_damage`，支撑警戒、严密、分摊、分担、增减伤动态改写。
-2. 补充更完整的条件表达式解析，例如属性比较、主将判断、首回合触发、目标状态判断等。
-3. 增加结构化目标选择策略，例如兵力最低、武力最高、智力最高、主将/副将筛选。
+1. 补充更完整的条件表达式解析，例如属性比较、主将判断、首回合触发、目标状态判断等。
+2. 增加结构化目标选择策略，例如兵力最低、武力最高、智力最高、主将/副将筛选。
+3. 增加持续性状态结算：灼烧、水攻、中毒、沙暴、溃逃、叛逃、休整。
 4. 把高频战法逐个写入 `effect_json`，每个复杂战法用真实战报核对触发时点和日志。
 5. 暂不从 `description` 自动反推逻辑，避免错误解析。

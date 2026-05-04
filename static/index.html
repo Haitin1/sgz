@@ -2714,6 +2714,7 @@ select.w-sm { width: 72px; }
                 <span class="actor" x-text="entry.actor"></span>
                 <span class="action" x-text="entry.action"></span>
                 <span class="val" :class="valClass(entry)" x-text="fmtVal(entry)"></span>
+                <span class="tgt" x-text="fmtTroops(entry)"></span>
                 <span class="tgt" x-text="entry.target || ''"></span>
               </div>
             </template>
@@ -4295,6 +4296,10 @@ function simulator() {
       if (a.includes('治疗') || a.includes('吸血')) return 'heal';
       if (e.value > 0) return 'dmg';
       return '';
+    },
+    fmtTroops(e) {
+      if (e.troops_before == null || e.troops_after == null) return '';
+      return `${Number(e.troops_before).toLocaleString()} → ${Number(e.troops_after).toLocaleString()}`;
     },
   };
 }

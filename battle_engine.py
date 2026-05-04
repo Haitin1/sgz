@@ -235,6 +235,12 @@ class LogEntry:
     action: str       # 动作描述
     value: int = 0    # 伤害/治疗数值
     target: str = ""  # 目标武将
+    event: str = "misc"
+    source_skill: Optional[str] = None
+    damage_type: Optional[str] = None
+    troops_before: Optional[int] = None
+    troops_after: Optional[int] = None
+    details: dict = field(default_factory=dict)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -419,11 +425,14 @@ class BattleEngine:
                     0,
                 )
 
-                self.log.append(LogEntry(
-                    engagement=eng, round=0,
-                    actor=state.cfg.name,
-                    action=f"[准备] 发动【{skill.name}】",
-                ))
+                self._emit(
+                    eng,
+                    0,
+                    state.cfg.name,
+                    f"[准备] 发动【{skill.name}】",
+                    event="skill_prepare",
+                    source_skill=skill.name,
+                )
 
     def _round_start(
         self,
@@ -457,6 +466,37 @@ class BattleEngine:
         """Apply states that bypass part of the defender's damage reduction."""
         bypass = min(attacker.status_value("看破"), 1.0)
         return raw_reduction * (1 - bypass)
+
+    def _emit(
+        self,
+        eng: int,
+        rnd: int,
+        actor: str,
+        action: str,
+        value: int = 0,
+        target: str = "",
+        *,
+        event: str = "misc",
+        source_skill: Optional[str] = None,
+        damage_type: Optional[str] = None,
+        troops_before: Optional[int] = None,
+        troops_after: Optional[int] = None,
+        details: Optional[dict] = None,
+    ):
+        self.log.append(LogEntry(
+            eng,
+            rnd,
+            actor,
+            action,
+            value,
+            target,
+            event,
+            source_skill,
+            damage_type,
+            troops_before,
+            troops_after,
+            details or {},
+        ))
 
     def _trigger_skill_effects(
         self,
@@ -499,7 +539,23 @@ class BattleEngine:
                     continue
                 self._effect_deal_damage(effect, skill, caster, targets, allies, enemies, tech_self, tech_enemy, eng, rnd)
                 executed += 1
+            elif action == "modify_damage":
+                # Damage modifiers are collected by _apply_damage_modifiers.
+                continue
         return executed
+
+    def _matching_effects(self, event: str, skill: SkillDef, rnd: int) -> list[dict]:
+        data = skill.effect_json or {}
+        effects = []
+        for effect in data.get("effects", []):
+            if effect.get("event") != event:
+                continue
+            if not self._condition_matches(effect.get("condition"), rnd):
+                continue
+            if random.random() > self._effect_value(effect.get("chance"), default=1.0):
+                continue
+            effects.append(effect)
+        return effects
 
     def _context_targets(self, context: Optional[dict]) -> dict[str, list[GeneralState]]:
         targets: dict[str, list[GeneralState]] = {}
@@ -536,14 +592,17 @@ class BattleEngine:
                 stackable=bool(status.get("stackable", False)),
                 meta={"caster": caster.cfg.name, "effect": effect},
             )
-            self.log.append(LogEntry(
+            self._emit(
                 eng,
                 rnd,
                 caster.cfg.name,
                 f"【{skill.name}】施加【{name}】",
                 0,
                 target.cfg.name,
-            ))
+                event="apply_status",
+                source_skill=skill.name,
+                details={"status": status},
+            )
 
     def _effect_heal(
         self,
@@ -561,16 +620,22 @@ class BattleEngine:
         attr_name = heal.get("scales_with", "智力")
         attr = self._state_attr(caster, attr_name)
         for target in targets:
+            before = target.current_troops
             amount = int(attr * rate * caster.current_troops ** 0.1)
             healed = target.heal(amount)
-            self.log.append(LogEntry(
+            self._emit(
                 eng,
                 rnd,
                 caster.cfg.name,
                 f"【{skill.name}】结构化治疗",
                 healed,
                 target.cfg.name,
-            ))
+                event="heal",
+                source_skill=skill.name,
+                troops_before=before,
+                troops_after=target.current_troops,
+                details={"rate": rate, "scales_with": attr_name},
+            )
 
     def _effect_deal_damage(
         self,
@@ -628,14 +693,18 @@ class BattleEngine:
                 target_tech=tech_enemy,
                 attacker_tech=tech_self,
             )
-            self.log.append(LogEntry(
+            self._emit(
                 eng,
                 rnd,
                 caster.cfg.name,
                 f"【{skill.name}】结构化{damage_type}伤害",
                 actual,
                 target.cfg.name,
-            ))
+                event="skill_damage",
+                source_skill=skill.name,
+                damage_type=damage_type,
+                details={"rate": rate, "result": result},
+            )
 
     def _resolve_effect_targets(
         self,
@@ -723,6 +792,79 @@ class BattleEngine:
         }
         return mapping.get(attr, state.intel)
 
+    def _status_damage_multiplier(self, attacker: GeneralState, target: GeneralState) -> float:
+        inc = attacker.status_value("造成伤害提升") + attacker.status_value("增伤")
+        red = (
+            target.status_value("受到伤害降低")
+            + target.status_value("减伤")
+            + target.status_value("警戒")
+        )
+        return max(0.0, 1 + inc - red)
+
+    def _apply_damage_modifiers(
+        self,
+        amount: int,
+        attacker: GeneralState,
+        target: GeneralState,
+        attacker_allies: list[GeneralState],
+        target_allies: list[GeneralState],
+        target_enemies: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ) -> int:
+        before = amount
+        amount = int(amount * self._status_damage_multiplier(attacker, target))
+
+        for owner, allies, enemies in (
+            (attacker, attacker_allies, target_allies),
+            (target, target_allies, target_enemies),
+        ):
+            for skill in owner.cfg.skills:
+                for effect in self._matching_effects("before_damage", skill, rnd):
+                    if effect.get("action") != "modify_damage":
+                        continue
+                    modifier = effect.get("damage_modifier") or {}
+                    amount = self._apply_damage_modifier(amount, modifier)
+                    self._emit(
+                        eng,
+                        rnd,
+                        owner.cfg.name,
+                        f"【{skill.name}】调整伤害",
+                        amount - before,
+                        target.cfg.name,
+                        event="before_damage",
+                        source_skill=skill.name,
+                        details={"before": before, "after": amount, "modifier": modifier},
+                    )
+
+        if amount != before:
+            self._emit(
+                eng,
+                rnd,
+                target.cfg.name,
+                "伤害修正",
+                amount - before,
+                target.cfg.name,
+                event="before_damage",
+                details={"before": before, "after": amount},
+            )
+        return max(0, amount)
+
+    def _apply_damage_modifier(self, amount: int, modifier: dict) -> int:
+        operation = modifier.get("operation", "multiply")
+        value = self._effect_value(modifier.get("value"), default=1.0)
+        if operation == "multiply":
+            return int(amount * value)
+        if operation == "increase_percent":
+            return int(amount * (1 + value))
+        if operation == "reduce_percent":
+            return int(amount * max(0.0, 1 - value))
+        if operation == "add":
+            return int(amount + value)
+        if operation == "subtract":
+            return int(max(0.0, amount - value))
+        return amount
+
     # ── 军心动摇 ──────────────────────────────────────────────
 
     def _check_junxin(
@@ -739,12 +881,12 @@ class BattleEngine:
         for s in states_a:
             if s.alive and s.current_troops < threshold_for_a:
                 s.add_status("军心动摇", rounds=1)
-                self.log.append(LogEntry(eng, 0, s.cfg.name, "军心动摇！首回合无法行动"))
+                self._emit(eng, 0, s.cfg.name, "军心动摇！首回合无法行动")
 
         for s in states_b:
             if s.alive and s.current_troops < threshold_for_b:
                 s.add_status("军心动摇", rounds=1)
-                self.log.append(LogEntry(eng, 0, s.cfg.name, "军心动摇！首回合无法行动"))
+                self._emit(eng, 0, s.cfg.name, "军心动摇！首回合无法行动")
 
     # ── 武将行动 ──────────────────────────────────────────────
 
@@ -763,7 +905,7 @@ class BattleEngine:
 
         # 震慑/军心动摇 → 跳过
         if state.has_status("震慑") or state.has_status("军心动摇"):
-            self.log.append(LogEntry(eng, rnd, state.cfg.name, "无法行动（震慑/军心动摇）"))
+            self._emit(eng, rnd, state.cfg.name, "无法行动（震慑/军心动摇）")
             return
 
         # ── 主动战法 ──────────────────────────────────────────
@@ -780,8 +922,8 @@ class BattleEngine:
                     else:
                         # 进入准备状态
                         state.prep_skill_pending = skill
-                        self.log.append(LogEntry(eng, rnd, state.cfg.name,
-                                                  f"【{skill.name}】蓄力中…"))
+                        self._emit(eng, rnd, state.cfg.name,
+                                                  f"【{skill.name}】蓄力中…")
                     break  # 同时只处理一个主动战法
                 elif random.random() <= skill.activation_rate:
                     self._execute_skill(skill, state, enemies, allies,
@@ -804,8 +946,8 @@ class BattleEngine:
                 target_tech=tech_enemy,
                 attacker_tech=tech_self,
             )
-            self.log.append(LogEntry(eng, rnd, state.cfg.name,
-                                      "普通攻击", actual, target.cfg.name))
+            self._emit(eng, rnd, state.cfg.name,
+                                      "普通攻击", actual, target.cfg.name)
             self._after_normal_attack(state, target, enemies, allies, tech_self, tech_enemy, eng, rnd)
 
             # 群攻
@@ -824,8 +966,8 @@ class BattleEngine:
                         target_tech=tech_enemy,
                         attacker_tech=tech_self,
                     )
-                    self.log.append(LogEntry(eng, rnd, state.cfg.name,
-                                              "群攻溅射", act2, splash_target.cfg.name))
+                    self._emit(eng, rnd, state.cfg.name,
+                                              "群攻溅射", act2, splash_target.cfg.name)
 
             # 连击：额外一次普攻
             if state.has_status("连击"):
@@ -842,8 +984,8 @@ class BattleEngine:
                     target_tech=tech_enemy,
                     attacker_tech=tech_self,
                 )
-                self.log.append(LogEntry(eng, rnd, state.cfg.name,
-                                          "连击（额外普攻）", act2, target.cfg.name))
+                self._emit(eng, rnd, state.cfg.name,
+                                          "连击（额外普攻）", act2, target.cfg.name)
                 self._after_normal_attack(state, target, enemies, allies, tech_self, tech_enemy, eng, rnd)
 
     # ── 普攻后突击 ────────────────────────────────────────────
@@ -950,9 +1092,9 @@ class BattleEngine:
                 target_tech=tech_enemy,
                 attacker_tech=tech_self,
             )
-            self.log.append(LogEntry(eng, rnd, caster.cfg.name,
+            self._emit(eng, rnd, caster.cfg.name,
                                       f"【{skill.name}】{skill.damage_type}伤害",
-                                      actual, target.cfg.name))
+                                      actual, target.cfg.name)
 
         # 治疗
         if skill.heal_rate > 0:
@@ -961,16 +1103,16 @@ class BattleEngine:
             for t in heal_targets:
                 amount = int(attr * skill.heal_rate * caster.current_troops ** 0.1)
                 healed = t.heal(amount)
-                self.log.append(LogEntry(eng, rnd, caster.cfg.name,
+                self._emit(eng, rnd, caster.cfg.name,
                                           f"【{skill.name}】治疗",
-                                          healed, t.cfg.name))
+                                          healed, t.cfg.name)
 
         # 施加状态
         if skill.apply_status and random.random() <= skill.status_chance:
             target.add_status(skill.apply_status, skill.status_duration)
-            self.log.append(LogEntry(eng, rnd, caster.cfg.name,
+            self._emit(eng, rnd, caster.cfg.name,
                                       f"【{skill.name}】施加【{skill.apply_status}】",
-                                      0, target.cfg.name))
+                                      0, target.cfg.name)
 
     # ── 普通攻击伤害 ──────────────────────────────────────────
 
@@ -1028,11 +1170,43 @@ class BattleEngine:
         # 抵御：免疫一次伤害（必中可穿透）
         if target.has_status("抵御") and not attacker.has_status("必中"):
             target.remove_status("抵御")
-            self.log.append(LogEntry(eng, rnd, target.cfg.name, "抵御格挡", 0, attacker.cfg.name))
+            self._emit(
+                eng,
+                rnd,
+                target.cfg.name,
+                "抵御格挡",
+                0,
+                attacker.cfg.name,
+                event="before_damage",
+                details={"blocked_damage": amount},
+            )
             return 0
 
+        amount = self._apply_damage_modifiers(
+            amount,
+            attacker,
+            target,
+            attacker_allies,
+            target_allies or [target],
+            target_enemies or attacker_allies,
+            eng,
+            rnd,
+        )
+        troops_before = target.current_troops
         actual = target.take_damage(amount)
+        troops_after = target.current_troops
         if actual > 0:
+            self._after_damage(
+                target,
+                attacker,
+                actual,
+                target_allies or [target],
+                target_enemies or attacker_allies,
+                target_tech,
+                attacker_tech,
+                eng,
+                rnd,
+            )
             self._on_damage_taken(
                 target,
                 attacker,
@@ -1044,12 +1218,24 @@ class BattleEngine:
                 eng,
                 rnd,
             )
+            self._emit(
+                eng,
+                rnd,
+                attacker.cfg.name,
+                "造成伤害",
+                actual,
+                target.cfg.name,
+                event="after_damage",
+                troops_before=troops_before,
+                troops_after=troops_after,
+                details={"requested_damage": amount},
+            )
 
         # 反击：受到普通攻击时对攻方造成反伤
         if target.has_status("反击") and target.alive:
             counter = int(amount * 0.5)
             attacker.take_damage(counter)
-            self.log.append(LogEntry(eng, rnd, target.cfg.name, "反击", counter, attacker.cfg.name))
+            self._emit(eng, rnd, target.cfg.name, "反击", counter, attacker.cfg.name)
 
         # 倒戈：物理吸血
         if attacker.has_status("倒戈"):
@@ -1057,6 +1243,40 @@ class BattleEngine:
             attacker.heal(absorb)
 
         return actual
+
+    def _after_damage(
+        self,
+        target: GeneralState,
+        attacker: GeneralState,
+        actual_damage: int,
+        target_allies: list[GeneralState],
+        target_enemies: list[GeneralState],
+        target_tech: Optional[TechConfig],
+        attacker_tech: Optional[TechConfig],
+        eng: int,
+        rnd: int,
+    ):
+        for owner, allies, enemies, tech_self, tech_enemy in (
+            (attacker, target_enemies, target_allies, attacker_tech, target_tech),
+            (target, target_allies, target_enemies, target_tech, attacker_tech),
+        ):
+            for skill in owner.cfg.skills:
+                self._trigger_skill_effects(
+                    "after_damage",
+                    skill,
+                    owner,
+                    allies,
+                    enemies,
+                    eng,
+                    rnd,
+                    tech_self,
+                    tech_enemy,
+                    context={
+                        "damage_target": target,
+                        "damage_source": attacker,
+                        "damage_amount": actual_damage,
+                    },
+                )
 
     def _on_damage_taken(
         self,
@@ -1156,6 +1376,12 @@ class BattleEngine:
                 "action": e.action,
                 "value": e.value,
                 "target": e.target,
+                "event": e.event,
+                "source_skill": e.source_skill,
+                "damage_type": e.damage_type,
+                "troops_before": e.troops_before,
+                "troops_after": e.troops_after,
+                "details": e.details,
             }
             for e in self.log
         ]
