@@ -1417,11 +1417,28 @@ select.w-sm { width: 72px; }
               </div>
             </template>
           </div>
+          <!-- 槽位选择 -->
+          <div style="margin-bottom:10px">
+            <div style="font-size:11px;color:var(--text3);margin-bottom:5px">选择保存到哪个阵容槽：</div>
+            <div style="display:flex;gap:5px">
+              <template x-for="(slot, idx) in (ocrLineupTeam==='a' ? savedLineups : savedLineupsB)" :key="idx">
+                <button
+                  style="flex:1;padding:5px 2px;font-size:11px;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                  :style="ocrLineupSlot===idx
+                    ? (ocrLineupTeam==='a' ? 'background:#2563eb;color:#fff;border-color:#2563eb' : 'background:#dc2626;color:#fff;border-color:#dc2626')
+                    : 'background:var(--surface2);color:var(--text2)'"
+                  @click="ocrLineupSlot=idx"
+                  :title="slot ? slot.name : ('阵容'+(idx+1))"
+                  x-text="slot ? slot.name : ('阵容'+(idx+1))">
+                </button>
+              </template>
+            </div>
+          </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary" style="flex:3"
               :style="ocrLineupTeam==='a' ? 'background:linear-gradient(135deg,#2563eb,#1d4ed8)' : 'background:linear-gradient(135deg,#dc2626,#b91c1c)'"
               @click="applyOcrLineup(ocrLineupTeam)">
-              导入阵容库（<span x-text="ocrLineupTeam==='a'?'我方':'敌方'"></span>）
+              导入到<span x-text="ocrLineupTeam==='a'?'我方':'敌方'"></span>阵容<span x-text="ocrLineupSlot+1"></span>
             </button>
             <button class="btn" style="flex:1" @click="ocrLineupResult=null; ocrLineupFile=null; ocrLineupPreviewUrl=null">重新识别</button>
           </div>
@@ -2871,6 +2888,7 @@ function simulator() {
     // ── 阵容 OCR ──
     ocrLineupModal: false,
     ocrLineupTeam: 'a',
+    ocrLineupSlot: 0,
     ocrLineupFile: null,
     ocrLineupPreviewUrl: null,
     ocrLineupLoading: false,
@@ -3822,6 +3840,10 @@ function simulator() {
                   if (res.team_troop) g.troop_type = res.team_troop;
                 });
                 this.ocrLineupResult = res;
+                // 自动选第一个空槽；若全满则选槽0
+                const slots = this.ocrLineupTeam === 'a' ? this.savedLineups : this.savedLineupsB;
+                const firstEmpty = slots.findIndex(s => s === null);
+                this.ocrLineupSlot = firstEmpty >= 0 ? firstEmpty : 0;
               }
             } catch(e) {}
           }
@@ -3878,6 +3900,10 @@ function simulator() {
         this.teamTroop[team] = teamTroopKey;
         this.lockTeamTroop(team);
       }
+      // 保存到选定的槽位
+      const slotIdx = this.ocrLineupSlot ?? 0;
+      if (team === 'a') await this.saveLineupToSlot(slotIdx);
+      else              await this.saveLineupBToSlot(slotIdx);
       this.ocrLineupModal = false;
       this.ocrLineupResult = null;
     },
