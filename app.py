@@ -1336,7 +1336,8 @@ def _fix_ocr_name(s: str) -> str:
     return s.translate(_OCR_NAME_FIX)
 
 # 兵书类别关键词（OCR 会扫到，但不是兵书名）
-_BOOK_CAT_KW    = {'作战','始计','辅助','防守','奇袭','牵制','强攻','治军','扰敌'}
+_BOOK_CAT_KW    = {'作战','始计','辅助','防守','奇袭','牵制','强攻','治军','扰敌',
+                   '军形','虚实','九变','用间'}   # 游戏全部六个兵法体系
 _TROOP_LABEL_MAP = {'骑兵':'cavalry','弓兵':'bow','枪兵':'spear','盾兵':'shield','器械':'machine'}
 _TROOP_LINE_RE   = _re.compile(r'(骑兵|弓兵|枪兵|盾兵|器械)([SABC5]?)')
 # 格式2中出现的状态/体力噪音行关键词
@@ -1486,8 +1487,11 @@ def _parse_lineup_columns(
                 for _ in range(count):
                     if idx < len(all_books):
                         bk = all_books[idx]
+                        # 用长度判断主/副兵书（游戏规则：4字=主兵书，2字=副兵书）
+                        # DB 中部分4字升阶副兵书被错标，以长度为准更可靠
+                        bk_type = "主兵书" if len(bk) == 4 else "副兵书"
                         generals[col]["books"].append(
-                            {"name": bk, "book_type": book_type_map.get(bk, "副兵书")}
+                            {"name": bk, "book_type": bk_type}
                         )
                         idx += 1
 
