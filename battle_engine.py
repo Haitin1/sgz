@@ -140,10 +140,19 @@ class GeneralState:
         stackable: bool = False,
         meta: Optional[dict] = None,
     ):
-        # 部分状态不可叠加，检查是否已有
-        no_stack = {"先攻", "必中", "破阵", "抵御", "洞察", "连击", "军心动摇"}
-        if not stackable and name in no_stack and self.has_status(name):
-            return
+        # 非可叠加状态刷新现有效果，避免同名状态无限重复挂载。
+        if not stackable:
+            for existing in self.statuses:
+                if existing.name != name:
+                    continue
+                existing.rounds_left = max(existing.rounds_left, rounds)
+                existing.value = value
+                existing.value_type = value_type
+                existing.attr = attr
+                existing.operation = operation
+                existing.source_skill = source_skill
+                existing.meta = meta or {}
+                return
         self.statuses.append(Status(
             name=name,
             rounds_left=rounds,
@@ -882,7 +891,7 @@ class BattleEngine:
             return bool(targets and any(t.has_status(status_name) for t in targets))
 
         attr_cmp_match = re.fullmatch(
-            r"(caster|target)\.(force|intel|command|speed|troops)\s*(==|!=|>=|<=|>|<)\s*(caster|target)\.(force|intel|command|speed|troops)",
+            r"(caster|target)\.(force|intel|command|speed|troops|troops_pct)\s*(==|!=|>=|<=|>|<)\s*(caster|target)\.(force|intel|command|speed|troops|troops_pct)",
             condition,
         )
         if attr_cmp_match:
@@ -892,6 +901,12 @@ class BattleEngine:
             if left is None or right is None:
                 return False
             return self._compare(left, op, right)
+
+        pct_cmp_match = re.fullmatch(r"(caster|target)\.troops_pct\s*(==|!=|>=|<=|>|<)\s*(0(?:\.\d+)?|1(?:\.0+)?)", condition)
+        if pct_cmp_match:
+            subject, op, raw_value = pct_cmp_match.groups()
+            left = self._condition_subject_value(subject, "troops_pct", caster, targets)
+            return False if left is None else self._compare(left, op, float(raw_value))
 
         return False
 
@@ -907,6 +922,8 @@ class BattleEngine:
             return None
         if attr == "troops":
             return float(state.current_troops)
+        if attr == "troops_pct":
+            return float(state.current_troops / max(state.max_troops, 1))
         return float(self._state_attr(state, {"force": "武力", "intel": "智力", "command": "统率", "speed": "速度"}[attr]))
 
     def _compare(self, left: float, op: str, right: float) -> bool:
