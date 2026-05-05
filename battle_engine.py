@@ -24,6 +24,7 @@ STRATEGY_DOT_STATUSES = {"灼烧", "水攻", "中毒", "沙暴"}
 WEAPON_DOT_STATUSES = {"溃逃"}
 TRUE_DOT_STATUSES = {"叛逃"}
 HOT_STATUSES = {"休整"}
+DEFAULT_CONTROL_STATUSES = CONTROL_STATUSES.copy()
 
 # ─────────────────────────────────────────────────────────────
 # 数据结构
@@ -100,6 +101,7 @@ class GeneralState:
     is_main: bool = False  # 是否为主将（第一位）
 
     statuses: list[Status] = field(default_factory=list)
+    status_alias_map: dict[str, str] = field(default_factory=dict)
 
     # 本局临时属性加成（来自指挥/被动战法）
     bonus_force: int = 0
@@ -124,8 +126,15 @@ class GeneralState:
     @property
     def speed(self):  return self._stat_with_status("速度", self.cfg.speed + self.bonus_speed)
 
+    def _canonical_status_name(self, name: str) -> str:
+        return self.status_alias_map.get(name, name)
+
     def has_status(self, name: str) -> bool:
-        return any(s.name == name for s in self.statuses)
+        target = self._canonical_status_name(name)
+        for status in self.statuses:
+            if self._canonical_status_name(status.name) == target:
+                return True
+        return False
 
     def add_status(
         self,
@@ -140,10 +149,11 @@ class GeneralState:
         stackable: bool = False,
         meta: Optional[dict] = None,
     ):
+        name = self._canonical_status_name(name)
         # 非可叠加状态刷新现有效果，避免同名状态无限重复挂载。
         if not stackable:
             for existing in self.statuses:
-                if existing.name != name:
+                if self._canonical_status_name(existing.name) != name:
                     continue
                 existing.rounds_left = max(existing.rounds_left, rounds)
                 existing.value = value
@@ -166,16 +176,22 @@ class GeneralState:
         ))
 
     def remove_status(self, name: str):
-        self.statuses = [s for s in self.statuses if s.name != name]
+        target = self._canonical_status_name(name)
+        self.statuses = [
+            status
+            for status in self.statuses
+            if self._canonical_status_name(status.name) != target
+        ]
 
     def status_value(self, name: str, *, operation: Optional[str] = None) -> float:
+        target = self._canonical_status_name(name)
         total = 0.0
-        for s in self.statuses:
-            if s.name != name:
+        for status in self.statuses:
+            if self._canonical_status_name(status.name) != target:
                 continue
-            if operation and s.operation != operation:
+            if operation and status.operation != operation:
                 continue
-            total += s.value
+            total += status.value
         return total
 
     def _stat_with_status(self, attr: str, base: float) -> int:
@@ -286,6 +302,7 @@ class BattleEngine:
         tech_a: TechConfig = None,
         tech_b: TechConfig = None,
         seed: int = None,
+        status_definitions: Optional[list[dict]] = None,
     ):
         self.team_a_cfg = team_a
         self.team_b_cfg = team_b
@@ -298,6 +315,7 @@ class BattleEngine:
         self.log: list[LogEntry] = []
         self.winner: Optional[str] = None  # "A" / "B" / "draw"
         self.engagement_count = 0
+        self._init_status_registry(status_definitions or [])
 
     # ── 公开入口 ──────────────────────────────────────────────
 
@@ -325,6 +343,52 @@ class BattleEngine:
 
     # ── 初始化 ────────────────────────────────────────────────
 
+    def _init_status_registry(self, status_definitions: list[dict]):
+        self.status_alias_map: dict[str, str] = {}
+        self.control_statuses = DEFAULT_CONTROL_STATUSES.copy()
+        self.strategy_dot_statuses = STRATEGY_DOT_STATUSES.copy()
+        self.weapon_dot_statuses = WEAPON_DOT_STATUSES.copy()
+        self.true_dot_statuses = TRUE_DOT_STATUSES.copy()
+        self.hot_statuses = HOT_STATUSES.copy()
+        if not status_definitions:
+            return
+
+        control_names = set()
+        by_engine_key: dict[str, str] = {}
+        for row in status_definitions:
+            name = row.get("name")
+            if not name:
+                continue
+            self.status_alias_map[name] = name
+
+            engine_key = row.get("engine_key")
+            if engine_key:
+                self.status_alias_map[engine_key] = name
+                by_engine_key[engine_key] = name
+
+            for alias in row.get("aliases") or []:
+                if alias:
+                    self.status_alias_map[alias] = name
+
+            if row.get("is_control"):
+                control_names.add(name)
+
+        if control_names:
+            self.control_statuses = control_names
+
+        self.strategy_dot_statuses = {
+            by_engine_key.get("burn", "灼烧"),
+            by_engine_key.get("flood", "水攻"),
+            by_engine_key.get("poison", "中毒"),
+            by_engine_key.get("sandstorm", "沙暴"),
+        }
+        self.weapon_dot_statuses = {by_engine_key.get("rout", "溃逃")}
+        self.true_dot_statuses = {by_engine_key.get("mutiny", "叛逃")}
+        self.hot_statuses = {
+            by_engine_key.get("regroup", "休整"),
+            by_engine_key.get("first_aid", "急救"),
+        }
+
     def _init_states(self, cfgs: list[GeneralConfig], is_main_first: bool) -> list[GeneralState]:
         states = []
         for i, cfg in enumerate(cfgs):
@@ -333,6 +397,7 @@ class BattleEngine:
                 current_troops=cfg.troops,
                 max_troops=cfg.troops,
                 is_main=(i == 0 and is_main_first),
+                status_alias_map=self.status_alias_map,
             )
             states.append(s)
         return states
@@ -528,11 +593,15 @@ class BattleEngine:
         bypass = min(attacker.status_value("看破"), 1.0)
         return raw_reduction * (1 - bypass)
 
+    def _canonical_status_name(self, name: str) -> str:
+        return self.status_alias_map.get(name, name)
+
     def _is_skill_disabled(self, state: GeneralState, skill: SkillDef) -> bool:
         return state.has_status("伪报") and skill.skill_type in COMMAND_PASSIVE_TYPES
 
     def _can_apply_status(self, target: GeneralState, status_name: str) -> bool:
-        return not (status_name in CONTROL_STATUSES and target.has_status("洞察"))
+        canonical = self._canonical_status_name(status_name)
+        return not (canonical in self.control_statuses and target.has_status("洞察"))
 
     def _emit(
         self,
@@ -646,7 +715,7 @@ class BattleEngine:
         rnd: int,
     ):
         status = effect.get("status") or {}
-        name = status.get("name")
+        name = self._canonical_status_name(status.get("name"))
         if not name:
             return
         value = self._effect_value(status.get("value"), default=0.0)
@@ -1031,13 +1100,13 @@ class BattleEngine:
         rnd: int,
     ):
         for status in list(state.statuses):
-            if status.name in STRATEGY_DOT_STATUSES:
+            if status.name in self.strategy_dot_statuses:
                 self._apply_status_tick_damage(status, state, "谋略", eng, rnd)
-            elif status.name in WEAPON_DOT_STATUSES:
+            elif status.name in self.weapon_dot_statuses:
                 self._apply_status_tick_damage(status, state, "兵刃", eng, rnd)
-            elif status.name in TRUE_DOT_STATUSES:
+            elif status.name in self.true_dot_statuses:
                 self._apply_status_tick_damage(status, state, "无视防御", eng, rnd)
-            elif status.name in HOT_STATUSES or status.operation == "heal_over_time":
+            elif status.name in self.hot_statuses or status.operation == "heal_over_time":
                 self._apply_status_tick_heal(status, state, eng, rnd)
 
     def _apply_status_tick_damage(self, status: Status, target: GeneralState, damage_type: str, eng: int, rnd: int):

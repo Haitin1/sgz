@@ -182,6 +182,35 @@ def convert_tech(t: TechInput) -> TechConfig:
     )
 
 
+def load_status_definitions() -> list[dict]:
+    """Load status dictionary for battle engine; fallback to built-in defaults on error."""
+    conn = None
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""
+            SELECT
+              s.name,
+              s.engine_key,
+              s.aliases,
+              s.is_control,
+              s.hooks,
+              s.extra_rules,
+              s.can_be_cleansed,
+              s.can_be_immune,
+              c.name AS category
+            FROM statuses s
+            JOIN status_categories c ON c.id = s.category_id
+            ORDER BY s.id
+        """)
+        return [dict(row) for row in cur.fetchall()]
+    except Exception:
+        return []
+    finally:
+        if conn:
+            conn.close()
+
+
 # ─────────────────────────────────────────────────────────────
 # API 端点
 # ─────────────────────────────────────────────────────────────
@@ -197,10 +226,15 @@ def simulate(req: SimulateRequest):
     team_b = convert_team(req.team_b)
     tech_a = convert_tech(req.tech_a)
     tech_b = convert_tech(req.tech_b)
+    status_defs = load_status_definitions()
 
     if req.runs == 1:
         # 单次模拟，返回详细战报
-        engine = BattleEngine(team_a, team_b, tech_a, tech_b, seed=req.seed)
+        engine = BattleEngine(
+            team_a, team_b, tech_a, tech_b,
+            seed=req.seed,
+            status_definitions=status_defs,
+        )
         result = engine.run()
         return result
     else:
@@ -209,7 +243,11 @@ def simulate(req: SimulateRequest):
         total_engagements = 0
         for i in range(req.runs):
             seed = (req.seed + i) if req.seed is not None else None
-            engine = BattleEngine(team_a, team_b, tech_a, tech_b, seed=seed)
+            engine = BattleEngine(
+                team_a, team_b, tech_a, tech_b,
+                seed=seed,
+                status_definitions=status_defs,
+            )
             result = engine.run()
             wins[result["winner"]] += 1
             total_engagements += result["engagements"]
