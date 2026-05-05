@@ -274,6 +274,7 @@
 - `on_damage_taken` 目前会在实际受到伤害后触发受伤者自身的 `指挥/被动/兵种/阵法` 结构化效果。
 - `before_damage` 已支持 `modify_damage`，可在扣兵前调整伤害。
 - `after_damage` 会在实际扣兵后触发双方结构化效果，并输出兵力变化。
+- `before_action` 会在武将行动前触发自身指挥/被动/兵种/阵法效果。
 - `round_end` 会在状态持续时间扣减前触发；状态到期时输出 `status_expired` 战报事件。
 - 战报日志保留旧字段，同时新增 `event`、`source_skill`、`damage_type`、`troops_before`、`troops_after`、`details`，用于逐步还原真实战报。
 - 持续性状态在回合开始输出 `status_tick_damage` / `status_tick_heal` 战报事件。

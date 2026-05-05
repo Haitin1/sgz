@@ -1206,6 +1206,8 @@ class BattleEngine:
         if not enemies:
             return
 
+        self._before_action(state, allies, enemies, tech_self, tech_enemy, eng, rnd)
+
         # 震慑/军心动摇 → 跳过
         if state.has_status("震慑") or state.has_status("军心动摇"):
             self._emit(eng, rnd, state.cfg.name, "无法行动（震慑/军心动摇）")
@@ -1296,6 +1298,33 @@ class BattleEngine:
                 self._emit(eng, rnd, state.cfg.name,
                                           "连击（额外普攻）", act2, target.cfg.name)
                 self._after_normal_attack(state, target, enemies, allies, tech_self, tech_enemy, eng, rnd)
+
+    def _before_action(
+        self,
+        state: GeneralState,
+        allies: list[GeneralState],
+        enemies: list[GeneralState],
+        tech_self: TechConfig,
+        tech_enemy: TechConfig,
+        eng: int,
+        rnd: int,
+    ):
+        for skill in state.cfg.skills:
+            if skill.skill_type not in PRE_BATTLE_TYPES:
+                continue
+            if self._is_skill_disabled(state, skill):
+                continue
+            self._trigger_skill_effects(
+                "before_action",
+                skill,
+                state,
+                allies,
+                enemies,
+                eng,
+                rnd,
+                tech_self,
+                tech_enemy,
+            )
 
     def _normal_attack_target(
         self,
