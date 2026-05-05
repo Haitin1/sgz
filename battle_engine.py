@@ -598,6 +598,9 @@ class BattleEngine:
             if action == "apply_status":
                 self._effect_apply_status(effect, skill, caster, targets, eng, rnd)
                 executed += 1
+            elif action == "remove_status":
+                self._effect_remove_status(effect, skill, caster, targets, eng, rnd)
+                executed += 1
             elif action == "heal":
                 self._effect_heal(effect, skill, caster, targets, eng, rnd)
                 executed += 1
@@ -739,6 +742,36 @@ class BattleEngine:
                 troops_after=target.current_troops,
                 details={"rate": rate, "scales_with": attr_name},
             )
+
+    def _effect_remove_status(
+        self,
+        effect: dict,
+        skill: SkillDef,
+        caster: GeneralState,
+        targets: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ):
+        names = effect.get("statuses")
+        if not names:
+            status = effect.get("status") or {}
+            names = [status.get("name")] if status.get("name") else []
+        for target in targets:
+            for name in names:
+                if not name or not target.has_status(name):
+                    continue
+                target.remove_status(name)
+                self._emit(
+                    eng,
+                    rnd,
+                    caster.cfg.name,
+                    f"【{skill.name}】移除【{name}】",
+                    0,
+                    target.cfg.name,
+                    event="remove_status",
+                    source_skill=skill.name,
+                    details={"status": name},
+                )
 
     def _effect_deal_damage(
         self,

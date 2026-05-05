@@ -267,7 +267,7 @@
 - `SkillDef.effect_json` 可携带结构化效果。
 - `/api/skills` 会返回 `effect_json`，前端选战法后会把它带入 `/api/simulate`。
 - 已执行事件：`battle_start`、`round_start`、`skill_release`、`after_normal_attack`、`on_damage_taken`。
-- 已执行动作：`apply_status`、`heal`、`deal_damage`。
+- 已执行动作：`apply_status`、`remove_status`、`heal`、`deal_damage`。
 - `round_start` 目前只执行 `指挥/被动/兵种/阵法` 的结构化效果，主动/突击战法必须等实际发动时才执行 `skill_release`，避免每回合自动触发。
 - 如果战法存在 `skill_release` 结构化效果，释放时优先执行结构化效果并跳过旧字段伤害/治疗/施加状态，避免同一个战法重复结算。
 - 突击战法现在挂在每次普通攻击后的 `after_normal_attack`；如果没有结构化效果，会回落到旧字段执行。
