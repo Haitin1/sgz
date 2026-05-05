@@ -3851,7 +3851,7 @@ function simulator() {
       } catch(e) { alert('识别出错：' + e.message); }
       finally { this.ocrLineupLoading = false; }
     },
-    applyOcrLineup(team) {
+    async applyOcrLineup(team) {
       const res = this.ocrLineupResult;
       if (!res || !res.generals?.length) return;
       const teamTroopKey = res.team_troop || null;
