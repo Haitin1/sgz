@@ -2712,7 +2712,7 @@ select.w-sm { width: 72px; }
               <div class="log-entry" :class="entry.action.includes('蓄力') ? 'prep-row' : ''">
                 <span class="rnd" x-text="entry.round === 0 ? '准备' : '回合' + entry.round"></span>
                 <span class="actor" x-text="entry.actor"></span>
-                <span class="action" x-text="entry.action"></span>
+                <span class="action" :title="entry.text || ''" x-text="entry.action"></span>
                 <span class="val" :class="valClass(entry)" x-text="fmtVal(entry)"></span>
                 <span class="tgt" x-text="fmtTroops(entry)"></span>
                 <span class="tgt" x-text="entry.target || ''"></span>

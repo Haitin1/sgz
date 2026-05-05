@@ -277,6 +277,7 @@
 - `before_action` 会在武将行动前触发自身指挥/被动/兵种/阵法效果。
 - `round_end` 会在状态持续时间扣减前触发；状态到期时输出 `status_expired` 战报事件。
 - 战报日志保留旧字段，同时新增 `event`、`source_skill`、`damage_type`、`troops_before`、`troops_after`、`details`，用于逐步还原真实战报。
+- 每条战报同时生成 `text` 字段，作为可直接展示/导出的自然语言战报。
 - 持续性状态在回合开始输出 `status_tick_damage` / `status_tick_heal` 战报事件。
 - 数值默认取 `{base,max}` 里的 `max`，因为当前数据库录入按 10 级战法效果为准。
 

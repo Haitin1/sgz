@@ -1823,6 +1823,7 @@ class BattleEngine:
                 "troops_before": e.troops_before,
                 "troops_after": e.troops_after,
                 "details": e.details,
+                "text": self._format_log_text(e),
             }
             for e in self.log
         ]
@@ -1834,3 +1835,13 @@ class BattleEngine:
             "team_b": team_summary(states_b),
             "log": log_dicts,
         }
+
+    def _format_log_text(self, e: LogEntry) -> str:
+        prefix = "准备回合" if e.round == 0 else f"第{e.round}回合"
+        target = f" -> {e.target}" if e.target else ""
+        value = f"，数值 {e.value}" if e.value else ""
+        troops = ""
+        if e.troops_before is not None and e.troops_after is not None:
+            troops = f"，兵力 {e.troops_before}→{e.troops_after}"
+        skill = f"（{e.source_skill}）" if e.source_skill else ""
+        return f"{prefix}：{e.actor}{skill}{target}，{e.action}{value}{troops}"
