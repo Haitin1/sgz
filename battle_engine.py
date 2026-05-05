@@ -1834,7 +1834,24 @@ class BattleEngine:
             "team_a": team_summary(states_a),
             "team_b": team_summary(states_b),
             "log": log_dicts,
+            "battle_report": self._group_battle_report(log_dicts),
         }
+
+    def _group_battle_report(self, log_dicts: list[dict]) -> list[dict]:
+        grouped: dict[int, dict[int, list[dict]]] = {}
+        for entry in log_dicts:
+            grouped.setdefault(entry["engagement"], {}).setdefault(entry["round"], []).append(entry)
+        report = []
+        for eng in sorted(grouped):
+            rounds = []
+            for rnd in sorted(grouped[eng]):
+                rounds.append({
+                    "round": rnd,
+                    "title": "准备回合" if rnd == 0 else f"第{rnd}回合",
+                    "entries": grouped[eng][rnd],
+                })
+            report.append({"engagement": eng, "rounds": rounds})
+        return report
 
     def _format_log_text(self, e: LogEntry) -> str:
         prefix = "准备回合" if e.round == 0 else f"第{e.round}回合"
