@@ -1434,7 +1434,7 @@ select.w-sm { width: 72px; }
                     :style="ocrLineupSlot===idx
                       ? (ocrLineupTeam==='a' ? 'background:#2563eb;color:#fff;border-color:#2563eb' : 'background:#dc2626;color:#fff;border-color:#dc2626')
                       : 'background:var(--surface2);color:var(--text2)'"
-                    @click="ocrLineupSlot=idx"
+                    @click="ocrLineupSlot=idx; ocrLineupName=slot?.name||('阵容'+(idx+1))"
                     :title="slot ? slot.name : ('阵容'+(idx+1))"
                     x-text="slot ? slot.name : ('阵容'+(idx+1))">
                   </button>
@@ -3853,10 +3853,12 @@ function simulator() {
                   if (res.team_troop) g.troop_type = res.team_troop;
                 });
                 this.ocrLineupResult = res;
-                // 自动选第一个空槽；若全满则选槽0
+                // 自动选第一个空槽；若全满则选槽0；同步显示槽位名称到输入框
                 const slots = this.ocrLineupTeam === 'a' ? this.savedLineups : this.savedLineupsB;
                 const firstEmpty = slots.findIndex(s => s === null);
-                this.ocrLineupSlot = firstEmpty >= 0 ? firstEmpty : 0;
+                const autoSlot = firstEmpty >= 0 ? firstEmpty : 0;
+                this.ocrLineupSlot = autoSlot;
+                this.ocrLineupName = slots[autoSlot]?.name || ('阵容' + (autoSlot + 1));
               }
             } catch(e) {}
           }
