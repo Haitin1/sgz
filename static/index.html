@@ -1611,8 +1611,8 @@ select.w-sm { width: 72px; }
         <div class="advisor-wrap" @click.outside="advisorOpen.a=false">
           <div class="advisor-selector">
             <div class="advisor-input-wrap" @click="advisorOpen.a=!advisorOpen.a"
-              @mouseenter="advisor.a && showAdvisorTip($event, advisor.a)"
-              @mouseleave="hideAdvisorTip()">
+              @mouseenter="advisor.a && window._showAdvisorTip($event, advisor.a)"
+              @mouseleave="window._hideAdvisorTip()">
               <input type="text" x-model="advisorSearch.a" :placeholder="advisor.a ? advisor.a.general_name : '选择军师'"
                 @input="advisorOpen.a=true" @focus="advisorOpen.a=true" autocomplete="off">
               <span class="clear-btn" x-show="advisor.a" @click.stop="advisor.a=null;advisorSearch.a=''">✕</span>
@@ -1624,7 +1624,7 @@ select.w-sm { width: 72px; }
               </template>
               <template x-for="s in filteredAdvisors('a')" :key="s.id">
                 <div class="advisor-dropdown-item" @click="advisor.a=s;advisorSearch.a='';advisorOpen.a=false"
-                  @mouseenter="showAdvisorTip($event, s)" @mouseleave="hideAdvisorTip()">
+                  @mouseenter="window._showAdvisorTip($event, s)" @mouseleave="window._hideAdvisorTip()">
                   <span class="advisor-attr-badge" :class="'attr-'+(s.attribute||'')" x-text="s.attribute||'?'"></span>
                   <span class="adv-name" x-text="s.general_name"></span>
                   <span class="adv-skill" x-text="s.skill_name"></span>
@@ -2160,8 +2160,8 @@ select.w-sm { width: 72px; }
         <div class="advisor-wrap" @click.outside="advisorOpen.b=false">
           <div class="advisor-selector">
             <div class="advisor-input-wrap" @click="advisorOpen.b=!advisorOpen.b"
-              @mouseenter="advisor.b && showAdvisorTip($event, advisor.b)"
-              @mouseleave="hideAdvisorTip()">
+              @mouseenter="advisor.b && window._showAdvisorTip($event, advisor.b)"
+              @mouseleave="window._hideAdvisorTip()">
               <input type="text" x-model="advisorSearch.b" :placeholder="advisor.b ? advisor.b.general_name : '选择军师'"
                 @input="advisorOpen.b=true" @focus="advisorOpen.b=true" autocomplete="off">
               <span class="clear-btn" x-show="advisor.b" @click.stop="advisor.b=null;advisorSearch.b=''">✕</span>
@@ -2173,7 +2173,7 @@ select.w-sm { width: 72px; }
               </template>
               <template x-for="s in filteredAdvisors('b')" :key="s.id">
                 <div class="advisor-dropdown-item" @click="advisor.b=s;advisorSearch.b='';advisorOpen.b=false"
-                  @mouseenter="showAdvisorTip($event, s)" @mouseleave="hideAdvisorTip()">
+                  @mouseenter="window._showAdvisorTip($event, s)" @mouseleave="window._hideAdvisorTip()">
                   <span class="advisor-attr-badge" :class="'attr-'+(s.attribute||'')" x-text="s.attribute||'?'"></span>
                   <span class="adv-name" x-text="s.general_name"></span>
                   <span class="adv-skill" x-text="s.skill_name"></span>
@@ -2765,21 +2765,66 @@ select.w-sm { width: 72px; }
     </div>
   </div>
 
-  <!-- 军师技悬停提示 -->
-  <div class="advisor-tip"
-    x-show="advisorTip.show"
-    :style="`left:${advisorTip.x}px;top:${advisorTip.y+18}px`"
-    style="display:none">
-    <div class="advisor-tip-head">
-      <span class="advisor-attr-badge" :class="'attr-'+(advisorTip.s?.attribute||'')" x-text="advisorTip.s?.attribute||''"></span>
-      <span x-text="advisorTip.s?.general_name"></span>
-      <span>·</span>
-      <span x-text="advisorTip.s?.skill_name"></span>
-      <span x-show="advisorTip.s?.cost" style="margin-left:auto;font-size:11px;opacity:.7" x-text="'计略点 '+advisorTip.s?.cost"></span>
-    </div>
-    <div class="advisor-tip-desc" x-text="advisorTip.s?.description"></div>
-  </div>
 </div><!-- /app -->
+
+<!-- 军师技悬停提示（纯JS，不依赖Alpine响应式） -->
+<div id="adv-tip-box" style="
+  display:none; position:fixed; z-index:9999; pointer-events:none;
+  background:#fff; border:1px solid #cbd5e1; border-radius:8px;
+  box-shadow:0 4px 16px rgba(0,0,0,.13); padding:9px 12px;
+  max-width:260px; font-size:12px; line-height:1.5;">
+  <div id="adv-tip-head" style="display:flex;align-items:center;gap:6px;font-weight:600;margin-bottom:5px;flex-wrap:wrap">
+    <span id="adv-tip-attr" class="advisor-attr-badge"></span>
+    <span id="adv-tip-name"></span>
+    <span>·</span>
+    <span id="adv-tip-skill"></span>
+    <span id="adv-tip-cost" style="margin-left:auto;font-size:11px;opacity:.7"></span>
+  </div>
+  <div id="adv-tip-desc" style="color:#64748b;line-height:1.6"></div>
+</div>
+<script>
+(function () {
+  const box  = document.getElementById('adv-tip-box');
+  const attr = document.getElementById('adv-tip-attr');
+  const name = document.getElementById('adv-tip-name');
+  const skill= document.getElementById('adv-tip-skill');
+  const cost = document.getElementById('adv-tip-cost');
+  const desc = document.getElementById('adv-tip-desc');
+
+  window._showAdvisorTip = function(e, s) {
+    if (!s) return;
+    attr.textContent  = s.attribute  || '';
+    attr.className    = 'advisor-attr-badge attr-' + (s.attribute || '');
+    name.textContent  = s.general_name || '';
+    skill.textContent = s.skill_name  || '';
+    cost.textContent  = s.cost ? ('计略点 ' + s.cost) : '';
+    desc.textContent  = s.description || '';
+
+    box.style.display = 'block';
+    _posAdvisorTip(e.clientX, e.clientY);
+  };
+
+  window._hideAdvisorTip = function() {
+    box.style.display = 'none';
+  };
+
+  function _posAdvisorTip(cx, cy) {
+    const w = 260, margin = 8;
+    let left = cx - w + 12;
+    let top  = cy + 18;
+    if (left < margin) left = margin;
+    if (top + 180 > window.innerHeight) top = cy - 180;
+    box.style.left = left + 'px';
+    box.style.top  = top  + 'px';
+  }
+
+  // 跟随鼠标移动
+  document.addEventListener('mousemove', function(e) {
+    if (box.style.display === 'none') return;
+    _posAdvisorTip(e.clientX, e.clientY);
+  });
+})();
+</script>
 
 <script>
 function simulator() {
@@ -2868,7 +2913,6 @@ function simulator() {
     advisorSkills: [],
     advisorSearch: { a: '', b: '' },
     advisorOpen: { a: false, b: false },
-    advisorTip: { show: false, s: null, x: 0, y: 0 },
     generalsData: [],
     affinitiesData: [],
     genSearch: { a: ['','',''], b: ['','',''] },
@@ -4268,12 +4312,6 @@ function simulator() {
       return this.advisorSkills.filter(s =>
         s.general_name.includes(q) || s.skill_name.includes(q)
       );
-    },
-    showAdvisorTip(e, s) {
-      this.advisorTip = { show: true, s, x: e.clientX, y: e.clientY };
-    },
-    hideAdvisorTip() {
-      this.advisorTip.show = false;
     },
 
     buildPayload(runs) {
