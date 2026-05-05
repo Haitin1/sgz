@@ -1322,6 +1322,19 @@ def _extract_text_tokens(html: str) -> list[str]:
 
 _LEVEL_RE = _re.compile(r'^(\d{1,2})\s*(.{2,6})$')   # "43孙尚香" / "43 孙尚香"
 
+# 常见 OCR 形似字纠正（主要影响武将名识别）
+# 荀→苟、彧→或 是最典型的；后续遇到新的随时补充
+_OCR_NAME_FIX = str.maketrans({
+    '苟': '荀',   # 荀彧/荀攸：苟→荀（上部 廿 vs 艹 形似）
+    '或': '彧',   # 荀彧：或→彧
+    '义': '必',   # 援其必攻：义→必
+    '刘': '刘',   # 统一写法
+})
+
+def _fix_ocr_name(s: str) -> str:
+    """纠正武将名中常见的 OCR 形似字误读"""
+    return s.translate(_OCR_NAME_FIX)
+
 # 兵书类别关键词（OCR 会扫到，但不是兵书名）
 _BOOK_CAT_KW    = {'作战','始计','辅助','防守','奇袭','牵制','强攻','治军','扰敌'}
 _TROOP_LABEL_MAP = {'骑兵':'cavalry','弓兵':'bow','枪兵':'spear','盾兵':'shield','器械':'machine'}
@@ -1360,7 +1373,9 @@ def _parse_lineup_columns(
             if m:
                 lv, name_cand = int(m.group(1)), m.group(2).strip()
                 if 1 <= lv <= 60:
-                    gm = _fuzzy_match(name_cand, gen_names, threshold=70)
+                    # 先纠正形似字（如苟→荀，或→彧），再模糊匹配
+                    name_fixed = _fix_ocr_name(name_cand)
+                    gm = _fuzzy_match(name_fixed, gen_names, threshold=70)
                     if gm:
                         found.append((gm, lv))
         if found:
@@ -1534,8 +1549,8 @@ def _parse_lineup_from_html(
                 lv_prefix = maybe_lv
                 tok = tok_clean.strip()
 
-        # ── 武将名匹配 ──
-        gm = _fuzzy_match(tok, gen_names, threshold=75)
+        # ── 武将名匹配（先纠正形似字误读） ──
+        gm = _fuzzy_match(_fix_ocr_name(tok), gen_names, threshold=75)
         if gm and gm not in [g["name"] for g in generals_out]:
             level = lv_prefix or pending_level or 43
             prev_gen  = cur_gen
