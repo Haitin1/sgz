@@ -1417,21 +1417,29 @@ select.w-sm { width: 72px; }
               </div>
             </template>
           </div>
-          <!-- 槽位选择 -->
-          <div style="margin-bottom:10px">
-            <div style="font-size:11px;color:var(--text3);margin-bottom:5px">选择保存到哪个阵容槽：</div>
-            <div style="display:flex;gap:5px">
-              <template x-for="(slot, idx) in (ocrLineupTeam==='a' ? savedLineups : savedLineupsB)" :key="idx">
-                <button
-                  style="flex:1;padding:5px 2px;font-size:11px;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
-                  :style="ocrLineupSlot===idx
-                    ? (ocrLineupTeam==='a' ? 'background:#2563eb;color:#fff;border-color:#2563eb' : 'background:#dc2626;color:#fff;border-color:#dc2626')
-                    : 'background:var(--surface2);color:var(--text2)'"
-                  @click="ocrLineupSlot=idx"
-                  :title="slot ? slot.name : ('阵容'+(idx+1))"
-                  x-text="slot ? slot.name : ('阵容'+(idx+1))">
-                </button>
-              </template>
+          <!-- 阵容名 + 槽位选择 -->
+          <div style="margin-bottom:10px;display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:var(--text3);flex-shrink:0">阵容名称</span>
+              <input class="form-input" style="flex:1;font-size:12px;padding:3px 8px"
+                x-model="ocrLineupName"
+                placeholder="留空则自动命名">
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text3);margin-bottom:5px">保存到哪个槽：</div>
+              <div style="display:flex;gap:5px">
+                <template x-for="(slot, idx) in (ocrLineupTeam==='a' ? savedLineups : savedLineupsB)" :key="idx">
+                  <button
+                    style="flex:1;padding:5px 2px;font-size:11px;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:all .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                    :style="ocrLineupSlot===idx
+                      ? (ocrLineupTeam==='a' ? 'background:#2563eb;color:#fff;border-color:#2563eb' : 'background:#dc2626;color:#fff;border-color:#dc2626')
+                      : 'background:var(--surface2);color:var(--text2)'"
+                    @click="ocrLineupSlot=idx"
+                    :title="slot ? slot.name : ('阵容'+(idx+1))"
+                    x-text="slot ? slot.name : ('阵容'+(idx+1))">
+                  </button>
+                </template>
+              </div>
             </div>
           </div>
           <div style="display:flex;gap:8px">
@@ -2889,6 +2897,7 @@ function simulator() {
     ocrLineupModal: false,
     ocrLineupTeam: 'a',
     ocrLineupSlot: 0,
+    ocrLineupName: '',
     ocrLineupFile: null,
     ocrLineupPreviewUrl: null,
     ocrLineupLoading: false,
@@ -3413,12 +3422,14 @@ function simulator() {
       if (!this.canSaveLineup()) return;
       if (this.activeLineupSlot.a !== null) {
         const slotIdx = this.activeLineupSlot.a;
-        const slotName = this.savedLineups[slotIdx]?.name || ('阵容' + (slotIdx + 1));
-        if (!confirm(`是否更新「${slotName}」？`)) return;
-        const updated = this._buildLineupPayload('a', this.savedLineups[slotIdx].name);
+        const oldName = this.savedLineups[slotIdx]?.name || ('阵容' + (slotIdx + 1));
+        const newName = this.lineupName.trim() || oldName;
+        if (!confirm(`是否更新「${oldName}」？`)) return;
+        const updated = this._buildLineupPayload('a', newName);
         await this._apiSave('a', slotIdx, updated);
         this.savedLineups = [...this.savedLineups];
         this.savedLineups[slotIdx] = updated;
+        this.lineupName = '';
         this.loadedSnapshot.a = this.snapshotLineup('a');
         return;
       }
@@ -3470,12 +3481,14 @@ function simulator() {
       if (!this.canSaveLineupB()) return;
       if (this.activeLineupSlot.b !== null) {
         const slotIdx = this.activeLineupSlot.b;
-        const slotName = this.savedLineupsB[slotIdx]?.name || ('阵容' + (slotIdx + 1));
-        if (!confirm(`是否更新「${slotName}」？`)) return;
-        const updated = this._buildLineupPayload('b', this.savedLineupsB[slotIdx].name);
+        const oldName = this.savedLineupsB[slotIdx]?.name || ('阵容' + (slotIdx + 1));
+        const newName = this.lineupNameB.trim() || oldName;
+        if (!confirm(`是否更新「${oldName}」？`)) return;
+        const updated = this._buildLineupPayload('b', newName);
         await this._apiSave('b', slotIdx, updated);
         this.savedLineupsB = [...this.savedLineupsB];
         this.savedLineupsB[slotIdx] = updated;
+        this.lineupNameB = '';
         this.loadedSnapshot.b = this.snapshotLineup('b');
         return;
       }
@@ -3900,10 +3913,12 @@ function simulator() {
         this.teamTroop[team] = teamTroopKey;
         this.lockTeamTroop(team);
       }
-      // 保存到选定的槽位
+      // 保存到选定的槽位（使用用户填写的名称，或自动命名）
       const slotIdx = this.ocrLineupSlot ?? 0;
-      if (team === 'a') await this.saveLineupToSlot(slotIdx);
-      else              await this.saveLineupBToSlot(slotIdx);
+      const nameOverride = this.ocrLineupName.trim() || null;
+      if (team === 'a') await this.saveLineupToSlot(slotIdx, nameOverride);
+      else              await this.saveLineupBToSlot(slotIdx, nameOverride);
+      this.ocrLineupName = '';
       this.ocrLineupModal = false;
       this.ocrLineupResult = null;
     },
