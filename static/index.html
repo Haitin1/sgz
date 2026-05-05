@@ -801,19 +801,25 @@ select.w-sm { width: 72px; }
 .btn-save:hover { background: #dcfce7; }
 .btn-save.dirty { background: var(--green); color: #fff; border-color: var(--green); }
 
-/* 已选军师信息卡 */
-.advisor-card {
-  border-radius: 6px; padding: 8px 10px;
-  margin-bottom: 10px; font-size: 12px;
-  border: 1px solid;
+/* 军师悬停提示 */
+.advisor-tip {
+  position: fixed;
+  z-index: 9999;
+  background: #fff;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  padding: 9px 12px;
+  max-width: 260px;
+  font-size: 12px;
+  pointer-events: none;
+  transform: translateX(calc(-100% + 12px));
 }
-.advisor-card.team-a { background: #eff6ff; border-color: var(--accent-a-border); }
-.advisor-card.team-b { background: #fef2f2; border-color: var(--accent-b-border); }
-.advisor-card .ac-head {
+.advisor-tip-head {
   display: flex; align-items: center; gap: 6px;
-  font-weight: 600; margin-bottom: 4px;
+  font-weight: 600; margin-bottom: 5px;
 }
-.advisor-card .ac-desc { color: var(--text2); line-height: 1.6; }
+.advisor-tip-desc { color: var(--text2); line-height: 1.6; }
 
 /* ── 保存阵容栏 ── */
 .lineup-row {
@@ -907,7 +913,6 @@ select.w-sm { width: 72px; }
   .advisor-input-wrap input { width: 100%; font-size: 12px; }
 
   /* ── 军师信息卡 ── */
-  .advisor-card { padding: 6px 8px; font-size: 11px; margin-bottom: 6px; }
 
   /* ── 武将块 ── */
   .general-block { margin-bottom: 6px; }
@@ -1605,7 +1610,9 @@ select.w-sm { width: 72px; }
         </div>
         <div class="advisor-wrap" @click.outside="advisorOpen.a=false">
           <div class="advisor-selector">
-            <div class="advisor-input-wrap" @click="advisorOpen.a=!advisorOpen.a">
+            <div class="advisor-input-wrap" @click="advisorOpen.a=!advisorOpen.a"
+              @mouseenter="advisor.a && showAdvisorTip($event, advisor.a)"
+              @mouseleave="hideAdvisorTip()">
               <input type="text" x-model="advisorSearch.a" :placeholder="advisor.a ? advisor.a.general_name : '选择军师'"
                 @input="advisorOpen.a=true" @focus="advisorOpen.a=true" autocomplete="off">
               <span class="clear-btn" x-show="advisor.a" @click.stop="advisor.a=null;advisorSearch.a=''">✕</span>
@@ -1616,7 +1623,8 @@ select.w-sm { width: 72px; }
                 <div class="advisor-empty">无匹配结果</div>
               </template>
               <template x-for="s in filteredAdvisors('a')" :key="s.id">
-                <div class="advisor-dropdown-item" @click="advisor.a=s;advisorSearch.a='';advisorOpen.a=false">
+                <div class="advisor-dropdown-item" @click="advisor.a=s;advisorSearch.a='';advisorOpen.a=false"
+                  @mouseenter="showAdvisorTip($event, s)" @mouseleave="hideAdvisorTip()">
                   <span class="advisor-attr-badge" :class="'attr-'+(s.attribute||'')" x-text="s.attribute||'?'"></span>
                   <span class="adv-name" x-text="s.general_name"></span>
                   <span class="adv-skill" x-text="s.skill_name"></span>
@@ -1627,17 +1635,6 @@ select.w-sm { width: 72px; }
         </div>
       </div>
       <div class="card-body">
-        <!-- 军师技信息卡 -->
-        <div class="advisor-card team-a" x-show="advisor.a" x-transition>
-          <div class="ac-head">
-            <span class="advisor-attr-badge" :class="'attr-'+(advisor.a?.attribute||'')" x-text="advisor.a?.attribute||''"></span>
-            <span x-text="advisor.a?.general_name"></span>
-            <span>·</span>
-            <span x-text="advisor.a?.skill_name"></span>
-            <span x-show="advisor.a?.cost" style="margin-left:auto;font-size:11px;opacity:.7" x-text="'计略点 '+advisor.a?.cost"></span>
-          </div>
-          <div class="ac-desc" x-text="advisor.a?.description"></div>
-        </div>
         <template x-for="(g, gi) in teams.a" :key="gi">
           <div class="general-block">
             <div class="general-header" @click.outside="genOpen.a[gi]=false">
@@ -2162,7 +2159,9 @@ select.w-sm { width: 72px; }
         </div>
         <div class="advisor-wrap" @click.outside="advisorOpen.b=false">
           <div class="advisor-selector">
-            <div class="advisor-input-wrap" @click="advisorOpen.b=!advisorOpen.b">
+            <div class="advisor-input-wrap" @click="advisorOpen.b=!advisorOpen.b"
+              @mouseenter="advisor.b && showAdvisorTip($event, advisor.b)"
+              @mouseleave="hideAdvisorTip()">
               <input type="text" x-model="advisorSearch.b" :placeholder="advisor.b ? advisor.b.general_name : '选择军师'"
                 @input="advisorOpen.b=true" @focus="advisorOpen.b=true" autocomplete="off">
               <span class="clear-btn" x-show="advisor.b" @click.stop="advisor.b=null;advisorSearch.b=''">✕</span>
@@ -2173,7 +2172,8 @@ select.w-sm { width: 72px; }
                 <div class="advisor-empty">无匹配结果</div>
               </template>
               <template x-for="s in filteredAdvisors('b')" :key="s.id">
-                <div class="advisor-dropdown-item" @click="advisor.b=s;advisorSearch.b='';advisorOpen.b=false">
+                <div class="advisor-dropdown-item" @click="advisor.b=s;advisorSearch.b='';advisorOpen.b=false"
+                  @mouseenter="showAdvisorTip($event, s)" @mouseleave="hideAdvisorTip()">
                   <span class="advisor-attr-badge" :class="'attr-'+(s.attribute||'')" x-text="s.attribute||'?'"></span>
                   <span class="adv-name" x-text="s.general_name"></span>
                   <span class="adv-skill" x-text="s.skill_name"></span>
@@ -2184,17 +2184,6 @@ select.w-sm { width: 72px; }
         </div>
       </div>
       <div class="card-body">
-        <!-- 军师技信息卡 -->
-        <div class="advisor-card team-b" x-show="advisor.b" x-transition>
-          <div class="ac-head">
-            <span class="advisor-attr-badge" :class="'attr-'+(advisor.b?.attribute||'')" x-text="advisor.b?.attribute||''"></span>
-            <span x-text="advisor.b?.general_name"></span>
-            <span>·</span>
-            <span x-text="advisor.b?.skill_name"></span>
-            <span x-show="advisor.b?.cost" style="margin-left:auto;font-size:11px;opacity:.7" x-text="'计略点 '+advisor.b?.cost"></span>
-          </div>
-          <div class="ac-desc" x-text="advisor.b?.description"></div>
-        </div>
         <template x-for="(g, gi) in teams.b" :key="gi">
           <div class="general-block">
             <div class="general-header" @click.outside="genOpen.b[gi]=false">
@@ -2776,6 +2765,20 @@ select.w-sm { width: 72px; }
     </div>
   </div>
 
+  <!-- 军师技悬停提示 -->
+  <div class="advisor-tip"
+    x-show="advisorTip.show"
+    :style="`left:${advisorTip.x}px;top:${advisorTip.y+18}px`"
+    style="display:none">
+    <div class="advisor-tip-head">
+      <span class="advisor-attr-badge" :class="'attr-'+(advisorTip.s?.attribute||'')" x-text="advisorTip.s?.attribute||''"></span>
+      <span x-text="advisorTip.s?.general_name"></span>
+      <span>·</span>
+      <span x-text="advisorTip.s?.skill_name"></span>
+      <span x-show="advisorTip.s?.cost" style="margin-left:auto;font-size:11px;opacity:.7" x-text="'计略点 '+advisorTip.s?.cost"></span>
+    </div>
+    <div class="advisor-tip-desc" x-text="advisorTip.s?.description"></div>
+  </div>
 </div><!-- /app -->
 
 <script>
@@ -2865,6 +2868,7 @@ function simulator() {
     advisorSkills: [],
     advisorSearch: { a: '', b: '' },
     advisorOpen: { a: false, b: false },
+    advisorTip: { show: false, s: null, x: 0, y: 0 },
     generalsData: [],
     affinitiesData: [],
     genSearch: { a: ['','',''], b: ['','',''] },
@@ -4264,6 +4268,12 @@ function simulator() {
       return this.advisorSkills.filter(s =>
         s.general_name.includes(q) || s.skill_name.includes(q)
       );
+    },
+    showAdvisorTip(e, s) {
+      this.advisorTip = { show: true, s, x: e.clientX, y: e.clientY };
+    },
+    hideAdvisorTip() {
+      this.advisorTip.show = false;
     },
 
     buildPayload(runs) {
