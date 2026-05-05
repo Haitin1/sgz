@@ -1548,14 +1548,20 @@ select.w-sm { width: 72px; }
 
     <!-- Team A 列 -->
     <div class="team-col">
-    <div class="lineup-bar team-a">
-      <button class="lineup-save-btn"
-        :disabled="!canSaveLineup() || lineupSlotsFull()"
-        @click="saveLineup()"
-        :title="lineupSlotsFull() ? '已存满5个阵容' : '保存当前我方阵容'">
-        💾 保存阵容
-      </button>
-      <input class="lineup-name-input" type="text" x-model="lineupName" placeholder="阵容名称" maxlength="10">
+    <div class="lineup-bar team-a" style="flex-direction:column;align-items:stretch;gap:7px;">
+      <!-- 第一行：保存 + 名称 + 推荐 + 识别 -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <button class="lineup-save-btn"
+          :disabled="!canSaveLineup() || lineupSlotsFull()"
+          @click="saveLineup()"
+          :title="lineupSlotsFull() ? '已存满5个阵容' : '保存当前我方阵容'">
+          💾 保存阵容
+        </button>
+        <input class="lineup-name-input" type="text" x-model="lineupName" placeholder="阵容名称" maxlength="10">
+        <button class="lineup-action-btn" style="color:#2563eb;border-color:#bfdbfe;background:#eff6ff" @click="openRecModal('a')">📋 推荐阵容</button>
+        <button class="lineup-action-btn" style="color:#059669;border-color:#6ee7b7;background:#ecfdf5" @click="openOcrLineupModal('a')">🤖 识别导入</button>
+      </div>
+      <!-- 第二行：阵容槽 + 删除 -->
       <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
         <div class="lineup-slots">
           <template x-for="(slot, idx) in savedLineups" :key="idx">
@@ -1574,8 +1580,6 @@ select.w-sm { width: 72px; }
           </template>
         </div>
         <button class="lineup-action-btn" :class="lineupDeleteMode.a ? 'del-active' : ''" @click="lineupDeleteMode.a = !lineupDeleteMode.a">删除</button>
-        <button class="lineup-action-btn" style="color:#2563eb;border-color:#bfdbfe;background:#eff6ff" @click="openRecModal('a')">📋 推荐阵容</button>
-        <button class="lineup-action-btn" style="color:#059669;border-color:#6ee7b7;background:#ecfdf5" @click="openOcrLineupModal('a')">🤖 识别导入</button>
       </div>
     </div>
     <div class="card">
@@ -2096,14 +2100,20 @@ select.w-sm { width: 72px; }
 
     <!-- Team B 列 -->
     <div class="team-col">
-    <div class="lineup-bar team-b">
-      <button class="lineup-save-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 1px 3px rgba(220,38,38,.35)"
-        :disabled="!canSaveLineupB() || lineupSlotsBFull()"
-        @click="saveLineupB()"
-        :title="lineupSlotsBFull() ? '已存满5个阵容' : '保存当前敌方阵容'">
-        💾 保存阵容
-      </button>
-      <input class="lineup-name-input" type="text" x-model="lineupNameB" placeholder="阵容名称" maxlength="10">
+    <div class="lineup-bar team-b" style="flex-direction:column;align-items:stretch;gap:7px;">
+      <!-- 第一行：保存 + 名称 + 推荐 + 识别 -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <button class="lineup-save-btn" style="background:linear-gradient(135deg,#dc2626,#b91c1c);box-shadow:0 1px 3px rgba(220,38,38,.35)"
+          :disabled="!canSaveLineupB() || lineupSlotsBFull()"
+          @click="saveLineupB()"
+          :title="lineupSlotsBFull() ? '已存满5个阵容' : '保存当前敌方阵容'">
+          💾 保存阵容
+        </button>
+        <input class="lineup-name-input" type="text" x-model="lineupNameB" placeholder="阵容名称" maxlength="10">
+        <button class="lineup-action-btn" style="color:#dc2626;border-color:#fecaca;background:#fef2f2" @click="openRecModal('b')">📋 推荐阵容</button>
+        <button class="lineup-action-btn" style="color:#059669;border-color:#6ee7b7;background:#ecfdf5" @click="openOcrLineupModal('b')">🤖 识别导入</button>
+      </div>
+      <!-- 第二行：阵容槽 + 删除 -->
       <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
         <div class="lineup-slots">
           <template x-for="(slot, idx) in savedLineupsB" :key="idx">
@@ -2121,10 +2131,7 @@ select.w-sm { width: 72px; }
             </div>
           </template>
         </div>
-
         <button class="lineup-action-btn" :class="lineupDeleteMode.b ? 'del-active' : ''" @click="lineupDeleteMode.b = !lineupDeleteMode.b">删除</button>
-        <button class="lineup-action-btn" style="color:#dc2626;border-color:#fecaca;background:#fef2f2" @click="openRecModal('b')">📋 推荐阵容</button>
-        <button class="lineup-action-btn" style="color:#059669;border-color:#6ee7b7;background:#ecfdf5" @click="openOcrLineupModal('b')">🤖 识别导入</button>
       </div>
     </div>
     <div class="card">
