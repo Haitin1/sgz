@@ -396,10 +396,8 @@ class BattleEngine:
                 if winner:
                     return winner
 
-            # 回合末：tick状态
-            for s in states_a + states_b:
-                if s.alive:
-                    s.tick_statuses()
+            self._round_end(states_a, states_b, eng, rnd)
+            self._round_end(states_b, states_a, eng, rnd)
 
         # 8回合打完，双方主将均存活 → 本局平局，继承兵力进入下一局
         return "engagement_draw"
@@ -473,6 +471,45 @@ class BattleEngine:
                 if self._is_skill_disabled(state, skill):
                     continue
                 self._trigger_skill_effects("round_start", skill, state, my_states, enemy_states, eng, rnd)
+
+    def _round_end(
+        self,
+        my_states: list[GeneralState],
+        enemy_states: list[GeneralState],
+        eng: int,
+        rnd: int,
+    ):
+        for state in my_states:
+            if not state.alive:
+                continue
+            for skill in state.cfg.skills:
+                if self._is_skill_disabled(state, skill):
+                    continue
+                self._trigger_skill_effects("round_end", skill, state, my_states, enemy_states, eng, rnd)
+            self._tick_state_statuses(state, eng, rnd)
+
+    def _tick_state_statuses(self, state: GeneralState, eng: int, rnd: int):
+        still_active = []
+        for status in state.statuses:
+            if status.rounds_left > 0:
+                status.rounds_left -= 1
+                if status.rounds_left > 0:
+                    still_active.append(status)
+                else:
+                    self._emit(
+                        eng,
+                        rnd,
+                        state.cfg.name,
+                        f"【{status.name}】状态结束",
+                        0,
+                        state.cfg.name,
+                        event="status_expired",
+                        source_skill=status.source_skill,
+                        details={"status": status.name},
+                    )
+            else:
+                still_active.append(status)
+        state.statuses = still_active
 
     def _apply_stat_bonus(self, state: GeneralState, attr: str, val):
         mapping = {"武力": "bonus_force", "智力": "bonus_intel",
